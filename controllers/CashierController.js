@@ -78,7 +78,6 @@ function render() {
 }
 
 function renderClosedShift() {
-    // Убираем плавающие элементы
     document.getElementById('cartToggleBtn')?.remove();
     document.getElementById('cartOverlay')?.remove();
     document.getElementById('fabQuickAdd')?.remove();
@@ -97,10 +96,13 @@ function renderClosedShift() {
         </div>`;
 
     document.getElementById('openShiftBtn')?.addEventListener('click', async () => {
+        console.log('[Cashier] openShift button clicked');
         const { success, error } = await ShiftService.openShift(state.user?.id);
         if (success) {
             showNotification('Смена открыта', 'success');
+            console.log('[Cashier] shift opened successfully');
         } else {
+            console.error('[Cashier] shift open failed:', error);
             showNotification(error || 'Ошибка открытия смены', 'error');
         }
         render();
@@ -108,11 +110,30 @@ function renderClosedShift() {
 }
 
 function renderShiftBar() {
+    const stats = shiftStore.getStats();
+    const revenue = formatMoney(stats.revenue);
+    const profit = formatMoney(stats.profit);
+    const salesCount = stats.salesCount;
+
     return `
         <div class="shift-bar">
             <div class="shift-status">
                 <span class="status-dot"></span>
                 <span>Смена открыта</span>
+            </div>
+            <div class="shift-stats">
+                <div class="stat-item">
+                    <span class="stat-label">Продаж</span>
+                    <span class="stat-value">${salesCount}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Выручка</span>
+                    <span class="stat-value">${revenue}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Прибыль</span>
+                    <span class="stat-value">${profit}</span>
+                </div>
             </div>
             <button class="btn-danger btn-sm" id="closeShiftBtn"
                 ${shiftStore.isPending() ? 'disabled' : ''}>
@@ -253,8 +274,8 @@ function renderCartPanelContent() {
                 Оформить продажу (F9)
             </button>
             <div class="keyboard-hints">
-                <kbd>F9</kbd> &mdash; оформить
-                <kbd>Ctrl</kbd>+<kbd>F</kbd> &mdash; поиск
+                <kbd>F9</kbd> — оформить
+                <kbd>Ctrl</kbd>+<kbd>F</kbd> — поиск
             </div>
         </div>`;
 }
@@ -276,21 +297,19 @@ function renderMobileCartTrigger() {
     const count = cartStore.getCount();
     const total = cartStore.getTotal();
 
-    // Оверлей
     const overlay = document.createElement('div');
     overlay.id = 'cartOverlay';
     overlay.className = 'cart-overlay';
     overlay.addEventListener('click', closeCart);
     DOM.content.appendChild(overlay);
 
-    // Кнопка-триггер
     const btn = document.createElement('button');
     btn.id = 'cartToggleBtn';
     btn.className = 'cart-toggle-btn';
     btn.innerHTML = `
         Корзина
         <span class="cart-toggle-badge" id="cartToggleBadge">${count}</span>
-        &middot;
+        ·
         <span>${formatMoney(total)}</span>
     `;
     btn.addEventListener('click', toggleCart);
@@ -427,7 +446,16 @@ async function quickAdd() {
 }
 
 async function closeShift() {
+    console.log('[Cashier] closeShift() called');
+
     const stats = shiftStore.getStats();
+    console.log('[Cashier] current shift stats:', stats);
+
+    if (!shiftStore.isOpen()) {
+        console.log('[Cashier] no open shift found');
+        showNotification('Нет открытой смены', 'warning');
+        return;
+    }
 
     const confirmed = await showConfirmDialog({
         title: 'Закрытие смены',
@@ -443,23 +471,35 @@ async function closeShift() {
         confirmClass: 'btn-danger'
     });
 
-    if (!confirmed) return;
+    if (!confirmed) {
+        console.log('[Cashier] user cancelled shift close');
+        return;
+    }
+
+    console.log('[Cashier] calling ShiftService.closeShift()...');
 
     const result = await ShiftService.closeShift();
+
+    console.log('[Cashier] ShiftService.closeShift() result:', result);
 
     if (result.success) {
         cartStore.reset();
 
+        const successMsg = [
+            `Выручка: ${formatMoney(result.stats.revenue)}`,
+            `Продаж: ${result.stats.salesCount}`,
+            `Прибыль: ${formatMoney(result.stats.profit)}`
+        ].join(' | ');
+
+        console.log('[Cashier] shift closed successfully:', successMsg);
+
         showNotification(
-            [
-                `Выручка: ${formatMoney(result.stats.revenue)}`,
-                `Продаж: ${result.stats.salesCount}`,
-                `Прибыль: ${formatMoney(result.stats.profit)}`
-            ].join(' | '),
+            successMsg,
             'success',
             { title: 'Смена закрыта', duration: 6000 }
         );
     } else {
+        console.error('[Cashier] shift close failed:', result.error);
         showNotification(result.error || 'Не удалось закрыть смену', 'error');
     }
 
@@ -539,7 +579,6 @@ function bindEvents() {
 function onStoreChange() {
     render();
 
-    // Обновляем бейдж на кнопке корзины (мобильные)
     const badge = document.getElementById('cartToggleBadge');
     if (badge) {
         badge.textContent = cartStore.getCount();
@@ -551,7 +590,7 @@ function onStoreChange() {
         toggleBtn.innerHTML = `
             Корзина
             <span class="cart-toggle-badge" id="cartToggleBadge">${count}</span>
-            &middot;
+            ·
             <span>${formatMoney(total)}</span>
         `;
     }

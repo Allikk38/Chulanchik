@@ -47,26 +47,36 @@ class ShiftStore extends EventEmitter {
      * @returns {Promise<boolean>} true если смена открыта
      */
     async checkOpenShift(userId) {
-        if (!userId) return false;
+        console.log('[ShiftStore] checkOpenShift() called, userId:', userId);
 
-        // 1. Пробуем кэш
+        if (!userId) {
+            console.log('[ShiftStore] checkOpenShift: no userId');
+            return false;
+        }
+
         const cached = ShiftRepository.getCachedActive();
         if (cached) {
+            console.log('[ShiftStore] using cached shift:', cached.id);
             state.current = cached;
             this.emit('change');
             await this.loadStats();
+            console.log('[ShiftStore] stats loaded from cache, stats:', state.stats);
             return true;
         }
 
-        // 2. Сервер
+        console.log('[ShiftStore] no cached shift, fetching from server...');
+
         try {
             const shift = await ShiftRepository.getActive(userId);
             if (shift) {
+                console.log('[ShiftStore] active shift found:', shift.id);
                 state.current = shift;
                 this.emit('change');
                 await this.loadStats();
+                console.log('[ShiftStore] stats loaded from server, stats:', state.stats);
                 return true;
             }
+            console.log('[ShiftStore] no active shift found');
         } catch (err) {
             console.error('[ShiftStore] checkOpenShift error:', err);
             this.emit('error', err.message);
@@ -82,15 +92,25 @@ class ShiftStore extends EventEmitter {
      * @returns {Promise<boolean>} true если смена открыта
      */
     async openShift(userId) {
-        if (state.isPending) return false;
-        if (!userId) return false;
+        console.log('[ShiftStore] openShift() called, userId:', userId);
+
+        if (state.isPending) {
+            console.log('[ShiftStore] openShift: already pending');
+            return false;
+        }
+        if (!userId) {
+            console.log('[ShiftStore] openShift: no userId');
+            return false;
+        }
 
         state.isPending = true;
         this.emit('change');
 
         try {
+            console.log('[ShiftStore] calling ShiftRepository.open()...');
             const shift = await ShiftRepository.open(userId);
 
+            console.log('[ShiftStore] shift opened:', shift.id);
             state.current = shift;
             state.stats = { revenue: 0, profit: 0, salesCount: 0, itemsCount: 0 };
             this.emit('change');
@@ -114,18 +134,34 @@ class ShiftStore extends EventEmitter {
      * @returns {Promise<boolean>}
      */
     async closeShift() {
-        if (!state.current || state.isPending) return false;
+        console.log('[ShiftStore] closeShift() called');
+        console.log('[ShiftStore] current shift:', state.current?.id);
+        console.log('[ShiftStore] isPending:', state.isPending);
+
+        if (!state.current) {
+            console.log('[ShiftStore] closeShift: no current shift');
+            return false;
+        }
+
+        if (state.isPending) {
+            console.log('[ShiftStore] closeShift: already pending');
+            return false;
+        }
 
         state.isPending = true;
         this.emit('change');
 
         try {
-            await ShiftRepository.close(state.current.id, state.stats);
+            console.log('[ShiftStore] calling ShiftRepository.close() with shiftId:', state.current.id);
+            const result = await ShiftRepository.close(state.current.id);
+            console.log('[ShiftStore] ShiftRepository.close() result:', result);
 
+            console.log('[ShiftStore] clearing current shift');
             state.current = null;
             state.stats = { revenue: 0, profit: 0, salesCount: 0, itemsCount: 0 };
             this.emit('change');
 
+            console.log('[ShiftStore] closeShift completed successfully');
             return true;
 
         } catch (err) {
@@ -145,15 +181,20 @@ class ShiftStore extends EventEmitter {
      * @returns {Promise<void>}
      */
     async loadStats() {
-        if (!state.current) return;
+        if (!state.current) {
+            console.log('[ShiftStore] loadStats: no current shift');
+            return;
+        }
+
+        console.log('[ShiftStore] loadStats() for shift:', state.current.id);
 
         try {
             const stats = await ShiftRepository.loadStats(state.current.id);
+            console.log('[ShiftStore] stats loaded:', stats);
             state.stats = stats;
             this.emit('change');
         } catch (err) {
             console.error('[ShiftStore] loadStats error:', err);
-            // не ломаем приложение — статистика останется старой
         }
     }
 
@@ -167,6 +208,7 @@ class ShiftStore extends EventEmitter {
      * @param {number} delta.itemsCount
      */
     addToStats({ revenue = 0, profit = 0, salesCount = 0, itemsCount = 0 }) {
+        console.log('[ShiftStore] addToStats:', { revenue, profit, salesCount, itemsCount });
         state.stats.revenue += revenue;
         state.stats.profit += profit;
         state.stats.salesCount += salesCount;

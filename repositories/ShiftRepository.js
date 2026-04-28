@@ -41,11 +41,14 @@ function loadCachedActiveShift() {
             const parsed = JSON.parse(raw);
             if (Date.now() - parsed.cachedAt < ACTIVE_SHIFT_TTL_MS) {
                 cachedActiveShift = parsed.shift;
+                console.log('[ShiftRepository] loaded cached shift:', cachedActiveShift?.id);
                 return cachedActiveShift;
             }
+            console.log('[ShiftRepository] cache expired, removing');
             localStorage.removeItem(ACTIVE_SHIFT_KEY);
         }
     } catch (e) {
+        console.warn('[ShiftRepository] failed to load cache:', e);
         localStorage.removeItem(ACTIVE_SHIFT_KEY);
     }
 
@@ -61,14 +64,18 @@ function saveCachedActiveShift(shift) {
     cachedActiveShift = shift;
     try {
         if (shift) {
+            console.log('[ShiftRepository] saving shift to cache:', shift.id);
             localStorage.setItem(ACTIVE_SHIFT_KEY, JSON.stringify({
                 shift,
                 cachedAt: Date.now()
             }));
         } else {
+            console.log('[ShiftRepository] clearing shift cache');
             localStorage.removeItem(ACTIVE_SHIFT_KEY);
         }
-    } catch (e) { /* */ }
+    } catch (e) {
+        console.warn('[ShiftRepository] failed to save cache:', e);
+    }
 }
 
 // ============================================================
@@ -83,6 +90,8 @@ export const ShiftRepository = {
      * @returns {Promise<Object|null>}
      */
     async getActive(userId) {
+        console.log('[ShiftRepository] getActive() called, userId:', userId);
+
         const { data, error } = await supabase
             .from('shifts')
             .select('*')
@@ -92,8 +101,16 @@ export const ShiftRepository = {
             .limit(1)
             .single();
 
-        if (error && error.code !== 'PGRST116') throw error;
+        if (error) {
+            if (error.code === 'PGRST116') {
+                console.log('[ShiftRepository] no active shift found');
+                return null;
+            }
+            console.error('[ShiftRepository] getActive error:', error);
+            throw error;
+        }
 
+        console.log('[ShiftRepository] active shift found:', data?.id);
         if (data) saveCachedActiveShift(data);
         return data || null;
     },
@@ -105,18 +122,28 @@ export const ShiftRepository = {
      * @returns {Promise<Object>}
      */
     async open(userId) {
+        console.log('[ShiftRepository] open() called, userId:', userId);
+
+        const shiftData = {
+            user_id: userId,
+            opened_at: new Date().toISOString(),
+            status: 'active'
+        };
+
+        console.log('[ShiftRepository] inserting shift:', shiftData);
+
         const { data, error } = await supabase
             .from('shifts')
-            .insert({
-                user_id: userId,
-                opened_at: new Date().toISOString(),
-                status: 'active'
-            })
+            .insert(shiftData)
             .select()
             .single();
 
-        if (error) throw error;
+        if (error) {
+            console.error('[ShiftRepository] open error:', error);
+            throw error;
+        }
 
+        console.log('[ShiftRepository] shift opened successfully:', data.id);
         saveCachedActiveShift(data);
         return data;
     },
@@ -124,24 +151,33 @@ export const ShiftRepository = {
     /**
      * Закрывает смену.
      * Обновляет только closed_at и status.
-     * Статистика всегда пересчитывается из продаж через loadStats().
      *
      * @param {string} shiftId
      * @returns {Promise<Object>}
      */
     async close(shiftId) {
+        console.log('[ShiftRepository] close() called, shiftId:', shiftId);
+
+        const updateData = {
+            closed_at: new Date().toISOString(),
+            status: 'closed'
+        };
+
+        console.log('[ShiftRepository] updating shift:', updateData);
+
         const { data, error } = await supabase
             .from('shifts')
-            .update({
-                closed_at: new Date().toISOString(),
-                status: 'closed'
-            })
+            .update(updateData)
             .eq('id', shiftId)
             .select()
             .single();
 
-        if (error) throw error;
+        if (error) {
+            console.error('[ShiftRepository] close error:', error);
+            throw error;
+        }
 
+        console.log('[ShiftRepository] shift closed successfully:', data.id);
         saveCachedActiveShift(null);
         return data;
     },
@@ -173,12 +209,17 @@ export const ShiftRepository = {
      * @returns {Promise<{revenue: number, profit: number, salesCount: number, itemsCount: number}>}
      */
     async loadStats(shiftId) {
+        console.log('[ShiftRepository] loadStats() called, shiftId:', shiftId);
+
         const { data, error } = await supabase
             .from('sales')
             .select('total, profit, items')
             .eq('shift_id', shiftId);
 
-        if (error) throw error;
+        if (error) {
+            console.error('[ShiftRepository] loadStats error:', error);
+            throw error;
+        }
 
         const sales = data || [];
 
@@ -196,12 +237,9 @@ export const ShiftRepository = {
             }
         }
 
-        return {
-            revenue,
-            profit,
-            salesCount: sales.length,
-            itemsCount
-        };
+        const stats = { revenue, profit, salesCount: sales.length, itemsCount };
+        console.log('[ShiftRepository] stats calculated:', stats);
+        return stats;
     },
 
     /**
