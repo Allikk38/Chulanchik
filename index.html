@@ -1,0 +1,153 @@
+<!-- ============================================================ -->
+<!-- index.html -->
+<!-- ============================================================ -->
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Чуланчик</title>
+
+    <base href="/second-hand-crm/">
+
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f1f5f9;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .splash {
+            text-align: center;
+            padding: 40px;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -2px rgba(0,0,0,0.08);
+            max-width: 420px;
+            width: 90%;
+            border: 1px solid #e2e8f0;
+        }
+
+        .splash-logo { font-size: 48px; margin-bottom: 12px; }
+
+        .splash h1 {
+            font-size: 22px;
+            font-weight: 600;
+            color: #0f172a;
+            margin-bottom: 4px;
+        }
+
+        .splash p {
+            font-size: 14px;
+            color: #64748b;
+            margin-bottom: 28px;
+        }
+
+        .spinner {
+            width: 36px;
+            height: 36px;
+            border: 3px solid #e2e8f0;
+            border-top-color: #2563eb;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .error-block {
+            display: none;
+            margin-top: 20px;
+            padding: 14px;
+            background: #fef2f2;
+            border-radius: 8px;
+            border-left: 3px solid #dc2626;
+            text-align: left;
+            font-size: 13px;
+            color: #991b1b;
+        }
+
+        .error-block.show { display: block; }
+
+        .error-block a {
+            display: inline-block;
+            margin-top: 10px;
+            padding: 6px 14px;
+            background: #2563eb;
+            color: white;
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <div class="splash">
+        <div class="splash-logo">🧺</div>
+        <h1>Чуланчик</h1>
+        <p>Комиссионный магазин</p>
+
+        <div id="loader">
+            <div class="spinner"></div>
+            <span style="font-size:14px;color:#475569;">Проверка сессии...</span>
+        </div>
+
+        <div class="error-block" id="errorBlock">
+            <div id="errorText">Не удалось подключиться к серверу</div>
+            <a href="pages/login.html">Перейти ко входу</a>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initAuth } from './core/auth.js';
+
+        async function main() {
+            try {
+                const user = await initAuth();
+
+                if (user) {
+                    window.location.href = 'pages/inventory.html';
+                } else {
+                    window.location.href = 'pages/login.html';
+                }
+            } catch (err) {
+                console.error('[Index] error:', err);
+                document.getElementById('loader').style.display = 'none';
+                document.getElementById('errorBlock').classList.add('show');
+                document.getElementById('errorText').textContent =
+                    'Не удалось подключиться к серверу. Проверьте интернет.';
+            }
+        }
+
+        main();
+
+        // Таймаут 10 секунд
+        setTimeout(() => {
+            const loader = document.getElementById('loader');
+            if (loader.style.display !== 'none') {
+                loader.style.display = 'none';
+                document.getElementById('errorBlock').classList.add('show');
+            }
+        }, 10000);
+
+        // PWA
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/second-hand-crm/sw.js', { scope: '/second-hand-crm/' })
+                .catch(() => {});
+        }
+    </script>
+</body>
+</html>
