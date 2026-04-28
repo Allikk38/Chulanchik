@@ -1,0 +1,336 @@
+/**
+ * CSS Reset - Business Professional
+ * 
+ * Минимальный сброс стилей для бизнес-приложений.
+ * Без анимаций, только необходимая нормализация.
+ * 
+ * @stylesheet reset
+ * @version 5.0.0
+ * @changes
+ * - Добавлены стили для fieldset и legend.
+ * - Добавлен базовый стиль для :focus.
+ * - Упрощены комментарии.
+ */
+
+/* ========== BOX SIZING ========== */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+/* ========== DOCUMENT ========== */
+html {
+    line-height: 1.15;
+    -webkit-text-size-adjust: 100%;
+    -moz-tab-size: 4;
+    tab-size: 4;
+}
+
+/* ========== SECTIONS ========== */
+body {
+    margin: 0;
+    font-family: var(--font-family-base);
+    font-size: var(--font-size-base);
+    line-height: var(--line-height-normal);
+    color: var(--color-text);
+    background: var(--color-bg);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* ========== GROUPING CONTENT ========== */
+hr {
+    height: 0;
+    color: inherit;
+    border: 0;
+    border-top: var(--border-width) solid var(--color-border);
+}
+
+/* ========== TEXT-LEVEL SEMANTICS ========== */
+abbr[title] {
+    text-decoration: underline dotted;
+    cursor: help;
+}
+
+b,
+strong {
+    font-weight: var(--font-weight-bold);
+}
+
+code,
+kbd,
+samp,
+pre {
+    font-family: var(--font-family-mono);
+    font-size: 1em;
+}
+
+small {
+    font-size: 80%;
+}
+
+sub,
+sup {
+    font-size: 75%;
+    line-height: 0;
+    position: relative;
+    vertical-align: baseline;
+}
+
+sub {
+    bottom: -0.25em;
+}
+
+sup {
+    top: -0.5em;
+}
+
+/* ========== EMBEDDED CONTENT ========== */
+img,
+svg,
+video,
+canvas,
+audio,
+iframe,
+embed,
+object {
+    display: block;
+    vertical-align: middle;
+}
+
+img,
+video {
+    max-width: 100%;
+    height: auto;
+}
+
+/* ========== FORMS ========== */
+button,
+input,
+optgroup,
+select,
+textarea {
+    font-family: inherit;
+    font-size: 100%;
+    line-height: 1.15;
+    margin: 0;
+}
+
+button,
+select {
+    text-transform: none;
+}
+
+button,
+[type='button'],
+[type='reset'],
+[type='submit'] {
+    -webkit-appearance: button;
+    appearance: button;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+}
+
+button:disabled,
+[type='button']:disabled,
+[type='reset']:disabled,
+[type='submit']:disabled {
+    cursor: not-allowed;
+}
+
+/* Фокус для кнопок (без агрессивных outline) */
+button:focus,
+[type='button']:focus,
+[type='reset']:focus,
+[type='submit']:focus {
+    outline: none;
+}
+
+::-moz-focus-inner {
+    border-style: none;
+    padding: 0;
+}
+
+:-moz-focusring {
+    outline: 1px dotted ButtonText;
+}
+
+:-moz-ui-invalid {
+    box-shadow: none;
+}
+
+legend {
+    padding: 0;
+}
+
+progress {
+    vertical-align: baseline;
+}
+
+::-webkit-inner-spin-button,
+::-webkit-outer-spin-button {
+    height: auto;
+}
+
+[type='search'] {
+    -webkit-appearance: textfield;
+    appearance: textfield;
+    outline-offset: -2px;
+}
+
+::-webkit-search-decoration {
+    -webkit-appearance: none;
+}
+
+::-webkit-file-upload-button {
+    -webkit-appearance: button;
+    font: inherit;
+}
+
+/* ========== FIELDSET ========== */
+fieldset {
+    border: none;
+    padding: 0;
+    margin: 0;
+    min-width: 0;
+}
+
+/* ========== INTERACTIVE ========== */
+details {
+    display: block;
+}
+
+summary {
+    display: list-item;
+    cursor: pointer;
+}
+
+/* ========== TABLES ========== */
+table {
+    border-collapse: collapse;
+    border-spacing: 0;
+    text-indent: 0;
+    width: 100%;
+}
+
+th,
+td {
+    padding: 0;
+    text-align: left;
+}
+
+/* ========== LISTS ========== */
+ul,
+ol {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+/* ========== BLOCKQUOTES ========== */
+blockquote,
+dd,
+dl,
+figure,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+pre {
+    margin: 0;
+}
+
+/* ========== HEADINGS ========== */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    font-size: inherit;
+    font-weight: inherit;
+}
+
+/* ========== LINKS ========== */
+a {
+    color: inherit;
+    text-decoration: inherit;
+}
+
+/* ========== DIALOGS ========== */
+dialog {
+    background-color: inherit;
+    border: solid;
+    color: inherit;
+    display: block;
+    height: fit-content;
+    left: 0;
+    margin: auto;
+    padding: 1em;
+    position: absolute;
+    right: 0;
+    width: fit-content;
+}
+
+dialog:not([open]) {
+    display: none;
+}
+
+/* ========== TEXTAREA ========== */
+textarea {
+    resize: vertical;
+}
+
+/* ========== VISIBILITY ========== */
+[hidden] {
+    display: none !important;
+}
+
+[disabled] {
+    opacity: var(--opacity-disabled);
+    pointer-events: none;
+}
+
+/* ========== ФОКУС ДЛЯ ДОСТУПНОСТИ ========== */
+/* Базовый стиль для всех фокусов */
+:focus {
+    outline: none;
+}
+
+/* Стиль только для клавиатурной навигации */
+:focus-visible {
+    outline: var(--focus-ring-width) solid var(--focus-ring-color);
+    outline-offset: var(--focus-ring-offset);
+}
+
+/* ========== ПЛЕЙСХОЛДЕРЫ ========== */
+::placeholder {
+    color: var(--color-text-muted);
+    opacity: 1;
+}
+
+/* ========== СКРОЛЛБАР ========== */
+/* Минимальный, статичный скроллбар без анимаций */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--color-gray-100);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--color-gray-400);
+    border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-corner {
+    background: transparent;
+}

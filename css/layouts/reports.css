@@ -1,0 +1,580 @@
+/**
+ * Reports Layout - Business Professional
+ * 
+ * Строгая страница отчетов для бизнес-аналитики.
+ * Без анимаций, без градиентов.
+ * 
+ * @stylesheet reports
+ * @version 4.0.0
+ * @changes
+ * - Убраны transform и анимированные тени у KPI
+ * - Убраны градиенты у карточек
+ * - Упрощены табы переключения
+ * - Статичные графики и таблицы
+ */
+
+/* ========== REPORTS PAGE ========== */
+.reports-page {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-5);
+}
+
+/* ========== REPORTS HEADER ========== */
+.reports-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--spacing-4);
+}
+
+.reports-header .period-label {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
+    margin-left: var(--spacing-2);
+}
+
+.period-selector {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+}
+
+.period-preset {
+    min-width: 120px;
+}
+
+.custom-period {
+    display: none;
+    align-items: center;
+    gap: var(--spacing-2);
+}
+
+.custom-period.visible {
+    display: flex;
+}
+
+.custom-period input {
+    width: 140px;
+}
+
+/* ========== REPORTS TABS ========== */
+.reports-tabs {
+    display: flex;
+    gap: var(--spacing-1);
+    padding: var(--spacing-1);
+    background: var(--color-white);
+    border-radius: var(--radius-lg);
+    border: var(--border-width) solid var(--color-border);
+    width: fit-content;
+}
+
+.reports-tabs .tab-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    padding: var(--spacing-2) var(--spacing-4);
+    border-radius: var(--radius-md);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-secondary);
+    background: transparent;
+    cursor: pointer;
+}
+
+.reports-tabs .tab-btn:hover {
+    background: var(--color-gray-100);
+    color: var(--color-text);
+}
+
+.reports-tabs .tab-btn.active {
+    background: var(--color-gray-800);
+    color: var(--color-white);
+}
+
+.tab-icon {
+    font-size: 16px;
+}
+
+/* ========== REPORTS CONTENT ========== */
+.reports-content {
+    min-height: 500px;
+}
+
+/* ========== REPORTS LOADER ========== */
+.reports-loader {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 400px;
+    gap: var(--spacing-4);
+    color: var(--color-text-muted);
+}
+
+/* ========== KPI GRID ========== */
+.kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: var(--spacing-4);
+    margin-bottom: var(--spacing-6);
+}
+
+.kpi-card {
+    padding: var(--spacing-4);
+    background: var(--color-white);
+    border-radius: var(--radius-lg);
+    border: var(--border-width) solid var(--color-border);
+    border-left: 3px solid var(--color-gray-400);
+}
+
+/* Цветовое кодирование KPI */
+.kpi-card:nth-child(1) { border-left-color: var(--color-primary); }
+.kpi-card:nth-child(2) { border-left-color: var(--color-success); }
+.kpi-card:nth-child(3) { border-left-color: var(--color-warning); }
+.kpi-card:nth-child(4) { border-left-color: var(--color-info); }
+
+.kpi-card:hover {
+    background: var(--color-gray-50);
+}
+
+.kpi-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    margin-bottom: var(--spacing-2);
+}
+
+.kpi-icon {
+    font-size: 20px;
+    opacity: 0.7;
+}
+
+.kpi-title {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+    font-weight: var(--font-weight-medium);
+    text-transform: uppercase;
+    letter-spacing: var(--letter-spacing-wide);
+}
+
+.kpi-value {
+    font-size: var(--font-size-2xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-text);
+    margin-bottom: var(--spacing-1);
+    font-family: var(--font-family-mono);
+}
+
+.kpi-footer {
+    display: flex;
+    align-items: center;
+}
+
+.trend {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-1);
+    padding: var(--spacing-0-5) var(--spacing-2);
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    background: var(--color-gray-100);
+    color: var(--color-text-secondary);
+}
+
+.trend-up {
+    background: var(--color-success-bg);
+    color: var(--color-success-dark);
+}
+
+.trend-down {
+    background: var(--color-danger-bg);
+    color: var(--color-danger-dark);
+}
+
+.trend-neutral {
+    background: var(--color-gray-100);
+    color: var(--color-text-muted);
+}
+
+/* ========== CHARTS ========== */
+.charts-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: var(--spacing-5);
+    margin-bottom: var(--spacing-6);
+}
+
+.chart-card {
+    padding: var(--spacing-4);
+    background: var(--color-white);
+    border-radius: var(--radius-lg);
+    border: var(--border-width) solid var(--color-border);
+}
+
+.chart-card h4 {
+    margin-bottom: var(--spacing-3);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text);
+    font-size: var(--font-size-sm);
+}
+
+.chart-card.full-width {
+    grid-column: 1 / -1;
+}
+
+.chart-container {
+    position: relative;
+    height: 200px;
+    background: var(--color-white);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-2);
+    border: var(--border-width) solid var(--color-border-light);
+}
+
+.chart-container.large {
+    height: 300px;
+}
+
+/* ========== DASHBOARD BOTTOM ========== */
+.dashboard-bottom {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-5);
+}
+
+/* ========== CARD ========== */
+.card {
+    padding: var(--spacing-4);
+    background: var(--color-white);
+    border-radius: var(--radius-lg);
+    border: var(--border-width) solid var(--color-border);
+}
+
+.card h4 {
+    margin-bottom: var(--spacing-3);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text);
+    text-transform: uppercase;
+    letter-spacing: var(--letter-spacing-wide);
+    font-size: var(--font-size-xs);
+}
+
+/* ========== ALERTS ========== */
+.alerts-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-2);
+}
+
+.alert-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    padding: var(--spacing-2) var(--spacing-3);
+    border-radius: var(--radius-md);
+    background: var(--color-white);
+    border-left: 3px solid;
+    border: var(--border-width) solid var(--color-border);
+    border-left-width: 3px;
+}
+
+.alert-success {
+    border-left-color: var(--color-success);
+    background: var(--color-success-bg);
+}
+
+.alert-warning {
+    border-left-color: var(--color-warning);
+    background: var(--color-warning-bg);
+}
+
+.alert-danger {
+    border-left-color: var(--color-danger);
+    background: var(--color-danger-bg);
+}
+
+.alert-info {
+    border-left-color: var(--color-info);
+    background: var(--color-info-bg);
+}
+
+.alert-icon {
+    font-size: 18px;
+}
+
+.alert-message {
+    flex: 1;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text);
+}
+
+.alert-value {
+    font-weight: var(--font-weight-bold);
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-sm);
+}
+
+/* ========== REPORT SUMMARY ========== */
+.report-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: var(--spacing-4);
+    margin-bottom: var(--spacing-6);
+}
+
+.summary-card {
+    padding: var(--spacing-3);
+    background: var(--color-white);
+    border-radius: var(--radius-lg);
+    border: var(--border-width) solid var(--color-border);
+}
+
+.summary-card .label {
+    display: block;
+    font-size: var(--font-size-xs);
+    color: var(--color-text-muted);
+    margin-bottom: var(--spacing-1);
+    text-transform: uppercase;
+    letter-spacing: var(--letter-spacing-wide);
+}
+
+.summary-card .value {
+    display: block;
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-text);
+    font-family: var(--font-family-mono);
+}
+
+/* ========== TWO COLUMNS ========== */
+.two-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-5);
+    margin-bottom: var(--spacing-5);
+}
+
+/* ========== TOP LIST ========== */
+.top-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.top-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    padding: var(--spacing-2) 0;
+    border-bottom: var(--border-width) solid var(--color-border-light);
+}
+
+.top-item:last-child {
+    border-bottom: none;
+}
+
+.top-item .rank {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-gray-100);
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-secondary);
+}
+
+.top-item .name {
+    flex: 1;
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text);
+    font-size: var(--font-size-sm);
+}
+
+.top-item .value {
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-xs);
+}
+
+.top-item .amount {
+    min-width: 80px;
+    text-align: right;
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text);
+    font-family: var(--font-family-mono);
+}
+
+/* ========== SLOW PRODUCTS ========== */
+.slow-products {
+    display: flex;
+    flex-direction: column;
+}
+
+.slow-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--spacing-2) 0;
+    border-bottom: var(--border-width) solid var(--color-border-light);
+}
+
+.slow-item:last-child {
+    border-bottom: none;
+}
+
+.slow-item .name {
+    flex: 1;
+    font-weight: var(--font-weight-medium);
+    font-size: var(--font-size-sm);
+}
+
+.slow-item .days {
+    padding: var(--spacing-0-5) var(--spacing-2);
+    background: var(--color-warning-bg);
+    color: var(--color-warning-dark);
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+}
+
+.slow-item .price {
+    min-width: 80px;
+    text-align: right;
+    color: var(--color-text-secondary);
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-sm);
+}
+
+/* ========== TABLE CARD ========== */
+.table-card {
+    padding: var(--spacing-4);
+    background: var(--color-white);
+    border-radius: var(--radius-lg);
+    border: var(--border-width) solid var(--color-border);
+}
+
+.table-card h4 {
+    margin-bottom: var(--spacing-3);
+}
+
+/* ========== PROFIT REPORT ========== */
+.profit-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--spacing-5);
+    margin-top: var(--spacing-5);
+}
+
+.profit-card {
+    padding: var(--spacing-5);
+    background: var(--color-white);
+    border-radius: var(--radius-lg);
+    border: var(--border-width) solid var(--color-border);
+    text-align: left;
+}
+
+.profit-card h4 {
+    margin-bottom: var(--spacing-3);
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    font-size: var(--font-size-xs);
+    letter-spacing: var(--letter-spacing-wide);
+}
+
+.profit-value {
+    font-size: var(--font-size-3xl);
+    font-weight: var(--font-weight-bold);
+    font-family: var(--font-family-mono);
+}
+
+.profit-value.positive {
+    color: var(--color-success-dark);
+}
+
+.profit-value.negative {
+    color: var(--color-danger-dark);
+}
+
+.profit-value.warning {
+    color: var(--color-warning-dark);
+}
+
+.info-message {
+    padding: var(--spacing-3);
+    background: var(--color-info-bg);
+    border-radius: var(--radius-md);
+    color: var(--color-info-dark);
+    text-align: center;
+    border-left: 3px solid var(--color-info);
+}
+
+/* ========== RECOMMENDATIONS LIST ========== */
+.recommendations-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.recommendations-list li {
+    padding: var(--spacing-2) var(--spacing-3);
+    margin-bottom: var(--spacing-2);
+    background: var(--color-gray-50);
+    border-radius: var(--radius-md);
+    border-left: 3px solid var(--color-primary);
+    color: var(--color-text);
+    font-size: var(--font-size-sm);
+}
+
+.recommendations-list li:last-child {
+    margin-bottom: 0;
+}
+
+/* ========== REPORTS RESPONSIVE ========== */
+@media (max-width: 1024px) {
+    .charts-row {
+        grid-template-columns: 1fr;
+    }
+    
+    .dashboard-bottom {
+        grid-template-columns: 1fr;
+    }
+    
+    .two-columns {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .reports-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .period-selector {
+        flex-wrap: wrap;
+    }
+    
+    .kpi-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .reports-tabs {
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        width: 100%;
+    }
+    
+    .chart-container {
+        height: 250px;
+    }
+}
+
+@media (max-width: 480px) {
+    .kpi-grid {
+        grid-template-columns: 1fr;
+    }
+}

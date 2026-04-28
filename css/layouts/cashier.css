@@ -1,0 +1,141 @@
+/**
+ * Cashier Layout
+ * 
+ * Базовые макетные стили для кассового модуля.
+ * Определяет только расположение основных панелей.
+ * Стили компонентов вынесены в соответствующие файлы.
+ * 
+ * @stylesheet cashier-layout
+ * @version 5.0.0
+ * @changes
+ * - Удалены стили компонентов (оставлены только макетные).
+ * - Исправлено использование переменной --cart-width.
+ * - Упрощены селекторы.
+ */
+
+/* ========== ПЕРЕМЕННЫЕ ========== */
+:root {
+    --cart-width: 380px;
+    --shift-bar-height: 64px;
+}
+
+/* ========== КОНТЕЙНЕР СТРАНИЦЫ ========== */
+.cashier-page {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    background: var(--color-bg);
+}
+
+.cashier-page-container {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+}
+
+.cashier-app-wrapper {
+    height: 100%;
+    width: 100%;
+}
+
+/* ========== ОСНОВНОЙ МАКЕТ ========== */
+.cashier-layout {
+    display: grid;
+    grid-template-columns: 1fr var(--cart-width);
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+}
+
+/* Режим с закрытой сменой — центрируем содержимое */
+.cashier-layout.shift-closed-mode {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-4);
+}
+
+/* ========== ЛЕВАЯ ПАНЕЛЬ (ТОВАРЫ) ========== */
+.products-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    background: var(--color-white);
+    border-right: var(--border-width) solid var(--color-border);
+}
+
+/* ========== ПРАВАЯ ПАНЕЛЬ (КОРЗИНА) ========== */
+.cart-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    background: var(--color-white);
+}
+
+/* ========== КОНТЕЙНЕРЫ КОМПОНЕНТОВ ========== */
+.products-grid-container {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    background: var(--color-gray-50);
+}
+
+.cart-items-container {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* ========== АДАПТИВНОСТЬ (ТОЛЬКО ДЛЯ МАКЕТА) ========== */
+@media (max-width: 1024px) {
+    :root {
+        --cart-width: 340px;
+    }
+}
+
+@media (max-width: 768px) {
+    .cashier-layout {
+        grid-template-columns: 1fr;
+        grid-template-rows: 1fr auto;
+    }
+    
+    .cart-panel {
+        max-height: 55vh;
+        border-left: none;
+        border-top: var(--border-width) solid var(--color-border);
+    }
+    
+    .products-panel {
+        border-right: none;
+    }
+}
+
+@media (max-width: 480px) {
+    .cart-panel {
+        max-height: 60vh;
+    }
+}
+
+/* ========== ПЕЧАТЬ ========== */
+@media print {
+    .cashier-layout {
+        display: block;
+        height: auto;
+    }
+    
+    .products-panel {
+        display: none;
+    }
+    
+    .cart-panel {
+        max-height: none;
+        border: none;
+    }
+}

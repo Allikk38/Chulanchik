@@ -1,0 +1,249 @@
+/**
+ * Forms - Business Professional
+ * 
+ * Чистые, читаемые формы для бизнес-приложений.
+ * Минимум стилей, максимум читаемости.
+ * 
+ * @stylesheet forms
+ * @version 5.0.0
+ * @changes
+ * - Удалены дублирующиеся стили (quantity-control).
+ * - Добавлены стили для fieldset и legend.
+ * - Упрощены селекторы.
+ */
+
+/* ========== FORM GROUP ========== */
+.form-group {
+    margin-bottom: var(--spacing-4);
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-4);
+}
+
+/* ========== LABELS ========== */
+label {
+    display: block;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    margin-bottom: var(--spacing-1-5);
+    color: var(--color-text);
+}
+
+.label-hint {
+    margin-left: var(--spacing-1);
+    font-weight: var(--font-weight-normal);
+    color: var(--color-text-muted);
+}
+
+.required {
+    color: var(--color-danger);
+    margin-left: var(--spacing-0-5);
+}
+
+/* ========== FIELDSET & LEGEND ========== */
+fieldset {
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-4);
+    margin-bottom: var(--spacing-4);
+}
+
+legend {
+    padding: 0 var(--spacing-2);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text);
+    width: auto;
+}
+
+/* ========== INPUTS ========== */
+input,
+select,
+textarea {
+    display: block;
+    width: 100%;
+    padding: 0 var(--spacing-3);
+    
+    font-family: inherit;
+    font-size: var(--font-size-sm);
+    line-height: var(--line-height-normal);
+    color: var(--color-text);
+    
+    background: var(--color-white);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-md);
+    
+    height: var(--input-height);
+}
+
+input:hover,
+select:hover,
+textarea:hover {
+    border-color: var(--color-gray-400);
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    outline: none;
+    border-color: var(--color-primary);
+}
+
+input:disabled,
+select:disabled,
+textarea:disabled {
+    background: var(--color-gray-50);
+    color: var(--color-text-disabled);
+    cursor: not-allowed;
+    border-color: var(--color-border);
+}
+
+/* ========== PLACEHOLDER ========== */
+input::placeholder,
+textarea::placeholder {
+    color: var(--color-text-muted);
+    opacity: 1;
+}
+
+/* ========== SELECT ========== */
+select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right var(--spacing-3) center;
+    background-size: 16px;
+    padding-right: var(--spacing-8);
+    cursor: pointer;
+}
+
+/* ========== TEXTAREA ========== */
+textarea {
+    height: auto;
+    min-height: 80px;
+    padding: var(--spacing-3);
+    line-height: var(--line-height-normal);
+    resize: vertical;
+}
+
+/* ========== CHECKBOX AND RADIO ========== */
+input[type="checkbox"],
+input[type="radio"] {
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    margin: 0;
+    margin-right: var(--spacing-2);
+    vertical-align: middle;
+    cursor: pointer;
+    accent-color: var(--color-primary);
+}
+
+.checkbox-label,
+.radio-label {
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+    margin-bottom: var(--spacing-2);
+    font-weight: var(--font-weight-normal);
+}
+
+/* ========== VALIDATION ========== */
+.has-error input,
+.has-error select,
+.has-error textarea {
+    border-color: var(--color-danger);
+    background: var(--color-danger-bg);
+}
+
+.has-error input:focus,
+.has-error select:focus,
+.has-error textarea:focus {
+    border-color: var(--color-danger);
+}
+
+.validation-error {
+    margin-top: var(--spacing-1);
+    font-size: var(--font-size-xs);
+    color: var(--color-danger);
+}
+
+/* ========== FORM HINT ========== */
+.form-hint {
+    display: block;
+    margin-top: var(--spacing-1);
+    font-size: var(--font-size-xs);
+    color: var(--color-text-muted);
+}
+
+/* ========== SEARCH INPUT ========== */
+.search-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.search-wrapper input {
+    padding-left: var(--spacing-8);
+}
+
+.search-wrapper::before {
+    content: '🔍';
+    position: absolute;
+    left: var(--spacing-3);
+    font-size: 14px;
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+/* ========== QUANTITY CONTROL ========== */
+.quantity-control {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-1);
+    background: var(--color-white);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-0-5);
+}
+
+.qty-input {
+    width: 45px;
+    padding: 0;
+    text-align: center;
+    border: none;
+    background: transparent;
+    font-weight: var(--font-weight-medium);
+    height: auto;
+}
+
+.qty-input:focus {
+    outline: none;
+    border: none;
+}
+
+/* ========== FORM ACTIONS ========== */
+.form-actions {
+    display: flex;
+    gap: var(--spacing-3);
+    justify-content: flex-end;
+    margin-top: var(--spacing-6);
+}
+
+/* ========== АДАПТИВНОСТЬ ========== */
+@media (max-width: 768px) {
+    .form-row {
+        grid-template-columns: 1fr;
+        gap: var(--spacing-3);
+    }
+    
+    .form-actions {
+        flex-direction: column-reverse;
+    }
+    
+    .form-actions .btn {
+        width: 100%;
+    }
+}

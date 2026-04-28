@@ -1,0 +1,334 @@
+/**
+ * App Layout - Business Professional
+ * 
+ * Основной макет приложения со строгой навигацией в стиле Excel.
+ * Без анимаций, без градиентов.
+ * 
+ * @stylesheet app
+ * @version 5.0.0
+ * @changes
+ * - Удалены дублирующиеся стили (skeleton, loading-spinner).
+ * - Добавлена переменная --product-card-width.
+ * - Удалены медиа-запросы (вынесены в responsive.css).
+ * - Упрощены селекторы.
+ */
+
+/* ========== ПЕРЕМЕННЫЕ ========== */
+:root {
+    --product-card-width: 160px;
+    --product-card-image-height: 160px;
+    --product-card-padding: var(--spacing-3);
+    --table-header-bg: var(--color-gray-50);
+    --table-cell-padding: var(--spacing-3) var(--spacing-4);
+    --table-row-hover: var(--color-gray-50);
+    --skeleton-bg: var(--color-gray-200);
+    --skeleton-radius: var(--radius-sm);
+}
+
+/* ========== ROOT CONTAINERS ========== */
+html {
+    height: 100%;
+}
+
+body {
+    height: 100%;
+    overflow: hidden;
+    margin: 0;
+    padding: 0;
+    background: var(--color-bg);
+}
+
+#app-root {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* ========== MAIN APP LAYOUT ========== */
+.app {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    background: var(--color-bg);
+}
+
+/* ========== APP HEADER ========== */
+.app-header {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 var(--spacing-6);
+    height: 48px;
+    background: var(--color-white);
+    border-bottom: var(--border-width) solid var(--color-border);
+}
+
+.app-header h1 {
+    margin: 0;
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text);
+    letter-spacing: var(--letter-spacing-tight);
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+}
+
+/* ========== NAVIGATION TABS (EXCEL STYLE) ========== */
+.app-tabs {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 0;
+    padding: 0 var(--spacing-6);
+    margin: 0;
+    background: var(--color-white);
+    border-bottom: var(--border-width) solid var(--color-border);
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+}
+
+.app-tabs::-webkit-scrollbar {
+    height: 4px;
+}
+
+.app-tabs::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.app-tabs::-webkit-scrollbar-thumb {
+    background: var(--color-gray-300);
+    border-radius: var(--radius-full);
+}
+
+.app-tab {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    padding: var(--spacing-2) var(--spacing-4);
+    margin-right: var(--spacing-1);
+    
+    background: transparent;
+    color: var(--color-text-secondary);
+    
+    font-weight: var(--font-weight-medium);
+    font-size: var(--font-size-sm);
+    line-height: 1;
+    
+    border: none;
+    border-bottom: 2px solid transparent;
+    
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.tab-icon {
+    width: 18px;
+    height: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.6;
+}
+
+.app-tab:hover {
+    background: var(--color-gray-50);
+    color: var(--color-text);
+}
+
+.app-tab:hover .tab-icon {
+    opacity: 0.8;
+}
+
+.app-tab.active {
+    color: var(--color-primary-dark);
+    border-bottom-color: var(--color-primary);
+    font-weight: var(--font-weight-semibold);
+}
+
+.app-tab.active .tab-icon {
+    opacity: 1;
+}
+
+/* ========== PAGE CONTAINER ========== */
+.page-container {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    background: var(--color-bg);
+}
+
+/* Страницы */
+.inventory-page,
+.cashier-page,
+.reports-page {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: var(--spacing-4);
+    background: var(--color-bg);
+}
+
+/* ========== PAGE HEADER ========== */
+.page-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-5);
+    flex-shrink: 0;
+}
+
+.header-left h2 {
+    margin: 0;
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text);
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+}
+
+/* ========== STATS BADGE ========== */
+.stats-badge {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    font-size: var(--font-size-sm);
+}
+
+.stats-badge span {
+    padding: var(--spacing-1) var(--spacing-3);
+    background: var(--color-white);
+    border-radius: var(--radius-full);
+    color: var(--color-text-secondary);
+    font-weight: var(--font-weight-medium);
+    border: var(--border-width) solid var(--color-border);
+}
+
+.badge-success {
+    background: var(--color-success-bg) !important;
+    color: var(--color-success-dark) !important;
+    border-color: var(--color-success-light) !important;
+}
+
+.count-badge {
+    display: inline-block;
+    padding: var(--spacing-0-5) var(--spacing-2);
+    background: var(--color-primary);
+    color: var(--color-white);
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    margin-left: var(--spacing-2);
+}
+
+/* ========== FILTERS & BULK ACTIONS ========== */
+.filters-panel {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--spacing-4);
+    margin-bottom: var(--spacing-5);
+    padding: var(--spacing-3) var(--spacing-4);
+    background: var(--color-white);
+    border-radius: var(--radius-lg);
+    border: var(--border-width) solid var(--color-border);
+    flex-shrink: 0;
+}
+
+.bulk-actions-panel {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    margin-left: auto;
+    padding: var(--spacing-2) var(--spacing-4);
+    background: var(--color-white);
+    border-radius: var(--radius-full);
+    border: var(--border-width) solid var(--color-border);
+}
+
+.selected-count {
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-primary-dark);
+}
+
+/* ========== LOADING STATES ========== */
+.loading-overlay {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+    gap: var(--spacing-4);
+    background: var(--color-white);
+    border-radius: var(--radius-lg);
+    margin: var(--spacing-4);
+}
+
+.loading-spinner {
+    display: inline-block;
+    width: 32px;
+    height: 32px;
+    border: 2px solid var(--color-border);
+    border-top-color: var(--color-primary);
+    border-radius: 50%;
+}
+
+.loading-spinner.small {
+    width: 16px;
+    height: 16px;
+    border-width: 2px;
+}
+
+.loading-text {
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+}
+
+/* ========== LOGIN FORM ========== */
+.login-form {
+    max-width: 400px;
+    margin: 100px auto;
+    padding: var(--spacing-8);
+    background: var(--color-white);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    border: var(--border-width) solid var(--color-border);
+}
+
+.login-form h2 {
+    text-align: center;
+    margin-bottom: var(--spacing-6);
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text);
+}
+
+/* ========== ERROR STATE ========== */
+.error-state {
+    padding: var(--spacing-8);
+    text-align: center;
+    color: var(--color-text-secondary);
+    background: var(--color-white);
+    border-radius: var(--radius-lg);
+    border: var(--border-width) solid var(--color-border);
+    margin: var(--spacing-4);
+}
+
+.error-state-icon {
+    font-size: 48px;
+    margin-bottom: var(--spacing-4);
+    opacity: 0.5;
+}

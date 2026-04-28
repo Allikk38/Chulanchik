@@ -1,0 +1,212 @@
+/**
+ * Cashier Page Styles
+ * 
+ * Специфичные стили для страницы кассового модуля.
+ * Содержит только переопределения и уникальные стили,
+ * которые не входят в общие компоненты.
+ * 
+ * @stylesheet cashier-page
+ * @version 5.0.0
+ * @changes
+ * - Удалены дублирующиеся стили (макет и компоненты).
+ * - Оставлены только уникальные для страницы правила.
+ */
+
+/* ========== СОСТОЯНИЕ ЗАКРЫТОЙ СМЕНЫ ========== */
+.shift-closed-overlay {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: var(--spacing-8);
+    background: var(--color-white);
+    border-radius: var(--radius-lg);
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+.shift-closed-icon {
+    font-size: 64px;
+    margin-bottom: var(--spacing-6);
+    opacity: 0.3;
+}
+
+.shift-closed-overlay h2 {
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text);
+    margin-bottom: var(--spacing-2);
+}
+
+.shift-closed-overlay p {
+    color: var(--color-text-secondary);
+    margin-bottom: var(--spacing-6);
+}
+
+/* ========== КЛАВИАТУРНЫЕ ПОДСКАЗКИ ========== */
+.keyboard-hints {
+    display: flex;
+    justify-content: center;
+    gap: var(--spacing-4);
+    margin-top: var(--spacing-3);
+    font-size: var(--font-size-xs);
+    color: var(--color-text-muted);
+}
+
+.keyboard-hints kbd {
+    display: inline-block;
+    padding: var(--spacing-0-5) var(--spacing-1);
+    background: var(--color-gray-100);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-family-mono);
+    font-size: 10px;
+    font-weight: var(--font-weight-medium);
+}
+
+/* ========== МОДАЛЬНОЕ ОКНО ОПЛАТЫ (специфичное для кассы) ========== */
+.payment-modal {
+    max-width: 480px;
+}
+
+.payment-details {
+    padding: var(--spacing-2) 0;
+}
+
+.payment-amount-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: var(--spacing-4) 0;
+    border-bottom: var(--border-width) solid var(--color-border);
+}
+
+.payment-amount-label {
+    font-size: var(--font-size-base);
+    color: var(--color-text);
+}
+
+.payment-amount-value {
+    font-size: var(--font-size-2xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-text);
+    font-family: var(--font-family-mono);
+}
+
+.payment-methods {
+    display: flex;
+    gap: var(--spacing-2);
+    margin: var(--spacing-4) 0;
+}
+
+.payment-option {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-1);
+    padding: var(--spacing-3);
+    background: var(--color-white);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+}
+
+.payment-option.active {
+    border-color: var(--color-primary);
+    background: var(--color-primary-bg);
+}
+
+.payment-icon {
+    font-size: var(--font-size-xl);
+}
+
+.payment-input-row {
+    padding: var(--spacing-4) 0;
+}
+
+.payment-input {
+    width: 100%;
+    height: 56px;
+    padding: 0 var(--spacing-4);
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-semibold);
+    font-family: var(--font-family-mono);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-md);
+    text-align: right;
+}
+
+.quick-amounts {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--spacing-2);
+    margin: var(--spacing-3) 0;
+}
+
+.quick-amount-btn {
+    padding: var(--spacing-2);
+    background: var(--color-white);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    cursor: pointer;
+}
+
+.quick-amount-btn:hover {
+    background: var(--color-gray-50);
+}
+
+.change-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: var(--spacing-4) 0;
+    background: var(--color-gray-50);
+    margin: 0 calc(-1 * var(--spacing-5));
+    padding: var(--spacing-4) var(--spacing-5);
+}
+
+.change-label {
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-medium);
+}
+
+.change-value {
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-success-dark);
+    font-family: var(--font-family-mono);
+}
+
+.payment-info-message {
+    padding: var(--spacing-4);
+    text-align: center;
+    color: var(--color-text-secondary);
+    background: var(--color-gray-50);
+    border-radius: var(--radius-md);
+}
+
+/* ========== ПЕРЕОПРЕДЕЛЕНИЯ ДЛЯ МОБИЛЬНЫХ (ТОЛЬКО СПЕЦИФИЧНЫЕ) ========== */
+@media (max-width: 768px) {
+    .payment-methods {
+        flex-direction: column;
+    }
+    
+    .payment-option {
+        flex-direction: row;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .payment-modal {
+        max-width: 100%;
+    }
+    
+    .quick-amounts {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}

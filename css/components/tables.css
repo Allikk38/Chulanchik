@@ -1,0 +1,415 @@
+/**
+ * Tables - Business Professional
+ * 
+ * Строгие таблицы для бизнес-приложений.
+ * Без анимаций строк, без градиентов.
+ * 
+ * @stylesheet tables
+ * @version 5.0.0
+ * @changes
+ * - Удалены дублирующиеся стили (status-badge).
+ * - Упрощены селекторы.
+ * - Добавлены комментарии.
+ */
+
+/* ========== DATA TABLE ========== */
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--font-size-sm);
+}
+
+.data-table thead {
+    background: var(--color-gray-50);
+    border-bottom: var(--border-width) solid var(--color-border);
+}
+
+.data-table th {
+    padding: var(--spacing-3) var(--spacing-4);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-secondary);
+    text-align: left;
+    white-space: nowrap;
+    font-size: var(--font-size-xs);
+    text-transform: uppercase;
+    letter-spacing: var(--letter-spacing-wide);
+}
+
+/* ========== СОРТИРУЕМЫЕ КОЛОНКИ ========== */
+.data-table th.sortable {
+    cursor: pointer;
+    user-select: none;
+    padding-right: var(--spacing-6);
+    position: relative;
+}
+
+.data-table th.sortable::after {
+    content: '↕';
+    position: absolute;
+    right: var(--spacing-2);
+    top: 50%;
+    transform: translateY(-50%);
+    opacity: 0.4;
+    font-size: 12px;
+}
+
+.data-table th.sortable:hover {
+    background: var(--color-gray-100);
+}
+
+.data-table th.sortable:hover::after {
+    opacity: 0.7;
+}
+
+.data-table th.sort-asc::after {
+    content: '↑';
+    opacity: 1;
+    color: var(--color-primary);
+}
+
+.data-table th.sort-desc::after {
+    content: '↓';
+    opacity: 1;
+    color: var(--color-primary);
+}
+
+/* ========== ЯЧЕЙКИ ========== */
+.data-table td {
+    padding: var(--spacing-3) var(--spacing-4);
+    border-bottom: var(--border-width) solid var(--color-border-light);
+    vertical-align: middle;
+}
+
+/* ========== СТРОКИ ========== */
+.data-table tbody tr {
+    background: var(--color-white);
+}
+
+.data-table tbody tr:hover {
+    background: var(--color-gray-50);
+}
+
+.data-table tbody tr.selected {
+    background: var(--color-primary-bg);
+}
+
+/* ========== ВАРИАНТЫ ТАБЛИЦ ========== */
+
+/* Компактная таблица */
+.table-sm th,
+.table-sm td {
+    padding: var(--spacing-2) var(--spacing-3);
+    font-size: var(--font-size-xs);
+}
+
+/* Полосатая таблица */
+.table-striped tbody tr:nth-child(even) {
+    background: var(--color-gray-50);
+}
+
+.table-striped tbody tr:nth-child(even):hover {
+    background: var(--color-gray-100);
+}
+
+/* Таблица с границами */
+.table-bordered {
+    border: var(--border-width) solid var(--color-border);
+}
+
+.table-bordered th,
+.table-bordered td {
+    border: var(--border-width) solid var(--color-border);
+}
+
+.table-bordered thead th {
+    border-bottom-width: 2px;
+}
+
+/* ========== ВЫРАВНИВАНИЕ ========== */
+.data-table .text-left { text-align: left; }
+.data-table .text-center { text-align: center; }
+.data-table .text-right { text-align: right; }
+
+/* Денежные значения */
+.data-table .money {
+    text-align: right;
+    font-family: var(--font-family-mono);
+    font-weight: var(--font-weight-medium);
+}
+
+.data-table .money.positive {
+    color: var(--color-success);
+}
+
+.data-table .money.negative {
+    color: var(--color-danger);
+}
+
+/* ========== ДЕЙСТВИЯ В ТАБЛИЦЕ ========== */
+.table-actions {
+    display: flex;
+    gap: var(--spacing-2);
+}
+
+.table-actions .btn-icon {
+    width: 32px;
+    height: 32px;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--color-text-secondary);
+}
+
+.table-actions .btn-icon:hover {
+    background: var(--color-gray-100);
+    color: var(--color-primary);
+}
+
+.table-actions .btn-icon.btn-danger:hover {
+    background: var(--color-danger-bg);
+    color: var(--color-danger);
+}
+
+/* ========== КОНТЕЙНЕР ТАБЛИЦЫ ========== */
+.table-container {
+    overflow-x: auto;
+    border-radius: var(--radius-lg);
+    border: var(--border-width) solid var(--color-border);
+    background: var(--color-white);
+}
+
+.table-container .data-table {
+    margin: 0;
+}
+
+/* ========== ПОДВАЛ ТАБЛИЦЫ ========== */
+.table-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--spacing-3) var(--spacing-4);
+    background: var(--color-gray-50);
+    border-top: var(--border-width) solid var(--color-border);
+}
+
+.table-info {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+}
+
+/* ========== ПАГИНАЦИЯ ========== */
+.pagination {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-1);
+}
+
+.pagination-btn {
+    min-width: 32px;
+    height: 32px;
+    padding: 0 var(--spacing-2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-white);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text);
+    cursor: pointer;
+}
+
+.pagination-btn:hover:not(:disabled) {
+    background: var(--color-gray-50);
+    border-color: var(--color-gray-400);
+}
+
+.pagination-btn.active {
+    background: var(--color-primary);
+    color: var(--color-white);
+    border-color: var(--color-primary);
+}
+
+.pagination-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.pagination-ellipsis {
+    padding: 0 var(--spacing-1);
+    color: var(--color-text-muted);
+}
+
+/* ========== СТАТУСЫ (для таблиц) ========== */
+.status-badge {
+    display: inline-block;
+    padding: var(--spacing-1) var(--spacing-3);
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    text-transform: uppercase;
+}
+
+.status-badge.status-in_stock {
+    background: var(--color-success-bg);
+    color: var(--color-success-dark);
+}
+
+.status-badge.status-sold {
+    background: var(--color-danger-bg);
+    color: var(--color-danger-dark);
+}
+
+.status-badge.status-reserved {
+    background: var(--color-warning-bg);
+    color: var(--color-warning-dark);
+}
+
+/* ========== ЧЕКБОКС В ТАБЛИЦЕ ========== */
+.data-table .checkbox-cell {
+    width: 40px;
+    text-align: center;
+}
+
+.table-checkbox {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: var(--color-primary);
+}
+
+/* ========== ДАННЫЕ ПРОДАВЦА (для отчётов) ========== */
+.seller-info {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-0-5);
+}
+
+.seller-name {
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text);
+    font-size: var(--font-size-sm);
+}
+
+.seller-email {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-muted);
+}
+
+/* ========== ТОП ТОВАРОВ (для отчётов) ========== */
+.top-products-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.top-product-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    padding: var(--spacing-2) var(--spacing-3);
+    border-bottom: var(--border-width) solid var(--color-border-light);
+}
+
+.top-product-item:last-child {
+    border-bottom: none;
+}
+
+.top-product-item .rank {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-gray-100);
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-text-secondary);
+    flex-shrink: 0;
+}
+
+.top-product-item .name {
+    flex: 1;
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text);
+    font-size: var(--font-size-sm);
+}
+
+.top-product-item .value {
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-xs);
+}
+
+.top-product-item .revenue {
+    min-width: 80px;
+    text-align: right;
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text);
+    font-family: var(--font-family-mono);
+}
+
+/* ========== ПУСТОЕ СОСТОЯНИЕ ========== */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-12) var(--spacing-6);
+    text-align: center;
+    color: var(--color-text-muted);
+    background: var(--color-white);
+    border-radius: var(--radius-lg);
+    border: var(--border-width) dashed var(--color-border);
+}
+
+.empty-state-icon {
+    font-size: 48px;
+    margin-bottom: var(--spacing-4);
+    opacity: 0.4;
+}
+
+.empty-state p {
+    margin-bottom: var(--spacing-4);
+    font-size: var(--font-size-base);
+    color: var(--color-text-secondary);
+}
+
+/* ========== АДАПТИВНОСТЬ ========== */
+@media (max-width: 768px) {
+    .data-table th,
+    .data-table td {
+        padding: var(--spacing-2);
+        font-size: var(--font-size-xs);
+    }
+    
+    .table-footer {
+        flex-direction: column;
+        gap: var(--spacing-2);
+    }
+    
+    .pagination {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    
+    .seller-email {
+        display: none;
+    }
+}
+
+@media (max-width: 480px) {
+    .table-container {
+        border-radius: var(--radius-md);
+    }
+    
+    .empty-state-icon {
+        font-size: 36px;
+    }
+    
+    .pagination-btn {
+        min-width: 28px;
+        height: 28px;
+        font-size: var(--font-size-xs);
+    }
+}
