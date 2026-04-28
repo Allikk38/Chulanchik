@@ -12,7 +12,7 @@
  * @version 2.1.0
  */
 
-import { getCategoryName as getCategoryNameFromSchema } from './category-schema.js';
+import { getCategoryName as getCategoryNameFromSchema } from './categorySchema.js';
 
 // ========== HTML ЭКРАНИРОВАНИЕ ==========
 
