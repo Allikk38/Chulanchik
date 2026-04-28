@@ -70,14 +70,13 @@ function render() {
 }
 
 function renderClosedShift() {
-    // Убираем мобильные элементы корзины
     document.getElementById('cartToggleBtn')?.remove();
     document.getElementById('cartOverlay')?.remove();
 
     DOM.content.innerHTML = `
         <div class="cashier-layout shift-closed-mode">
             <div class="shift-closed-overlay">
-                <div class="shift-closed-icon">Закрыто</div>
+                <div class="shift-closed-icon">--</div>
                 <h2>Смена закрыта</h2>
                 <p>Для начала работы откройте смену</p>
                 <button class="btn-primary btn-lg" id="openShiftBtn"
@@ -178,7 +177,6 @@ function renderProductGrid() {
             : 'Нет товаров в наличии'}</div>`;
     }
 
-    // Определяем, какие товары уже в корзине
     const cartItemIds = new Set(cartStore.getItems().map(i => i.id));
 
     return `
@@ -248,8 +246,8 @@ function renderCartPanel() {
                     Оформить продажу (F9)
                 </button>
                 <div class="keyboard-hints">
-                    <kbd>F9</kbd> — оформить
-                    <kbd>Ctrl</kbd>+<kbd>F</kbd> — поиск
+                    <kbd>F9</kbd> &mdash; оформить
+                    <kbd>Ctrl</kbd>+<kbd>F</kbd> &mdash; поиск
                 </div>
             </div>
         </div>`;
@@ -260,21 +258,18 @@ function renderCartPanel() {
 // ============================================================
 
 function renderMobileCartTrigger() {
-    // Удаляем старые элементы если есть
     document.getElementById('cartToggleBtn')?.remove();
     document.getElementById('cartOverlay')?.remove();
 
     const count = cartStore.getCount();
     const total = cartStore.getTotal();
 
-    // Оверлей
     const overlay = document.createElement('div');
     overlay.id = 'cartOverlay';
     overlay.className = 'cart-overlay';
     overlay.addEventListener('click', closeCart);
     DOM.content.appendChild(overlay);
 
-    // Кнопка-триггер
     const btn = document.createElement('button');
     btn.id = 'cartToggleBtn';
     btn.className = 'cart-toggle-btn';
@@ -323,7 +318,6 @@ async function checkout() {
     });
 
     if (success) {
-        // Закрываем корзину на мобильных после продажи
         closeCart();
         showNotification(`Продажа на ${formatMoney(total)} оформлена`, 'success');
     } else {
@@ -374,10 +368,8 @@ async function closeShift() {
 // ============================================================
 
 function bindEvents() {
-    // Смена
     document.getElementById('closeShiftBtn')?.addEventListener('click', closeShift);
 
-    // Корзина: очистить
     document.getElementById('clearCartBtn')?.addEventListener('click', async () => {
         const confirmed = await showConfirmDialog({
             title: 'Очистка корзины',
@@ -388,20 +380,16 @@ function bindEvents() {
         if (confirmed) cartStore.reset();
     });
 
-    // Корзина: чекаут
     document.getElementById('checkoutBtn')?.addEventListener('click', checkout);
 
-    // Быстрое добавление
     document.getElementById('quickAddBtn')?.addEventListener('click', quickAdd);
 
-    // Сброс фильтров
     document.getElementById('resetFiltersBtn')?.addEventListener('click', () => {
         state.searchQuery = '';
         state.selectedCategory = null;
         render();
     });
 
-    // Поиск
     const searchInput = document.getElementById('searchInput');
     if (searchInput) {
         const debounced = debounce((val) => {
@@ -412,7 +400,6 @@ function bindEvents() {
         searchInput.focus();
     }
 
-    // Категории
     document.querySelectorAll('[data-category]').forEach(btn => {
         btn.addEventListener('click', () => {
             state.selectedCategory = btn.dataset.category || null;
@@ -420,7 +407,6 @@ function bindEvents() {
         });
     });
 
-    // Карточки товаров
     document.querySelectorAll('.product-card').forEach(card => {
         card.addEventListener('click', () => {
             const product = productStore.getById(card.dataset.id);
@@ -430,7 +416,6 @@ function bindEvents() {
         });
     });
 
-    // Кнопки в корзине
     document.querySelectorAll('[data-action="increase"]').forEach(btn => {
         btn.addEventListener('click', () => cartStore.updateQuantity(btn.dataset.id, 1));
     });
@@ -448,12 +433,10 @@ function bindEvents() {
 
 function onStoreChange() {
     render();
-    // Обновляем бейдж и сумму на кнопке-триггере без полного ререндера
     const badge = document.getElementById('cartToggleBadge');
     if (badge) {
         badge.textContent = cartStore.getCount();
     }
-    // Обновляем сумму в кнопке-триггере
     const toggleBtn = document.getElementById('cartToggleBtn');
     if (toggleBtn) {
         const total = cartStore.getTotal();
@@ -480,7 +463,6 @@ function cacheDom() {
 function bindGlobalEvents() {
     DOM.logoutBtn?.addEventListener('click', logout);
 
-    // Горячие клавиши
     document.addEventListener('keydown', e => {
         if (e.ctrlKey && e.key === 'f') {
             e.preventDefault();
@@ -492,7 +474,6 @@ function bindGlobalEvents() {
         }
     });
 
-    // Подписки на сторы — при любом изменении перерендериваем
     productStore.on('change', onStoreChange);
     cartStore.on('change', onStoreChange);
     shiftStore.on('change', onStoreChange);
@@ -515,13 +496,10 @@ async function init() {
 
     bindGlobalEvents();
 
-    // Восстанавливаем корзину из кэша
     cartStore.loadFromCache();
 
-    // Проверяем смену
     await shiftStore.checkOpenShift(user.id);
 
-    // Загружаем товары
     await productStore.loadProducts();
 
     render();
