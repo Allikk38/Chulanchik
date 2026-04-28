@@ -6,12 +6,11 @@
  * Специфичные для страниц правила находятся в соответствующих файлах.
  * 
  * @stylesheet responsive
- * @version 5.4.0
+ * @version 5.5.0
  * @changes
+ * - v5.5.0: Удалены дублирующиеся правила для кассы (оставлены только в cashier.css)
  * - v5.4.0: Исправлен скролл кассы — touch-action вынесен из manipulation в pan-y
- *          только на скроллящихся контейнерах. Касса больше не блокирует скролл.
  * - v5.3.0: Полный рефакторинг скролла. Касса — жёсткий overflow:hidden.
- *          Склад и отчёты — вертикальный скролл на мобильных, без зума.
  */
 
 /* ========== БРЕЙКПОИНТЫ ========== */
@@ -26,8 +25,6 @@
 /* 
  * На десктопе все страницы имеют height: 100% и overflow: hidden.
  * Контент скроллится внутри своих панелей.
- * Это стандартное поведение SPA — страница не скроллится,
- * скроллятся только внутренние контейнеры.
  */
 
 /* ========== МОБИЛЬНЫЕ: РАЗБЛОКИРОВКА СКРОЛЛА (768px и меньше) ========== */
@@ -110,93 +107,6 @@
 
     .products-table {
         min-width: 700px;
-    }
-
-    /* ========================================
-     * КАССА — страница зафиксирована,
-     * скролл только внутри сетки товаров и корзины
-     * ======================================== */
-    .cashier-page {
-        height: 100%;
-        overflow: hidden;
-    }
-
-    .cashier-layout {
-        height: 100%;
-        overflow: hidden;
-        display: grid;
-        grid-template-columns: 1fr;
-        grid-template-rows: 1fr;
-    }
-
-    .products-panel {
-        height: 100%;
-        overflow: hidden;
-        display: flex;
-        flex-direction: column;
-    }
-
-    /* Шапка смены — фиксирована */
-    .shift-bar {
-        flex-shrink: 0;
-    }
-
-    /* Тулбар — фиксирован */
-    .products-toolbar {
-        flex-shrink: 0;
-    }
-
-    /* Категории — фиксированы */
-    .category-bar {
-        flex-shrink: 0;
-    }
-
-    /* Сетка товаров — единственное место, где разрешён скролл */
-    .products-grid-container {
-        flex: 1;
-        min-height: 0;
-        overflow-y: auto;
-        overflow-x: hidden;
-        -webkit-overflow-scrolling: touch;
-        touch-action: pan-y;
-    }
-
-    /* Состояние «смена закрыта» */
-    .cashier-layout.shift-closed-mode {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        overflow: hidden;
-    }
-
-    /* Корзина — fixed, выезжает справа */
-    .cart-panel {
-        position: fixed;
-        top: 0;
-        right: 0;
-        width: 85vw;
-        max-width: 400px;
-        height: 100vh;
-        height: 100dvh;
-        z-index: var(--z-modal);
-        transform: translateX(100%);
-        transition: transform 150ms ease-out;
-        box-shadow: var(--shadow-xl);
-        border-left: var(--border-width) solid var(--color-border);
-    }
-
-    .cart-panel.open {
-        transform: translateX(0);
-    }
-
-    /* Кнопка-триггер корзины */
-    .cart-toggle-btn {
-        display: flex;
-    }
-
-    /* Оверлей корзины */
-    .cart-overlay {
-        display: none;
     }
 
     /* ========================================
@@ -306,12 +216,6 @@
 
     .form-actions .btn {
         width: 100%;
-    }
-
-    /* Корзина на всю ширину */
-    .cart-panel {
-        width: 100vw;
-        max-width: 100vw;
     }
 }
 

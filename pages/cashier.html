@@ -18,39 +18,15 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
 
-    <!-- Стили -->
-    <link rel="stylesheet" href="css/base/variables.css">
-    <link rel="stylesheet" href="css/base/reset.css">
-    <link rel="stylesheet" href="css/base/typography.css">
-    <link rel="stylesheet" href="css/components/buttons.css">
-    <link rel="stylesheet" href="css/components/forms.css">
-    <link rel="stylesheet" href="css/components/tables.css">
-    <link rel="stylesheet" href="css/components/modal.css">
-    <link rel="stylesheet" href="css/components/notifications.css">
-    <link rel="stylesheet" href="css/components/product-card.css">
-    <link rel="stylesheet" href="css/components/cart.css">
-    <link rel="stylesheet" href="css/layouts/app.css">
-    <link rel="stylesheet" href="css/layouts/cashier.css">
-    <link rel="stylesheet" href="css/layouts/inventory.css">
-    <link rel="stylesheet" href="css/layouts/reports.css">
-    <link rel="stylesheet" href="css/utils/utilities.css">
-    <link rel="stylesheet" href="css/utils/responsive.css">
+    <!-- Единый файл стилей -->
+    <link rel="stylesheet" href="css/styles.css">
 
     <style>
-        html {
-            height: 100%;
-            overflow: hidden;
-            overscroll-behavior: none;
-        }
+        /* ============================================================ */
+        /* Уникальные стили страницы кассы (не переопределяют компоненты) */
+        /* ============================================================ */
 
-        body {
-            height: 100%;
-            overflow: hidden;
-            overscroll-behavior: none;
-            touch-action: manipulation;
-            -webkit-tap-highlight-color: transparent;
-        }
-
+        /* Контейнер страницы */
         .cashier-page {
             display: flex;
             flex-direction: column;
@@ -198,11 +174,7 @@
             flex-shrink: 0;
             padding-bottom: var(--spacing-1);
             -webkit-overflow-scrolling: touch;
-            scrollbar-width: none;
-        }
-
-        .category-bar::-webkit-scrollbar {
-            display: none;
+            scrollbar-width: thin;
         }
 
         .category-tab {
@@ -227,7 +199,7 @@
             border-color: var(--color-gray-800);
         }
 
-        /* Сетка товаров */
+        /* Сетка товаров — скроллится */
         .products-grid-container {
             flex: 1;
             overflow-y: auto;
@@ -305,7 +277,7 @@
             margin-top: var(--spacing-1);
         }
 
-        /* Правая панель — корзина (десктоп: вторая колонка grid) */
+        /* Правая панель — корзина (десктоп) */
         .cart-panel {
             display: flex;
             flex-direction: column;
