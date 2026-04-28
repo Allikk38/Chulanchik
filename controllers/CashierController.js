@@ -55,6 +55,9 @@ function render() {
         return;
     }
 
+    const isMobile = window.innerWidth <= 768;
+    const cartPanelClass = isMobile ? 'cart-panel cart-panel-mobile' : 'cart-panel';
+
     DOM.content.innerHTML = `
         <div class="cashier-layout">
             <div class="products-panel">
@@ -64,7 +67,9 @@ function render() {
                     ${renderProductGrid()}
                 </div>
             </div>
-            ${renderCartPanel()}
+            <div class="${cartPanelClass}" id="cartPanel">
+                ${renderCartPanelContent()}
+            </div>
         </div>`;
 
     bindEvents();
@@ -73,6 +78,7 @@ function render() {
 }
 
 function renderClosedShift() {
+    // Убираем плавающие элементы
     document.getElementById('cartToggleBtn')?.remove();
     document.getElementById('cartOverlay')?.remove();
     document.getElementById('fabQuickAdd')?.remove();
@@ -102,26 +108,15 @@ function renderClosedShift() {
 }
 
 function renderShiftBar() {
-    const stats = shiftStore.getStats();
     return `
         <div class="shift-bar">
             <div class="shift-status">
                 <span class="status-dot"></span>
                 <span>Смена открыта</span>
             </div>
-            <div class="shift-stats">
-                <div class="stat-item">
-                    <span class="stat-label">Выручка</span>
-                    <span class="stat-value">${formatMoney(stats.revenue)}</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">Продаж</span>
-                    <span class="stat-value">${stats.salesCount}</span>
-                </div>
-            </div>
-            <button class="btn-secondary btn-sm" id="closeShiftBtn"
+            <button class="btn-danger btn-sm" id="closeShiftBtn"
                 ${shiftStore.isPending() ? 'disabled' : ''}>
-                Закрыть смену
+                ${shiftStore.isPending() ? 'Закрытие...' : 'Закрыть смену'}
             </button>
         </div>`;
 }
@@ -212,7 +207,7 @@ function renderProductGrid() {
         </div>`;
 }
 
-function renderCartPanel() {
+function renderCartPanelContent() {
     const items = cartStore.getItems();
     const total = cartStore.getTotal();
     const count = cartStore.getCount();
@@ -239,29 +234,27 @@ function renderCartPanel() {
         `).join('');
 
     return `
-        <div class="cart-panel">
-            <div class="cart-header">
-                <h3>Корзина</h3>
-                <span class="cart-count">${count} поз.</span>
-                ${items.length > 0 ? '<button class="btn-ghost btn-sm" id="clearCartBtn">Очистить</button>' : ''}
-            </div>
-            <div class="cart-items-container">
-                <div class="cart-items">${itemsHtml}</div>
-            </div>
-            <div class="cart-footer">
-                <div class="cart-summary">
-                    <div class="summary-row total">
-                        <span>ИТОГО</span>
-                        <span class="total-amount">${formatMoney(total)}</span>
-                    </div>
+        <div class="cart-header">
+            <h3>Корзина</h3>
+            <span class="cart-count">${count} поз.</span>
+            ${items.length > 0 ? '<button class="btn-ghost btn-sm" id="clearCartBtn">Очистить</button>' : ''}
+        </div>
+        <div class="cart-items-container">
+            <div class="cart-items">${itemsHtml}</div>
+        </div>
+        <div class="cart-footer">
+            <div class="cart-summary">
+                <div class="summary-row total">
+                    <span>ИТОГО</span>
+                    <span class="total-amount">${formatMoney(total)}</span>
                 </div>
-                <button class="btn-checkout" id="checkoutBtn" ${count === 0 ? 'disabled' : ''}>
-                    Оформить продажу (F9)
-                </button>
-                <div class="keyboard-hints">
-                    <kbd>F9</kbd> &mdash; оформить
-                    <kbd>Ctrl</kbd>+<kbd>F</kbd> &mdash; поиск
-                </div>
+            </div>
+            <button class="btn-checkout" id="checkoutBtn" ${count === 0 ? 'disabled' : ''}>
+                Оформить продажу (F9)
+            </button>
+            <div class="keyboard-hints">
+                <kbd>F9</kbd> &mdash; оформить
+                <kbd>Ctrl</kbd>+<kbd>F</kbd> &mdash; поиск
             </div>
         </div>`;
 }
@@ -270,19 +263,27 @@ function renderCartPanel() {
 // Мобильная корзина
 // ============================================================
 
+function isMobile() {
+    return window.innerWidth <= 768;
+}
+
 function renderMobileCartTrigger() {
     document.getElementById('cartToggleBtn')?.remove();
     document.getElementById('cartOverlay')?.remove();
 
+    if (!isMobile()) return;
+
     const count = cartStore.getCount();
     const total = cartStore.getTotal();
 
+    // Оверлей
     const overlay = document.createElement('div');
     overlay.id = 'cartOverlay';
     overlay.className = 'cart-overlay';
     overlay.addEventListener('click', closeCart);
     DOM.content.appendChild(overlay);
 
+    // Кнопка-триггер
     const btn = document.createElement('button');
     btn.id = 'cartToggleBtn';
     btn.className = 'cart-toggle-btn';
@@ -297,7 +298,7 @@ function renderMobileCartTrigger() {
 }
 
 function toggleCart() {
-    const panel = document.querySelector('.cart-panel');
+    const panel = document.getElementById('cartPanel');
     const overlay = document.getElementById('cartOverlay');
     if (!panel) return;
 
@@ -308,7 +309,7 @@ function toggleCart() {
 }
 
 function closeCart() {
-    const panel = document.querySelector('.cart-panel');
+    const panel = document.getElementById('cartPanel');
     const overlay = document.getElementById('cartOverlay');
     if (panel) panel.classList.remove('open');
     if (overlay) overlay.style.display = 'none';
@@ -331,8 +332,7 @@ function updateFabVisibility() {
         document.body.appendChild(fab);
     }
 
-    const isMobile = window.innerWidth <= 768;
-    fab.style.display = isMobile ? 'flex' : 'none';
+    fab.style.display = isMobile() ? 'flex' : 'none';
 }
 
 // ============================================================
@@ -353,22 +353,18 @@ async function startScan() {
         state.searchQuery = barcode;
         state.selectedCategory = null;
 
-        // Ищем товар по штрихкоду
         const products = productStore.getInStock().filter(p =>
             p.name?.toLowerCase().includes(barcode.toLowerCase()) ||
             p.id?.toLowerCase().includes(barcode.toLowerCase())
         );
 
         if (products.length === 1) {
-            // Один товар найден — сразу в корзину
             cartStore.addItem(products[0]);
             showNotification(`"${products[0].name}" добавлен в корзину`, 'success');
             state.searchQuery = '';
         } else if (products.length > 1) {
-            // Несколько товаров — оставляем в поиске
             showNotification(`Найдено ${products.length} товаров`, 'info');
         } else {
-            // Ничего не найдено — пробуем поиск по ID
             const product = productStore.getById(barcode);
             if (product && product.status === 'in_stock') {
                 cartStore.addItem(product);
@@ -432,22 +428,41 @@ async function quickAdd() {
 
 async function closeShift() {
     const stats = shiftStore.getStats();
+
     const confirmed = await showConfirmDialog({
         title: 'Закрытие смены',
-        message: `Выручка: ${formatMoney(stats.revenue)}\nПродаж: ${stats.salesCount}\nПрибыль: ${formatMoney(stats.profit)}\n\nЗакрыть смену?`,
-        confirmText: 'Закрыть',
-        confirmClass: 'btn-primary'
+        message: [
+            `Выручка: ${formatMoney(stats.revenue)}`,
+            `Продаж: ${stats.salesCount}`,
+            `Прибыль: ${formatMoney(stats.profit)}`,
+            `Товаров продано: ${stats.itemsCount}`,
+            '',
+            'Закрыть смену?'
+        ].join('\n'),
+        confirmText: 'Закрыть смену',
+        confirmClass: 'btn-danger'
     });
 
     if (!confirmed) return;
 
-    const { success, error } = await ShiftService.closeShift();
-    if (success) {
+    const result = await ShiftService.closeShift();
+
+    if (result.success) {
         cartStore.reset();
-        showNotification('Смена закрыта', 'success');
+
+        showNotification(
+            [
+                `Выручка: ${formatMoney(result.stats.revenue)}`,
+                `Продаж: ${result.stats.salesCount}`,
+                `Прибыль: ${formatMoney(result.stats.profit)}`
+            ].join(' | '),
+            'success',
+            { title: 'Смена закрыта', duration: 6000 }
+        );
     } else {
-        showNotification(error || 'Ошибка закрытия смены', 'error');
+        showNotification(result.error || 'Не удалось закрыть смену', 'error');
     }
+
     render();
 }
 
@@ -523,6 +538,8 @@ function bindEvents() {
 
 function onStoreChange() {
     render();
+
+    // Обновляем бейдж на кнопке корзины (мобильные)
     const badge = document.getElementById('cartToggleBadge');
     if (badge) {
         badge.textContent = cartStore.getCount();
@@ -538,6 +555,7 @@ function onStoreChange() {
             <span>${formatMoney(total)}</span>
         `;
     }
+
     updateFabVisibility();
 }
 
@@ -569,7 +587,10 @@ function bindGlobalEvents() {
     cartStore.on('change', onStoreChange);
     shiftStore.on('change', onStoreChange);
 
-    window.addEventListener('resize', updateFabVisibility);
+    window.addEventListener('resize', () => {
+        updateFabVisibility();
+        render();
+    });
 }
 
 async function init() {
