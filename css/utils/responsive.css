@@ -6,8 +6,10 @@
  * Специфичные для страниц правила находятся в соответствующих файлах.
  * 
  * @stylesheet responsive
- * @version 5.2.0
+ * @version 5.3.0
  * @changes
+ * - v5.3.0: Полный рефакторинг скролла. Касса — жёсткий overflow:hidden.
+ *          Склад и отчёты — вертикальный скролл на мобильных, без зума.
  * - v5.2.0: Касса на мобильных — корзина fixed, лейаут не скроллится.
  * - v5.1.0: Разблокирован скролл на мобильных для всех страниц и контейнеров.
  */
@@ -20,95 +22,240 @@
  * xl: 1280px (десктопы)
  */
 
+/* ========== ДЕСКТОП: БАЗОВЫЙ СКРОЛЛ (по умолчанию, > 768px) ========== */
+/* 
+ * На десктопе все страницы имеют height: 100% и overflow: hidden.
+ * Контент скроллится внутри своих панелей.
+ * Это стандартное поведение SPA — страница не скроллится,
+ * скроллятся только внутренние контейнеры.
+ */
+
 /* ========== МОБИЛЬНЫЕ: РАЗБЛОКИРОВКА СКРОЛЛА (768px и меньше) ========== */
 @media (max-width: 768px) {
-    /* Корень */
+
+    /*
+     * КОРЕНЬ — разблокируем вертикальный скролл для склада и отчётов.
+     * Для кассы — жёстко фиксируем (переопределено ниже).
+     */
     html {
-        height: auto;
-        overflow: auto;
+        height: 100%;
+        overflow: hidden;
+        overscroll-behavior: none;
     }
-    
+
     body {
-        height: auto !important;
-        overflow: auto !important;
+        height: 100%;
+        overflow: hidden;
+        overscroll-behavior: none;
         position: static;
+        touch-action: manipulation;
     }
-    
+
     #app-root {
-        height: auto;
-        overflow: visible;
-    }
-    
-    .app {
-        height: auto;
-        overflow: visible;
-    }
-    
-    .app-main {
-        overflow: visible;
-        height: auto;
-    }
-    
-    .page-container {
-        overflow: visible;
-        height: auto;
-    }
-    
-    /* ===== СКЛАД ===== */
-    .inventory-page {
-        height: auto;
-        overflow: visible;
-    }
-    
-    .products-table-wrapper {
-        overflow-x: auto;
-        overflow-y: visible;
-        -webkit-overflow-scrolling: touch;
-    }
-    
-    /* ===== КАССА ===== */
-    .cashier-page {
         height: 100%;
         overflow: hidden;
     }
-    
+
+    /* Навигация — фиксируем */
+    .app-header {
+        flex-shrink: 0;
+    }
+
+    .app-tabs {
+        flex-shrink: 0;
+    }
+
+    /* Основной контейнер страницы */
+    .page-container {
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    /* ========================================
+     * СКЛАД — разрешаем вертикальный скролл
+     * ======================================== */
+    .inventory-page {
+        height: 100%;
+        overflow-y: auto;
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
+        touch-action: pan-y;
+    }
+
+    /* Панель фильтров — не сжимаем */
+    .inventory-page .filters-panel {
+        flex-shrink: 0;
+        flex-wrap: wrap;
+    }
+
+    /* Статистика — не сжимаем */
+    .inventory-stats {
+        flex-shrink: 0;
+        flex-wrap: wrap;
+    }
+
+    /* Таблица — разрешаем горизонтальный скролл для широких таблиц */
+    .products-table-wrapper {
+        flex-shrink: 0;
+        overflow-x: auto;
+        overflow-y: visible;
+        -webkit-overflow-scrolling: touch;
+        touch-action: pan-x pan-y;
+    }
+
+    .products-table {
+        min-width: 700px;
+    }
+
+    /* ========================================
+     * КАССА — жёсткий overflow: hidden
+     * ======================================== */
+    .cashier-page {
+        height: 100%;
+        overflow: hidden;
+        touch-action: manipulation;
+    }
+
     .cashier-page-container {
         height: 100%;
         overflow: hidden;
     }
-    
+
     .cashier-app-wrapper {
         height: 100%;
         overflow: hidden;
     }
-    
+
     .cashier-layout {
         height: 100%;
         overflow: hidden;
+        display: grid;
+        grid-template-columns: 1fr;
+        grid-template-rows: 1fr;
     }
-    
+
     .products-panel {
         height: 100%;
         overflow: hidden;
+        display: flex;
+        flex-direction: column;
     }
-    
+
+    .products-toolbar {
+        flex-shrink: 0;
+    }
+
+    .category-bar {
+        flex-shrink: 0;
+    }
+
     .products-grid-container {
-        height: auto;
+        flex: 1;
+        min-height: 0;
         overflow-y: auto;
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
+        touch-action: pan-y;
     }
-    
-    /* Корзина управляется через fixed + transform в cashier.css */
-    
-    /* ===== ОТЧЕТЫ ===== */
+
+    /* Строка смены */
+    .shift-bar {
+        flex-shrink: 0;
+    }
+
+    /* Корзина — управляется через fixed + transform в cashier.css,
+       здесь только подтверждаем, что cart-panel не внутри потока */
+    .cart-panel {
+        position: fixed;
+        top: 0;
+        right: 0;
+        width: 85vw;
+        max-width: 400px;
+        height: 100vh;
+        height: 100dvh;
+        z-index: var(--z-modal);
+        transform: translateX(100%);
+        transition: transform 150ms ease-out;
+        box-shadow: var(--shadow-xl);
+        border-left: var(--border-width) solid var(--color-border);
+    }
+
+    .cart-panel.open {
+        transform: translateX(0);
+    }
+
+    .cart-toggle-btn {
+        display: flex;
+    }
+
+    .cart-overlay {
+        display: none;
+    }
+
+    /* Состояние «смена закрыта» */
+    .cashier-layout.shift-closed-mode {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+    }
+
+    /* ========================================
+     * ОТЧЁТЫ — разрешаем вертикальный скролл
+     * ======================================== */
     .reports-page {
-        height: auto;
-        overflow: visible;
+        height: 100%;
+        overflow-y: auto;
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
+        touch-action: pan-y;
     }
-    
+
     .reports-content {
         height: auto;
         overflow: visible;
         min-height: auto;
+    }
+
+    .reports-content-inner {
+        height: auto;
+        overflow: visible;
+    }
+
+    /* Заголовок отчётов — не сжимаем */
+    .reports-header {
+        flex-shrink: 0;
+    }
+
+    /* Табы — не сжимаем */
+    .reports-tabs {
+        flex-shrink: 0;
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        width: 100%;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Графики — не сжимаем, разрешаем горизонтальный скролл если нужно */
+    .charts-row {
+        flex-shrink: 0;
+    }
+
+    .chart-card {
+        flex-shrink: 0;
+    }
+
+    .chart-container {
+        min-height: 200px;
+        touch-action: pan-y;
+    }
+
+    /* Таблицы в отчётах — горизонтальный скролл */
+    .table-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        touch-action: pan-x pan-y;
     }
 }
 
@@ -161,6 +308,12 @@
     
     .form-actions .btn {
         width: 100%;
+    }
+
+    /* Корзина на всю ширину */
+    .cart-panel {
+        width: 100vw;
+        max-width: 100vw;
     }
 }
 
