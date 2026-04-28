@@ -66,28 +66,28 @@ function renderStats() {
 
     DOM.statsBar.innerHTML = `
         <div class="stat-card-inline">
-            <span class="stat-icon">📦</span>
+            <span class="stat-icon">!=</span>
             <div class="stat-content">
                 <span class="stat-label">Всего товаров</span>
                 <span class="stat-value">${stats.total}</span>
             </div>
         </div>
         <div class="stat-card-inline">
-            <span class="stat-icon">✅</span>
+            <span class="stat-icon">+</span>
             <div class="stat-content">
                 <span class="stat-label">В наличии</span>
                 <span class="stat-value" style="color: var(--color-success)">${stats.inStock}</span>
             </div>
         </div>
         <div class="stat-card-inline">
-            <span class="stat-icon">💰</span>
+            <span class="stat-icon">-</span>
             <div class="stat-content">
                 <span class="stat-label">Продано</span>
                 <span class="stat-value" style="color: var(--color-danger)">${stats.sold}</span>
             </div>
         </div>
         <div class="stat-card-inline">
-            <span class="stat-icon">💵</span>
+            <span class="stat-icon">~</span>
             <div class="stat-content">
                 <span class="stat-label">Стоимость склада</span>
                 <span class="stat-value">${formatMoney(stats.stockValue)}</span>
@@ -165,7 +165,7 @@ function renderTable() {
     if (products.length === 0) {
         DOM.tableBody.innerHTML = `
             <tr><td colspan="7" style="text-align:center;padding:60px;">
-                <div class="empty-state-icon">📦</div>
+                <div class="empty-state-icon">--</div>
                 <p>${state.filters.search || state.filters.status || state.filters.category
                     ? 'По вашему запросу ничего не найдено'
                     : 'Нет товаров. Нажмите «Добавить товар»'}</p>
@@ -176,7 +176,7 @@ function renderTable() {
     DOM.tableBody.innerHTML = products.map(p => {
         const isSelected = state.selectedIds.has(p.id);
         const statusClass = `status-${p.status || 'unknown'}`;
-        const shortId = p.id?.slice(0, 8) || '—';
+        const shortId = p.id?.slice(0, 8) || '--';
 
         return `
             <tr class="product-row ${isSelected ? 'selected' : ''}" data-id="${p.id}">
@@ -188,7 +188,7 @@ function renderTable() {
                     <div class="product-thumb">
                         ${p.photo_url
                             ? `<img src="${escapeAttr(p.photo_url)}" alt="" loading="lazy">`
-                            : '<span class="thumb-placeholder">📦</span>'}
+                            : '<span class="thumb-placeholder">--</span>'}
                     </div>
                 </td>
                 <td class="name-cell">
@@ -204,9 +204,9 @@ function renderTable() {
                 <td class="actions-cell">
                     <div class="row-actions">
                         <button class="btn-icon" data-action="edit" data-id="${p.id}"
-                            ${state.isBusy ? 'disabled' : ''}>✎</button>
+                            ${state.isBusy ? 'disabled' : ''} title="Редактировать">Edit</button>
                         <button class="btn-icon btn-danger" data-action="delete" data-id="${p.id}"
-                            ${state.isBusy ? 'disabled' : ''}>✕</button>
+                            ${state.isBusy ? 'disabled' : ''} title="Удалить">Del</button>
                     </div>
                 </td>
             </tr>`;
@@ -262,7 +262,7 @@ async function addProduct() {
     });
 
     if (result) {
-        showNotification(`Товар «${result.name}» добавлен`, 'success');
+        showNotification(`Товар "${result.name}" добавлен`, 'success');
     }
 }
 
@@ -280,7 +280,7 @@ async function editProduct(id) {
     });
 
     if (result) {
-        showNotification(`Товар «${result.name}» обновлён`, 'success');
+        showNotification(`Товар "${result.name}" обновлён`, 'success');
     }
 }
 
@@ -292,7 +292,7 @@ async function deleteProduct(id) {
 
     const confirmed = await showConfirmDialog({
         title: 'Удаление товара',
-        message: `Вы уверены, что хотите удалить товар «${product.name}»?`,
+        message: `Вы уверены, что хотите удалить товар "${product.name}"?`,
         confirmText: 'Удалить',
         confirmClass: 'btn-danger'
     });
@@ -308,7 +308,7 @@ async function deleteProduct(id) {
     state.selectedIds.delete(id);
 
     if (success) {
-        showNotification(`Товар «${product.name}» удалён`, 'success');
+        showNotification(`Товар "${product.name}" удалён`, 'success');
     } else {
         showNotification(error || 'Ошибка удаления', 'error');
     }
@@ -372,7 +372,6 @@ function bindEvents() {
         updateSelectAll();
     });
 
-    // Логаут — импортируем динамически чтобы избежать циклической зависимости
     DOM.logoutBtn?.addEventListener('click', async () => {
         const { logout } = await import('../core/auth.js');
         logout();
@@ -396,10 +395,8 @@ async function init() {
 
     bindEvents();
 
-    // Подписываемся на изменения товаров
     productStore.on('change', () => renderAll());
 
-    // Загружаем товары
     await productStore.loadProducts();
     renderAll();
 }
