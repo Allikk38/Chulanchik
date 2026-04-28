@@ -1,273 +1,200 @@
-// ========================================
-// ФАЙЛ: core/repositories/product-repo.js
-// ========================================
+// ========== ДОБАВИТЬ В core/auth.js ПОСЛЕ ИМПОРТОВ ==========
+
+import { supabase } from './supabase-client.js';
+
+// ... существующий код ...
+
+// ========== ПРАВА ДОСТУПА ==========
 
 /**
- * Product Repository — слой доступа к данным товаров
- * 
- * ЕДИНСТВЕННЫЙ модуль, который общается с Supabase по таблице products.
- * Все запросы к БД проходят только через этот репозиторий.
- * 
- * Когда БД недоступна — использует заглушку с мок-данными.
- * После восстановления БД — удалить блок MOCK и раскомментировать реальный код.
- * 
- * @module core/repositories/product-repo
- * @version 1.0.0
+ * @type {Object|null} Профиль пользователя из таблицы profiles
  */
+let currentProfile = null;
 
-// Когда БД оживёт — используем этот импорт:
-// import { supabase } from '../supabase-client.js';
+/**
+ * @type {string[]} Массив slug прав текущего пользователя
+ */
+let currentPermissions = [];
 
-// ========== ВРЕМЕННАЯ ЗАГЛУШКА (удалить после восстановления БД) ==========
-
-const MOCK_PRODUCTS = [
-    {
-        id: 'mock-001',
-        name: 'Джинсы классические',
-        price: 2500,
-        cost_price: 800,
-        category: 'clothes',
-        status: 'in_stock',
-        photo_url: null,
-        attributes: { size: '32', brand: 'Levi\'s', condition: 'Отличное' },
-        created_by: 'system',
-        created_at: '2026-04-20T10:00:00Z',
-        updated_at: null
-    },
-    {
-        id: 'mock-002',
-        name: 'Конструктор LEGO',
-        price: 3200,
-        cost_price: 1500,
-        category: 'toys',
-        status: 'in_stock',
-        photo_url: null,
-        attributes: { age: '6+', brand: 'LEGO', completeness: 'Полная' },
-        created_by: 'system',
-        created_at: '2026-04-19T14:30:00Z',
-        updated_at: null
-    },
-    {
-        id: 'mock-003',
-        name: 'Чайный сервиз',
-        price: 1800,
-        cost_price: 600,
-        category: 'dishes',
-        status: 'sold',
-        photo_url: null,
-        attributes: { material: 'Фарфор', setItems: '12' },
-        created_by: 'system',
-        created_at: '2026-04-18T09:15:00Z',
-        sold_at: '2026-04-21T11:00:00Z'
-    },
-    {
-        id: 'mock-004',
-        name: 'Наушники Sony',
-        price: 4500,
-        cost_price: 2200,
-        category: 'electronics',
-        status: 'in_stock',
-        photo_url: null,
-        attributes: { brand: 'Sony', model: 'WH-1000XM4', condition: 'Отличное' },
-        created_by: 'system',
-        created_at: '2026-04-17T16:45:00Z',
-        updated_at: null
-    },
-    {
-        id: 'mock-005',
-        name: 'Стул офисный',
-        price: 3500,
-        cost_price: 1200,
-        category: 'furniture',
-        status: 'reserved',
-        photo_url: null,
-        attributes: { material: 'Ткань', color: 'Серый' },
-        created_by: 'system',
-        created_at: '2026-04-16T11:20:00Z',
-        updated_at: null
-    }
-];
-
-// ========== РЕПОЗИТОРИЙ ==========
-
-export const ProductRepo = {
-    /**
-     * Получить все товары
-     * @param {Object} options - Опции фильтрации
-     * @param {string} [options.status] - Фильтр по статусу
-     * @returns {Promise<Array<Object>>}
-     */
-    async getAll(options = {}) {
-        // ===== ВРЕМЕННАЯ ЗАГЛУШКА (заменить на реальный код после восстановления БД) =====
-        console.log('[ProductRepo] Using MOCK data (БД недоступна)');
-        
-        let products = [...MOCK_PRODUCTS];
-        
-        if (options.status) {
-            products = products.filter(p => p.status === options.status);
-        }
-        
-        // Имитация задержки сети
-        await new Promise(resolve => setTimeout(resolve, 300));
-        
-        return products;
-        
-        // ===== РЕАЛЬНЫЙ КОД (раскомментировать когда БД оживёт) =====
-        /*
-        console.log('[ProductRepo] Fetching all products...');
-        const startTime = Date.now();
-        
-        let query = supabase
-            .from('products')
-            .select('*');
-        
-        if (options.status) {
-            query = query.eq('status', options.status);
-        }
-        
-        query = query.order('created_at', { ascending: false });
-        
-        const { data, error } = await query;
-        
-        if (error) {
-            console.error('[ProductRepo] Failed to fetch products:', error);
-            throw error;
-        }
-        
-        console.log(`[ProductRepo] Fetched ${data.length} products in ${Date.now() - startTime}ms`);
-        return data;
-        */
-    },
-
-    /**
-     * Получить товар по ID
-     * @param {string} id - ID товара
-     * @returns {Promise<Object|null>}
-     */
-    async getById(id) {
-        // ===== ВРЕМЕННАЯ ЗАГЛУШКА =====
-        console.log('[ProductRepo] Using MOCK data for getById:', id);
-        await new Promise(resolve => setTimeout(resolve, 100));
-        return MOCK_PRODUCTS.find(p => p.id === id) || null;
-        
-        // ===== РЕАЛЬНЫЙ КОД =====
-        /*
-        const { data, error } = await supabase
-            .from('products')
-            .select('*')
-            .eq('id', id)
+/**
+ * Загружает профиль и права пользователя
+ * Вызывается после успешного входа
+ * 
+ * @param {string} userId - UUID пользователя из auth.users
+ * @returns {Promise<void>}
+ */
+async function loadUserProfile(userId) {
+    try {
+        // 1. Загружаем профиль с ролью
+        const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('*, roles:role_id(id, name)')
+            .eq('id', userId)
             .single();
-            
-        if (error && error.code !== 'PGRST116') {
-            console.error(`[ProductRepo] Failed to fetch product ${id}:`, error);
-            throw error;
-        }
-        
-        return data || null;
-        */
-    },
 
-    /**
-     * Создать товар
-     * @param {Object} productData - Данные товара
-     * @returns {Promise<Object>}
-     */
-    async create(productData) {
-        // ===== ВРЕМЕННАЯ ЗАГЛУШКА =====
-        console.log('[ProductRepo] Using MOCK data for create:', productData.name);
-        const newProduct = {
-            id: 'mock-' + Date.now(),
-            ...productData,
-            status: 'in_stock',
-            created_at: new Date().toISOString(),
-            updated_at: null
+        if (profileError) {
+            console.warn('[Auth] Profile not found for user:', userId);
+            currentProfile = null;
+            currentPermissions = [];
+            return;
+        }
+
+        currentProfile = profile;
+
+        if (!profile.role_id) {
+            currentPermissions = [];
+            return;
+        }
+
+        // 2. Загружаем права роли
+        const { data: rolePerms, error: permsError } = await supabase
+            .from('role_permissions')
+            .select('permissions:permission_id(slug, module)')
+            .eq('role_id', profile.role_id);
+
+        if (permsError) {
+            console.warn('[Auth] Failed to load permissions:', permsError);
+            currentPermissions = [];
+            return;
+        }
+
+        currentPermissions = (rolePerms || [])
+            .map(rp => rp.permissions?.slug)
+            .filter(Boolean);
+
+        console.log('[Auth] Permissions loaded:', currentPermissions);
+
+    } catch (err) {
+        console.error('[Auth] Load profile error:', err);
+        currentProfile = null;
+        currentPermissions = [];
+    }
+}
+
+/**
+ * Проверяет наличие права у текущего пользователя
+ * @param {string} permission - slug права (например 'products:create')
+ * @returns {boolean}
+ */
+export function hasPermission(permission) {
+    if (!permission) return false;
+    return currentPermissions.includes(permission) || currentPermissions.includes('*');
+}
+
+/**
+ * Проверяет наличие любого из перечисленных прав
+ * @param {string[]} permissions - slug прав
+ * @returns {boolean}
+ */
+export function hasAnyPermission(permissions = []) {
+    return permissions.some(p => hasPermission(p));
+}
+
+/**
+ * Проверяет наличие всех перечисленных прав
+ * @param {string[]} permissions - slug прав
+ * @returns {boolean}
+ */
+export function hasAllPermissions(permissions = []) {
+    return permissions.every(p => hasPermission(p));
+}
+
+/**
+ * Возвращает текущий профиль пользователя
+ * @returns {Object|null}
+ */
+export function getCurrentProfile() {
+    return currentProfile;
+}
+
+/**
+ * Возвращает все права текущего пользователя
+ * @returns {string[]}
+ */
+export function getCurrentPermissions() {
+    return [...currentPermissions];
+}
+
+// ========== ОБНОВИТЬ ФУНКЦИЮ signIn (добавить вызов loadUserProfile) ==========
+
+export async function signIn(email, password) {
+    console.log(`[Auth] SignIn attempt: ${email}`);
+    const startTime = Date.now();
+
+    try {
+        const { data, error } = await supabase.auth.signInWithPassword({
+            email: email.trim().toLowerCase(),
+            password
+        });
+
+        if (error) throw error;
+
+        if (data?.user) {
+            currentUser = data.user;
+            
+            // ЗАГРУЗКА ПРАВ — вот это добавляем
+            await loadUserProfile(data.user.id);
+            
+            console.log(`[Auth] SignIn success in ${Date.now() - startTime}ms`);
+            return { success: true, user: currentUser, error: null };
+        }
+
+        throw new Error('No user returned from Supabase');
+
+    } catch (error) {
+        console.error('[Auth] SignIn failed:', error);
+        return {
+            success: false,
+            user: null,
+            error: error.message || 'Ошибка входа'
         };
-        return newProduct;
-        
-        // ===== РЕАЛЬНЫЙ КОД =====
-        /*
-        const { data, error } = await supabase
-            .from('products')
-            .insert({
-                name: productData.name,
-                price: productData.price || 0,
-                cost_price: productData.cost_price || 0,
-                category: productData.category || 'other',
-                status: 'in_stock',
-                photo_url: productData.photo_url || null,
-                created_by: productData.created_by,
-                attributes: productData.attributes || {}
-            })
-            .select()
-            .single();
-            
-        if (error) {
-            console.error('[ProductRepo] Failed to create product:', error);
-            throw error;
-        }
-        
-        return data;
-        */
-    },
-
-    /**
-     * Обновить товар
-     * @param {string} id - ID товара
-     * @param {Object} updates - Поля для обновления
-     * @returns {Promise<Object>}
-     */
-    async update(id, updates) {
-        // ===== ВРЕМЕННАЯ ЗАГЛУШКА =====
-        console.log('[ProductRepo] Using MOCK data for update:', id);
-        const product = MOCK_PRODUCTS.find(p => p.id === id);
-        if (!product) throw new Error('Product not found');
-        return { ...product, ...updates, updated_at: new Date().toISOString() };
-        
-        // ===== РЕАЛЬНЫЙ КОД =====
-        /*
-        const { data, error } = await supabase
-            .from('products')
-            .update(updates)
-            .eq('id', id)
-            .select()
-            .single();
-            
-        if (error) {
-            console.error(`[ProductRepo] Failed to update product ${id}:`, error);
-            throw error;
-        }
-        
-        return data;
-        */
-    },
-
-    /**
-     * Удалить товар
-     * @param {string} id - ID товара
-     * @returns {Promise<boolean>}
-     */
-    async remove(id) {
-        // ===== ВРЕМЕННАЯ ЗАГЛУШКА =====
-        console.log('[ProductRepo] Using MOCK data for remove:', id);
-        return true;
-        
-        // ===== РЕАЛЬНЫЙ КОД =====
-        /*
-        const { error } = await supabase
-            .from('products')
-            .delete()
-            .eq('id', id);
-            
-        if (error) {
-            console.error(`[ProductRepo] Failed to delete product ${id}:`, error);
-            throw error;
-        }
-        
-        return true;
-        */
     }
+}
+
+// ========== ОБНОВИТЬ initAuth (добавить загрузку прав при восстановлении сессии) ==========
+
+export async function initAuth() {
+    console.log('[Auth] InitAuth started...');
+
+    try {
+        const { data, error } = await supabase.auth.getUser();
+
+        if (error) {
+            // ... существующая логика восстановления сессии ...
+            return null;
+        }
+
+        if (data?.user) {
+            currentUser = data.user;
+            
+            // ЗАГРУЗКА ПРАВ — добавляем
+            await loadUserProfile(data.user.id);
+            
+            console.log('[Auth] User session found:', data.user.email);
+        }
+    } catch (err) {
+        console.error('[Auth] InitAuth failed', err);
+    }
+
+    return currentUser;
+}
+
+// ========== ОБНОВИТЬ EXPORTЫ ==========
+
+export default {
+    initAuth,
+    signIn,
+    getCurrentUser,
+    isAuthenticated,
+    requireAuth,
+    logout,
+    isOnline,
+    getReturnUrl,
+    getSupabase,
+    // Новые
+    hasPermission,
+    hasAnyPermission,
+    hasAllPermissions,
+    getCurrentProfile,
+    getCurrentPermissions
 };
-
-export default ProductRepo;
-
-console.log('[ProductRepo] Module loaded');
