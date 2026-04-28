@@ -4,8 +4,9 @@
  * Стили для отображения товаров в виде карточек и в таблице.
  * 
  * @stylesheet product-card
- * @version 5.0.0
+ * @version 5.1.0
  * @changes
+ * - v5.1.0: Добавлен класс .product-card.in-cart для визуального индикатора.
  * - Убраны transform-анимации (translateY, scale).
  * - Убрана анимация pulse.
  * - Упрощены переходы (только shadow и background).
@@ -29,6 +30,7 @@
     overflow: hidden;
     box-shadow: var(--shadow-sm);
     cursor: pointer;
+    border: var(--border-width) solid var(--color-border);
 }
 
 .product-card:hover {
@@ -42,6 +44,16 @@
 
 .product-card.product-sold:hover {
     box-shadow: var(--shadow-sm);
+}
+
+/* Индикатор товара, уже добавленного в корзину */
+.product-card.in-cart {
+    border-left: 3px solid var(--color-primary);
+    background: var(--color-primary-bg);
+}
+
+.product-card.in-cart:hover {
+    background: var(--color-primary-bg);
 }
 
 /* ========== PRODUCT PHOTO ========== */
