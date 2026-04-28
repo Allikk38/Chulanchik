@@ -6,8 +6,9 @@
  * Стили компонентов вынесены в соответствующие файлы.
  * 
  * @stylesheet cashier-layout
- * @version 5.0.0
+ * @version 5.1.0
  * @changes
+ * - v5.1.0: Добавлена выдвижная корзина для мобильных (slide-in panel).
  * - Удалены стили компонентов (оставлены только макетные).
  * - Исправлено использование переменной --cart-width.
  * - Упрощены селекторы.
@@ -93,6 +94,60 @@
     overflow-x: hidden;
 }
 
+/* ========== КНОПКА-ТРИГГЕР КОРЗИНЫ (МОБИЛЬНЫЕ) ========== */
+.cart-toggle-btn {
+    display: none;
+    position: fixed;
+    bottom: var(--spacing-4);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: var(--z-fixed);
+    height: 48px;
+    padding: 0 var(--spacing-6);
+    background: var(--color-primary);
+    color: var(--color-white);
+    border: none;
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    cursor: pointer;
+    box-shadow: var(--shadow-md);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    white-space: nowrap;
+}
+
+.cart-toggle-btn:hover {
+    background: var(--color-primary-dark);
+}
+
+.cart-toggle-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 var(--spacing-1);
+    background: var(--color-white);
+    color: var(--color-primary-dark);
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-bold);
+}
+
+/* ========== ОВЕРЛЕЙ КОРЗИНЫ (МОБИЛЬНЫЕ) ========== */
+.cart-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(15, 23, 42, 0.4);
+    z-index: var(--z-modal-backdrop);
+}
+
 /* ========== АДАПТИВНОСТЬ (ТОЛЬКО ДЛЯ МАКЕТА) ========== */
 @media (max-width: 1024px) {
     :root {
@@ -101,17 +156,42 @@
 }
 
 @media (max-width: 768px) {
+    /* Сетка — только товары на весь экран */
     .cashier-layout {
         grid-template-columns: 1fr;
-        grid-template-rows: 1fr auto;
+        grid-template-rows: 1fr;
     }
-    
+
+    /* Корзина — выдвижная панель */
     .cart-panel {
-        max-height: 55vh;
-        border-left: none;
-        border-top: var(--border-width) solid var(--color-border);
+        position: fixed;
+        top: 0;
+        right: 0;
+        width: 85vw;
+        max-width: 400px;
+        height: 100vh;
+        height: 100dvh;
+        z-index: var(--z-modal);
+        transform: translateX(100%);
+        transition: transform 150ms ease-out;
+        box-shadow: var(--shadow-xl);
+        border-left: var(--border-width) solid var(--color-border);
     }
-    
+
+    .cart-panel.open {
+        transform: translateX(0);
+    }
+
+    /* Показываем триггер и оверлей */
+    .cart-toggle-btn {
+        display: flex;
+    }
+
+    .cart-overlay {
+        display: none;
+    }
+
+    /* Убираем разделитель у левой панели */
     .products-panel {
         border-right: none;
     }
@@ -119,7 +199,8 @@
 
 @media (max-width: 480px) {
     .cart-panel {
-        max-height: 60vh;
+        width: 100vw;
+        max-width: 100vw;
     }
 }
 
@@ -135,7 +216,14 @@
     }
     
     .cart-panel {
+        position: static;
         max-height: none;
         border: none;
+        transform: none;
+    }
+
+    .cart-toggle-btn,
+    .cart-overlay {
+        display: none;
     }
 }
