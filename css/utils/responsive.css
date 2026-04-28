@@ -6,8 +6,9 @@
  * Специфичные для страниц правила находятся в соответствующих файлах.
  * 
  * @stylesheet responsive
- * @version 5.1.0
+ * @version 5.2.0
  * @changes
+ * - v5.2.0: Касса на мобильных — корзина fixed, лейаут не скроллится.
  * - v5.1.0: Разблокирован скролл на мобильных для всех страниц и контейнеров.
  */
 
@@ -67,45 +68,36 @@
     
     /* ===== КАССА ===== */
     .cashier-page {
-        height: auto;
-        overflow: visible;
+        height: 100%;
+        overflow: hidden;
     }
     
     .cashier-page-container {
-        height: auto;
-        overflow: visible;
+        height: 100%;
+        overflow: hidden;
     }
     
     .cashier-app-wrapper {
-        height: auto;
-        overflow: visible;
+        height: 100%;
+        overflow: hidden;
     }
     
     .cashier-layout {
-        height: auto;
-        overflow: visible;
+        height: 100%;
+        overflow: hidden;
     }
     
     .products-panel {
-        height: auto;
-        overflow: visible;
+        height: 100%;
+        overflow: hidden;
     }
     
     .products-grid-container {
         height: auto;
-        overflow-y: visible;
-    }
-    
-    .cart-panel {
-        height: auto;
-        max-height: none;
-    }
-    
-    .cart-items-container {
-        height: auto;
-        max-height: 50vh;
         overflow-y: auto;
     }
+    
+    /* Корзина управляется через fixed + transform в cashier.css */
     
     /* ===== ОТЧЕТЫ ===== */
     .reports-page {
@@ -232,7 +224,9 @@
     .reports-tabs,
     .header-right,
     #notificationContainer,
-    .modal-overlay {
+    .modal-overlay,
+    .cart-toggle-btn,
+    .cart-overlay {
         display: none !important;
     }
     
