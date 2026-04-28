@@ -123,26 +123,17 @@ export const ShiftRepository = {
 
     /**
      * Закрывает смену.
-     * Обновляет closed_at, статус и финальные показатели.
+     * Обновляет только closed_at и status.
+     * Статистика всегда пересчитывается из продаж через loadStats().
      *
      * @param {string} shiftId
-     * @param {Object} stats
-     * @param {number} stats.revenue
-     * @param {number} stats.profit
-     * @param {number} stats.salesCount
-     * @param {number} stats.itemsCount
      * @returns {Promise<Object>}
      */
-    async close(shiftId, stats) {
+    async close(shiftId) {
         const { data, error } = await supabase
             .from('shifts')
             .update({
                 closed_at: new Date().toISOString(),
-                final_cash: stats.revenue,
-                total_revenue: stats.revenue,
-                total_profit: stats.profit,
-                sales_count: stats.salesCount,
-                items_count: stats.itemsCount,
                 status: 'closed'
             })
             .eq('id', shiftId)
@@ -153,6 +144,26 @@ export const ShiftRepository = {
 
         saveCachedActiveShift(null);
         return data;
+    },
+
+    /**
+     * Нормализует поле items — может прийти как JSON-строка или уже как массив.
+     *
+     * @param {*} items
+     * @returns {Object[]}
+     */
+    _normalizeItems(items) {
+        if (!items) return [];
+        if (Array.isArray(items)) return items;
+        if (typeof items === 'string') {
+            try {
+                const parsed = JSON.parse(items);
+                return Array.isArray(parsed) ? parsed : [];
+            } catch (e) {
+                return [];
+            }
+        }
+        return [];
     },
 
     /**
@@ -171,13 +182,25 @@ export const ShiftRepository = {
 
         const sales = data || [];
 
+        let revenue = 0;
+        let profit = 0;
+        let itemsCount = 0;
+
+        for (const sale of sales) {
+            revenue += sale.total || 0;
+            profit += sale.profit || 0;
+
+            const saleItems = this._normalizeItems(sale.items);
+            for (const item of saleItems) {
+                itemsCount += item.quantity || 0;
+            }
+        }
+
         return {
-            revenue: sales.reduce((sum, s) => sum + (s.total || 0), 0),
-            profit: sales.reduce((sum, s) => sum + (s.profit || 0), 0),
+            revenue,
+            profit,
             salesCount: sales.length,
-            itemsCount: sales.reduce((sum, s) => {
-                return sum + (s.items || []).reduce((s2, i) => s2 + (i.quantity || 0), 0);
-            }, 0)
+            itemsCount
         };
     },
 
