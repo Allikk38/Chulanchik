@@ -342,6 +342,12 @@
 }
 
 /* ========== ИТОГИ КОРЗИНЫ ========== */
+.cart-footer {
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+}
+
 .cart-summary {
     padding: var(--spacing-4);
     border-top: var(--border-width) solid var(--color-border);
