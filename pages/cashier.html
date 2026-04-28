@@ -1,0 +1,495 @@
+<!-- ============================================================ -->
+<!-- pages/cashier.html -->
+<!-- ============================================================ -->
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Касса | Чуланчик</title>
+
+    <base href="/second-hand-crm/">
+
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+
+    <!-- Стили -->
+    <link rel="stylesheet" href="css/styles.css">
+
+    <style>
+        .cashier-page {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            padding: var(--spacing-5);
+            background: var(--color-bg);
+        }
+
+        /* Сетка */
+        .cashier-layout {
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            height: 100%;
+            gap: var(--spacing-5);
+            overflow: hidden;
+        }
+
+        .cashier-layout.shift-closed-mode {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Левая панель */
+        .products-panel {
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        .products-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: var(--spacing-3);
+            margin-bottom: var(--spacing-3);
+            flex-shrink: 0;
+        }
+
+        .toolbar-left {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-3);
+            flex: 1;
+        }
+
+        .search-wrapper {
+            position: relative;
+            flex: 1;
+            max-width: 400px;
+        }
+
+        .search-wrapper input {
+            padding-left: var(--spacing-8);
+        }
+
+        .search-wrapper::before {
+            content: '🔍';
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 14px;
+            opacity: 0.4;
+            pointer-events: none;
+        }
+
+        .category-bar {
+            display: flex;
+            gap: var(--spacing-2);
+            margin-bottom: var(--spacing-3);
+            overflow-x: auto;
+            flex-shrink: 0;
+            padding-bottom: var(--spacing-2);
+        }
+
+        .category-tab {
+            padding: var(--spacing-1) var(--spacing-3);
+            background: var(--color-white);
+            color: var(--color-text-secondary);
+            border-radius: var(--radius-full);
+            font-size: var(--font-size-sm);
+            font-weight: 500;
+            border: var(--border-width) solid var(--color-border);
+            white-space: nowrap;
+            cursor: pointer;
+        }
+
+        .category-tab.active {
+            background: var(--color-gray-800);
+            color: var(--color-white);
+            border-color: var(--color-gray-800);
+        }
+
+        .products-grid-container {
+            flex: 1;
+            overflow-y: auto;
+            min-height: 0;
+        }
+
+        .products-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: var(--spacing-3);
+        }
+
+        .product-card {
+            background: var(--color-white);
+            border-radius: var(--radius-lg);
+            border: var(--border-width) solid var(--color-border);
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        .product-card:hover {
+            box-shadow: var(--shadow-md);
+        }
+
+        .product-photo {
+            width: 100%;
+            height: 140px;
+            background: var(--color-gray-100);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .product-photo img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .photo-placeholder { font-size: 40px; opacity: 0.3; }
+
+        .product-info {
+            padding: var(--spacing-2) var(--spacing-3);
+        }
+
+        .product-name {
+            font-weight: 500;
+            font-size: var(--font-size-sm);
+            color: var(--color-text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .product-price {
+            font-weight: 700;
+            color: var(--color-primary);
+            font-size: var(--font-size-base);
+            margin-top: var(--spacing-1);
+        }
+
+        /* Правая панель — корзина */
+        .cart-panel {
+            display: flex;
+            flex-direction: column;
+            background: var(--color-white);
+            border-radius: var(--radius-lg);
+            border: var(--border-width) solid var(--color-border);
+            overflow: hidden;
+        }
+
+        .cart-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: var(--spacing-3) var(--spacing-4);
+            border-bottom: var(--border-width) solid var(--color-border);
+            flex-shrink: 0;
+        }
+
+        .cart-header h3 {
+            font-size: var(--font-size-base);
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .cart-count {
+            font-size: var(--font-size-xs);
+            color: var(--color-text-muted);
+        }
+
+        .cart-items-container {
+            flex: 1;
+            overflow-y: auto;
+            min-height: 0;
+            padding: var(--spacing-2);
+        }
+
+        .cart-items {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-2);
+        }
+
+        .cart-item {
+            padding: var(--spacing-2) var(--spacing-3);
+            background: var(--color-white);
+            border-radius: var(--radius-md);
+            border: var(--border-width) solid var(--color-border);
+        }
+
+        .cart-item-main {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .cart-item-name {
+            font-size: var(--font-size-sm);
+            font-weight: 500;
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .cart-item-actions {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-2);
+            flex-shrink: 0;
+            margin-left: var(--spacing-2);
+        }
+
+        .quantity-control {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--spacing-1);
+        }
+
+        .btn-qty {
+            width: 24px;
+            height: 24px;
+            padding: 0;
+            background: var(--color-white);
+            border: var(--border-width) solid var(--color-border);
+            border-radius: var(--radius-sm);
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .qty-input {
+            min-width: 28px;
+            text-align: center;
+            font-weight: 500;
+            font-size: var(--font-size-sm);
+        }
+
+        .item-total {
+            min-width: 70px;
+            text-align: right;
+            font-weight: 600;
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-sm);
+        }
+
+        .btn-remove {
+            width: 24px;
+            height: 24px;
+            padding: 0;
+            background: transparent;
+            border: none;
+            color: var(--color-text-muted);
+            cursor: pointer;
+            font-size: 16px;
+            border-radius: var(--radius-sm);
+        }
+
+        .btn-remove:hover {
+            background: var(--color-danger-bg);
+            color: var(--color-danger);
+        }
+
+        .cart-footer {
+            padding: var(--spacing-3) var(--spacing-4);
+            border-top: var(--border-width) solid var(--color-border);
+            background: var(--color-gray-50);
+            flex-shrink: 0;
+        }
+
+        .cart-summary {
+            margin-bottom: var(--spacing-3);
+        }
+
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: var(--font-size-sm);
+            color: var(--color-text-secondary);
+        }
+
+        .summary-row.total {
+            font-size: var(--font-size-base);
+            font-weight: 700;
+            color: var(--color-text);
+            margin-top: var(--spacing-2);
+            padding-top: var(--spacing-2);
+            border-top: var(--border-width) solid var(--color-border);
+        }
+
+        .total-amount {
+            font-size: var(--font-size-xl);
+            color: var(--color-primary-dark);
+        }
+
+        .btn-checkout {
+            width: 100%;
+            height: 44px;
+            background: var(--color-primary);
+            color: white;
+            font-size: var(--font-size-base);
+            font-weight: 600;
+            border-radius: var(--radius-md);
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-checkout:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .keyboard-hints {
+            text-align: center;
+            margin-top: var(--spacing-2);
+            font-size: var(--font-size-xs);
+            color: var(--color-text-muted);
+        }
+
+        .keyboard-hints kbd {
+            display: inline-block;
+            padding: 2px 6px;
+            background: var(--color-gray-100);
+            border: var(--border-width) solid var(--color-border);
+            border-radius: var(--radius-sm);
+            font-family: var(--font-family-mono);
+            font-size: 10px;
+        }
+
+        /* Смена */
+        .shift-bar {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-4);
+            padding: var(--spacing-2) var(--spacing-4);
+            margin-bottom: var(--spacing-3);
+            background: var(--color-white);
+            border-radius: var(--radius-md);
+            border: var(--border-width) solid var(--color-border);
+            font-size: var(--font-size-sm);
+            flex-shrink: 0;
+        }
+
+        .shift-status {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-2);
+            font-weight: 500;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--color-success);
+        }
+
+        .shift-stats {
+            display: flex;
+            gap: var(--spacing-4);
+        }
+
+        .stat-item { text-align: center; }
+        .stat-label { font-size: var(--font-size-xs); color: var(--color-text-muted); }
+        .stat-value { font-weight: 600; }
+
+        .shift-closed-overlay {
+            text-align: center;
+            padding: var(--spacing-8);
+            background: var(--color-white);
+            border-radius: var(--radius-lg);
+            max-width: 400px;
+        }
+
+        .shift-closed-icon { font-size: 64px; opacity: 0.3; margin-bottom: var(--spacing-4); }
+
+        .cart-empty {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 200px;
+            color: var(--color-text-muted);
+            font-size: var(--font-size-sm);
+        }
+
+        .empty-state {
+            padding: 60px 20px;
+            text-align: center;
+            color: var(--color-text-muted);
+        }
+
+        .loading-spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid var(--color-border);
+            border-top-color: var(--color-primary);
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            margin: 60px auto;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        @media (max-width: 768px) {
+            .cashier-layout {
+                grid-template-columns: 1fr;
+                grid-template-rows: 1fr auto;
+            }
+            .cart-panel { max-height: 55vh; }
+            .products-photo { height: 100px; }
+            .products-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+        }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <header class="app-header">
+            <h1>💰 Чуланчик</h1>
+            <nav class="app-nav">
+                <a href="pages/inventory.html">Склад</a>
+                <a href="pages/cashier.html" class="active" aria-current="page">Касса</a>
+                <a href="pages/reports.html">Отчёты</a>
+            </nav>
+            <div class="header-actions">
+                <span class="user-email" id="userEmail"></span>
+                <button class="btn-ghost btn-sm" id="logoutBtn">🚪 Выход</button>
+            </div>
+        </header>
+
+        <main class="page-container">
+            <div class="cashier-page">
+                <div id="cashierContent"></div>
+            </div>
+        </main>
+    </div>
+
+    <div id="modalContainer"></div>
+    <div id="notificationContainer"></div>
+
+    <script type="module" src="controllers/CashierController.js"></script>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/second-hand-crm/sw.js', { scope: '/second-hand-crm/' })
+                .catch(() => {});
+        }
+    </script>
+</body>
+</html>
