@@ -105,7 +105,7 @@ function renderFields(category, initialAttrs = {}) {
 // ============================================================
 
 function modalHtml({ mode, initialData }) {
-    const title = mode === 'create' ? '➕ Добавление товара' : '✎ Редактирование товара';
+    const title = mode === 'create' ? 'Добавление товара' : 'Редактирование товара';
     const submitText = mode === 'create' ? 'Сохранить' : 'Обновить';
     const cat = initialData.category || CATEGORY_KEYS[0];
     const hasPhoto = !!initialData.photo_url;
@@ -115,22 +115,22 @@ function modalHtml({ mode, initialData }) {
         <div class="modal product-form-modal">
             <div class="modal-header">
                 <h3>${title}</h3>
-                <button class="btn-close" id="pfClose">×</button>
+                <button class="btn-close" id="pfClose">x</button>
             </div>
             <div class="modal-body">
                 <div class="photo-upload-section">
                     <label class="photo-upload-label">Фото товара</label>
                     <div class="photo-upload-container">
                         <div class="photo-preview ${hasPhoto ? 'has-image' : ''}" id="pfPreview">
-                            <div class="photo-placeholder-icon" id="pfPlaceholder" style="display:${hasPhoto ? 'none' : 'flex'}">📸</div>
+                            <div class="photo-placeholder-icon" id="pfPlaceholder" style="display:${hasPhoto ? 'none' : 'flex'}">Фото</div>
                             <img id="pfImg" src="${escapeHtml(initialData.photo_url || '')}" alt=""
                                 style="display:${hasPhoto ? 'block' : 'none'}">
                         </div>
                         <div class="photo-upload-controls">
                             <input type="file" id="pfPhotoInput" accept="image/*" style="display:none">
-                            <button type="button" class="photo-upload-btn" id="pfUploadBtn">📁 Выбрать фото</button>
+                            <button type="button" class="photo-upload-btn" id="pfUploadBtn">Выбрать фото</button>
                             <button type="button" class="photo-upload-btn photo-remove-btn" id="pfRemoveBtn"
-                                style="display:${hasPhoto ? 'inline-flex' : 'none'}">🗑️ Удалить</button>
+                                style="display:${hasPhoto ? 'inline-flex' : 'none'}">Удалить</button>
                             <span class="photo-upload-hint">JPG, PNG, WEBP до ${MAX_PHOTO_MB} MB</span>
                         </div>
                     </div>
@@ -154,19 +154,19 @@ function modalHtml({ mode, initialData }) {
                 <div class="pricing-section">
                     <div class="pricing-row">
                         <div class="form-group">
-                            <label for="pfPrice">Цена продажи (₽)<span class="required">*</span></label>
+                            <label for="pfPrice">Цена продажи (RUB)<span class="required">*</span></label>
                             <input type="number" id="pfPrice" min="0" step="1"
                                 value="${initialData.price || ''}" required>
                         </div>
                         <div class="form-group">
-                            <label for="pfCost">Себестоимость (₽)</label>
+                            <label for="pfCost">Себестоимость (RUB)</label>
                             <input type="number" id="pfCost" min="0" step="1"
                                 value="${initialData.cost_price || ''}">
                         </div>
                     </div>
                     <div class="margin-indicator">
                         <span class="margin-label">Маржа:</span>
-                        <span id="pfMargin" class="margin-value">0 ₽</span>
+                        <span id="pfMargin" class="margin-value">0 RUB</span>
                     </div>
                 </div>
 
