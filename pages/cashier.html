@@ -6,7 +6,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Касса | Чуланчик</title>
 
     <base href="/Chulanchik/">
@@ -22,6 +22,19 @@
     <link rel="stylesheet" href="css/styles.css">
 
     <style>
+        html {
+            height: 100%;
+            overflow: hidden;
+            overscroll-behavior: none;
+        }
+
+        body {
+            height: 100%;
+            overflow: hidden;
+            overscroll-behavior: none;
+            touch-action: manipulation;
+        }
+
         .cashier-page {
             display: flex;
             flex-direction: column;
@@ -80,12 +93,13 @@
         }
 
         .search-wrapper::before {
-            content: '🔍';
+            content: '>';
             position: absolute;
             left: 12px;
             top: 50%;
             transform: translateY(-50%);
             font-size: 14px;
+            font-weight: 600;
             opacity: 0.4;
             pointer-events: none;
         }
@@ -121,6 +135,7 @@
             flex: 1;
             overflow-y: auto;
             min-height: 0;
+            -webkit-overflow-scrolling: touch;
         }
 
         .products-grid {
@@ -157,7 +172,11 @@
             object-fit: cover;
         }
 
-        .photo-placeholder { font-size: 40px; opacity: 0.3; }
+        .photo-placeholder {
+            font-size: 40px;
+            opacity: 0.3;
+            color: var(--color-text-muted);
+        }
 
         .product-info {
             padding: var(--spacing-2) var(--spacing-3);
@@ -214,6 +233,7 @@
             overflow-y: auto;
             min-height: 0;
             padding: var(--spacing-2);
+            -webkit-overflow-scrolling: touch;
         }
 
         .cart-items {
@@ -417,7 +437,13 @@
             max-width: 400px;
         }
 
-        .shift-closed-icon { font-size: 64px; opacity: 0.3; margin-bottom: var(--spacing-4); }
+        .shift-closed-icon {
+            font-size: 48px;
+            font-weight: 700;
+            color: var(--color-text-muted);
+            opacity: 0.4;
+            margin-bottom: var(--spacing-4);
+        }
 
         .cart-empty {
             display: flex;
@@ -450,9 +476,8 @@
         @media (max-width: 768px) {
             .cashier-layout {
                 grid-template-columns: 1fr;
-                grid-template-rows: 1fr auto;
+                grid-template-rows: 1fr;
             }
-            .cart-panel { max-height: 55vh; }
             .products-photo { height: 100px; }
             .products-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
         }
@@ -461,7 +486,7 @@
 <body>
     <div class="app">
         <header class="app-header">
-            <h1>💰 Чуланчик</h1>
+            <h1>Касса | Чуланчик</h1>
             <nav class="app-nav">
                 <a href="pages/inventory.html">Склад</a>
                 <a href="pages/cashier.html" class="active" aria-current="page">Касса</a>
@@ -469,7 +494,7 @@
             </nav>
             <div class="header-actions">
                 <span class="user-email" id="userEmail"></span>
-                <button class="btn-ghost btn-sm" id="logoutBtn">🚪 Выход</button>
+                <button class="btn-ghost btn-sm" id="logoutBtn">Выход</button>
             </div>
         </header>
 
