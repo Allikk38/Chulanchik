@@ -15,7 +15,7 @@
  * - Автоматическое скрытие уведомлений через 4 секунды.
  * 
  * @module ui
- * @version 1.0.0
+ * @version 1.1.0
  */
 
 import { escapeHtml } from './formatters.js';
@@ -104,12 +104,12 @@ export function showNotification(message, type = 'info', options = {}) {
     const container = getNotificationContainer();
     trimOldNotifications(container);
     
-    // Иконки по типу
+    // Символы по типу
     const icons = {
-        success: '✓',
-        error: '✕',
-        warning: '⚠',
-        info: 'ℹ'
+        success: 'OK',
+        error: '!',
+        warning: '!!',
+        info: 'i'
     };
     
     const icon = icons[type] || icons.info;
@@ -164,7 +164,7 @@ export function showNotification(message, type = 'info', options = {}) {
             justify-content: center;
             border-radius: 50%;
             font-weight: bold;
-            font-size: 14px;
+            font-size: 12px;
             flex-shrink: 0;
             background: ${borderColors[type]}15;
             color: ${borderColors[type]};
@@ -187,7 +187,7 @@ export function showNotification(message, type = 'info', options = {}) {
             border-radius: 4px;
             flex-shrink: 0;
             padding: 0;
-        " onclick="this.closest('.sh-notification').remove()">×</button>
+        " onclick="this.closest('.sh-notification').remove()">x</button>
     `;
     
     container.appendChild(notification);
@@ -330,7 +330,7 @@ export function showPaymentModal(total) {
             style: 'currency',
             currency: 'RUB',
             minimumFractionDigits: 0
-        }).format(amount).replace('RUB', '₽').trim();
+        }).format(amount).replace('RUB', ' RUB').trim();
     };
     
     return new Promise((resolve) => {
@@ -386,7 +386,7 @@ export function showPaymentModal(total) {
                         cursor: pointer;
                         transition: all 0.15s;
                     ">
-                        <span style="font-size: 32px;">💵</span>
+                        <span style="font-size: 20px; font-weight: 700; color: #475569;">Нал</span>
                         <span style="font-size: 14px; font-weight: 500; color: #0f172a;">Наличные</span>
                     </button>
                     <button class="sh-payment-option" data-method="card" style="
@@ -402,7 +402,7 @@ export function showPaymentModal(total) {
                         cursor: pointer;
                         transition: all 0.15s;
                     ">
-                        <span style="font-size: 32px;">💳</span>
+                        <span style="font-size: 20px; font-weight: 700; color: #475569;">Карта</span>
                         <span style="font-size: 14px; font-weight: 500; color: #0f172a;">Карта</span>
                     </button>
                     <button class="sh-payment-option" data-method="transfer" style="
@@ -418,7 +418,7 @@ export function showPaymentModal(total) {
                         cursor: pointer;
                         transition: all 0.15s;
                     ">
-                        <span style="font-size: 32px;">📱</span>
+                        <span style="font-size: 20px; font-weight: 700; color: #475569;">Пер</span>
                         <span style="font-size: 14px; font-weight: 500; color: #0f172a;">Перевод</span>
                     </button>
                 </div>
