@@ -1,0 +1,31 @@
+/**
+ * Чуланчик — Main Stylesheet
+ * 
+ * Точка входа для всех стилей.
+ * Импортирует CSS-модули в порядке: переменные → сброс → типографика →
+ * компоненты → макеты → утилиты.
+ */
+
+/* 1. Базовые переменные и сброс */
+@import 'base/variables.css';
+@import 'base/reset.css';
+@import 'base/typography.css';
+
+/* 2. Компоненты */
+@import 'components/buttons.css';
+@import 'components/forms.css';
+@import 'components/tables.css';
+@import 'components/modal.css';
+@import 'components/notifications.css';
+@import 'components/product-card.css';
+@import 'components/cart.css';
+
+/* 3. Макеты */
+@import 'layouts/app.css';
+@import 'layouts/cashier.css';
+@import 'layouts/inventory.css';
+@import 'layouts/reports.css';
+
+/* 4. Утилиты */
+@import 'utils/utilities.css';
+@import 'utils/responsive.css';
