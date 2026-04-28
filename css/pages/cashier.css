@@ -188,7 +188,13 @@
     background: var(--color-gray-50);
     border-radius: var(--radius-md);
 }
-
+/* ========== ФУТЕР КОРЗИНЫ (STICKY) ========== */
+.cart-footer {
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+    background: var(--color-gray-50);
+}
 /* ========== ПЕРЕОПРЕДЕЛЕНИЯ ДЛЯ МОБИЛЬНЫХ (ТОЛЬКО СПЕЦИФИЧНЫЕ) ========== */
 @media (max-width: 768px) {
     .payment-methods {
