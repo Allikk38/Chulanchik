@@ -1,28 +1,29 @@
-// ========================================
-// ФАЙЛ: core/supabase-client.js
-// ========================================
+// ============================================================
+// core/supabase-client.js
+// ============================================================
 
 /**
- * Supabase Client — единый клиент для всего приложения
+ * Единый экземпляр Supabase-клиента.
  * 
- * Использует официальный SDK через ES-модули (CDN).
- * Создаётся один раз при импорте.
+ * Создаётся один раз при первом импорте модуля.
+ * Все остальные модули импортируют supabase отсюда.
  * 
- * @module core/supabase-client
- * @version 3.0.0
+ * @module supabase-client
  */
 
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
-const SUPABASE_URL = 'https://bhdwniiyrrujeoubrvle.supabase.co';
+/** @type {string} */
+export const SUPABASE_URL = 'https://bhdwniiyrrujeoubrvle.supabase.co';
+
+/** @type {string} */
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJoZHduaWl5cnJ1amVvdWJydmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2MzM2MTYsImV4cCI6MjA5MjIwOTYxNn0.-EilGBYgNNRraTjEqilYuvk-Pfy_Mf5TNEtS1NrU2WM';
 
 /**
- * Единый экземпляр Supabase-клиента.
- * Все модули импортируют supabase только отсюда.
+ * Экземпляр Supabase-клиента — единственный на всё приложение.
  * 
- * @type {Object}
+ * @type {import('@supabase/supabase-js').SupabaseClient}
  */
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-console.log('[Supabase] Client created (ES modules)');
+console.log('[supabase-client] Client created');
