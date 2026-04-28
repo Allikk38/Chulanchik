@@ -59,7 +59,7 @@
             background: var(--color-bg);
         }
 
-        /* Сетка */
+        /* Сетка — десктоп: две колонки */
         .cashier-layout {
             display: grid;
             grid-template-columns: 1fr 380px;
@@ -305,7 +305,7 @@
             margin-top: var(--spacing-1);
         }
 
-        /* Правая панель — корзина */
+        /* Правая панель — корзина (десктоп: вторая колонка grid) */
         .cart-panel {
             display: flex;
             flex-direction: column;
@@ -579,17 +579,41 @@
             to { transform: rotate(360deg); }
         }
 
-        /* ========== АДАПТИВНОСТЬ ========== */
-
+        /* ========== АДАПТИВНОСТЬ: МОБИЛЬНЫЕ (<= 768px) ========== */
         @media (max-width: 768px) {
             .cashier-page {
                 padding: var(--spacing-2);
             }
 
+            /* Переводим лейаут на block — корзина будет fixed поверх */
             .cashier-layout {
-                grid-template-columns: 1fr;
-                grid-template-rows: 1fr;
-                gap: 0;
+                display: block;
+                height: 100%;
+                overflow: hidden;
+                position: relative;
+            }
+
+            .cashier-layout.shift-closed-mode {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            /* Панель товаров на всю высоту */
+            .products-panel {
+                height: 100%;
+                display: flex;
+                flex-direction: column;
+                overflow: hidden;
+            }
+
+            /* Сетка товаров скроллится */
+            .products-grid-container {
+                flex: 1;
+                min-height: 0;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+                touch-action: pan-y;
             }
 
             /* Строка смены — компактнее */
@@ -655,12 +679,15 @@
                 font-size: var(--font-size-sm);
             }
 
-            /* Скрываем кнопку «Быстрый товар» в тулбаре — будет FAB */
+            /* Кнопка «Быстрый товар» в тулбаре скрыта — вместо неё FAB */
             #quickAddBtn {
                 display: none;
             }
 
-            /* Корзина — выдвижная */
+            /*
+             * Корзина — fixed, спрятана за правым краем.
+             * Выезжает по классу .open (добавляется в toggleCart()).
+             */
             .cart-panel {
                 position: fixed;
                 top: 0;
@@ -682,7 +709,7 @@
                 transform: translateX(0);
             }
 
-            /* Кнопка корзины */
+            /* Кнопка-триггер корзины (плавающая снизу) */
             .cart-toggle-btn {
                 display: flex;
                 position: fixed;
@@ -720,7 +747,7 @@
                 font-weight: 700;
             }
 
-            /* Оверлей */
+            /* Оверлей корзины */
             .cart-overlay {
                 display: none;
                 position: fixed;
@@ -732,13 +759,13 @@
                 z-index: var(--z-modal-backdrop);
             }
 
-            /* Кнопка оформления — выше */
+            /* Кнопка оформления */
             .btn-checkout {
                 height: 48px;
                 font-size: var(--font-size-base);
             }
 
-            /* Кнопки в корзине — крупнее */
+            /* Кнопки +/- в корзине */
             .btn-qty {
                 width: 32px;
                 height: 32px;
@@ -751,12 +778,13 @@
                 font-size: 20px;
             }
 
-            /* Клавиатурные подсказки — скрываем на мобильных */
+            /* Подсказки клавиатуры скрыты */
             .keyboard-hints {
                 display: none;
             }
         }
 
+        /* ========== МАЛЕНЬКИЕ ТЕЛЕФОНЫ (<= 480px) ========== */
         @media (max-width: 480px) {
             .shift-bar {
                 padding: var(--spacing-1-5) var(--spacing-2);
