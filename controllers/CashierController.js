@@ -66,13 +66,18 @@ function render() {
         </div>`;
 
     bindEvents();
+    renderMobileCartTrigger();
 }
 
 function renderClosedShift() {
+    // Убираем мобильные элементы корзины
+    document.getElementById('cartToggleBtn')?.remove();
+    document.getElementById('cartOverlay')?.remove();
+
     DOM.content.innerHTML = `
         <div class="cashier-layout shift-closed-mode">
             <div class="shift-closed-overlay">
-                <div class="shift-closed-icon">🔒</div>
+                <div class="shift-closed-icon">Закрыто</div>
                 <h2>Смена закрыта</h2>
                 <p>Для начала работы откройте смену</p>
                 <button class="btn-primary btn-lg" id="openShiftBtn"
@@ -173,21 +178,26 @@ function renderProductGrid() {
             : 'Нет товаров в наличии'}</div>`;
     }
 
+    // Определяем, какие товары уже в корзине
+    const cartItemIds = new Set(cartStore.getItems().map(i => i.id));
+
     return `
         <div class="products-grid">
-            ${products.map(p => `
-                <div class="product-card" data-id="${p.id}">
+            ${products.map(p => {
+                const inCart = cartItemIds.has(p.id);
+                return `
+                <div class="product-card ${inCart ? 'in-cart' : ''}" data-id="${p.id}">
                     <div class="product-photo">
                         ${p.photo_url
                             ? `<img src="${escapeAttr(p.photo_url)}" alt="" loading="lazy">`
-                            : '<span class="photo-placeholder">📦</span>'}
+                            : '<span class="photo-placeholder">Фото</span>'}
                     </div>
                     <div class="product-info">
                         <div class="product-name">${escapeHtml(p.name)}</div>
                         <div class="product-price">${formatMoney(p.price)}</div>
                     </div>
-                </div>
-            `).join('')}
+                </div>`;
+            }).join('')}
         </div>`;
 }
 
@@ -206,12 +216,12 @@ function renderCartPanel() {
                     </div>
                     <div class="cart-item-actions">
                         <div class="quantity-control">
-                            <button class="btn-qty" data-action="decrease" data-id="${item.id}">−</button>
+                            <button class="btn-qty" data-action="decrease" data-id="${item.id}">-</button>
                             <span class="qty-input">${item.quantity}</span>
                             <button class="btn-qty" data-action="increase" data-id="${item.id}">+</button>
                         </div>
                         <span class="item-total">${formatMoney(cartStore.getItemTotal(item.id))}</span>
-                        <button class="btn-remove" data-action="remove" data-id="${item.id}">✕</button>
+                        <button class="btn-remove" data-action="remove" data-id="${item.id}">&#10005;</button>
                     </div>
                 </div>
             </div>
@@ -220,7 +230,7 @@ function renderCartPanel() {
     return `
         <div class="cart-panel">
             <div class="cart-header">
-                <h3>🛒 Корзина</h3>
+                <h3>Корзина</h3>
                 <span class="cart-count">${count} поз.</span>
                 ${items.length > 0 ? '<button class="btn-ghost btn-sm" id="clearCartBtn">Очистить</button>' : ''}
             </div>
@@ -246,6 +256,57 @@ function renderCartPanel() {
 }
 
 // ============================================================
+// Мобильная корзина
+// ============================================================
+
+function renderMobileCartTrigger() {
+    // Удаляем старые элементы если есть
+    document.getElementById('cartToggleBtn')?.remove();
+    document.getElementById('cartOverlay')?.remove();
+
+    const count = cartStore.getCount();
+    const total = cartStore.getTotal();
+
+    // Оверлей
+    const overlay = document.createElement('div');
+    overlay.id = 'cartOverlay';
+    overlay.className = 'cart-overlay';
+    overlay.addEventListener('click', closeCart);
+    DOM.content.appendChild(overlay);
+
+    // Кнопка-триггер
+    const btn = document.createElement('button');
+    btn.id = 'cartToggleBtn';
+    btn.className = 'cart-toggle-btn';
+    btn.innerHTML = `
+        Корзина
+        <span class="cart-toggle-badge" id="cartToggleBadge">${count}</span>
+        &middot;
+        <span>${formatMoney(total)}</span>
+    `;
+    btn.addEventListener('click', toggleCart);
+    DOM.content.appendChild(btn);
+}
+
+function toggleCart() {
+    const panel = document.querySelector('.cart-panel');
+    const overlay = document.getElementById('cartOverlay');
+    if (!panel) return;
+
+    const isOpen = panel.classList.toggle('open');
+    if (overlay) {
+        overlay.style.display = isOpen ? 'block' : 'none';
+    }
+}
+
+function closeCart() {
+    const panel = document.querySelector('.cart-panel');
+    const overlay = document.getElementById('cartOverlay');
+    if (panel) panel.classList.remove('open');
+    if (overlay) overlay.style.display = 'none';
+}
+
+// ============================================================
 // Действия
 // ============================================================
 
@@ -262,6 +323,8 @@ async function checkout() {
     });
 
     if (success) {
+        // Закрываем корзину на мобильных после продажи
+        closeCart();
         showNotification(`Продажа на ${formatMoney(total)} оформлена`, 'success');
     } else {
         showNotification(error || 'Ошибка оформления', 'error');
@@ -281,7 +344,7 @@ async function quickAdd() {
 
     if (result) {
         cartStore.addItem(result);
-        showNotification(`«${result.name}» добавлен в корзину`, 'success');
+        showNotification(`"${result.name}" добавлен в корзину`, 'success');
     }
 }
 
@@ -380,6 +443,31 @@ function bindEvents() {
 }
 
 // ============================================================
+// Подписки на сторы
+// ============================================================
+
+function onStoreChange() {
+    render();
+    // Обновляем бейдж и сумму на кнопке-триггере без полного ререндера
+    const badge = document.getElementById('cartToggleBadge');
+    if (badge) {
+        badge.textContent = cartStore.getCount();
+    }
+    // Обновляем сумму в кнопке-триггере
+    const toggleBtn = document.getElementById('cartToggleBtn');
+    if (toggleBtn) {
+        const total = cartStore.getTotal();
+        const count = cartStore.getCount();
+        toggleBtn.innerHTML = `
+            Корзина
+            <span class="cart-toggle-badge" id="cartToggleBadge">${count}</span>
+            &middot;
+            <span>${formatMoney(total)}</span>
+        `;
+    }
+}
+
+// ============================================================
 // Инициализация
 // ============================================================
 
@@ -405,9 +493,9 @@ function bindGlobalEvents() {
     });
 
     // Подписки на сторы — при любом изменении перерендериваем
-    productStore.on('change', render);
-    cartStore.on('change', render);
-    shiftStore.on('change', render);
+    productStore.on('change', onStoreChange);
+    cartStore.on('change', onStoreChange);
+    shiftStore.on('change', onStoreChange);
 }
 
 async function init() {
