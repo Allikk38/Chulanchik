@@ -5,24 +5,17 @@
 /**
  * Репозиторий продаж.
  * 
- * Единственный модуль, который обращается к таблице sales в Supabase.
- * В будущем create() будет использовать RPC checkout_sale.
+ * Единственный модуль, который обращается к таблице sales.
+ * Создание продажи — через RPC checkout_sale (атомарно).
  * 
  * @module repositories/SaleRepository
  */
 
 import { supabase } from '../core/supabase-client.js';
 
-// ============================================================
-// Репозиторий
-// ============================================================
-
 export const SaleRepository = {
     /**
-     * Создаёт продажу.
-     * 
-     * В будущем заменится на supabase.rpc('checkout_sale', {...}).
-     * Контракт (входные/выходные данные) останется тем же.
+     * Создаёт продажу атомарно через RPC.
      * 
      * @param {Object} saleData
      * @param {string} saleData.shift_id
@@ -31,28 +24,24 @@ export const SaleRepository = {
      * @param {number} saleData.profit
      * @param {string} saleData.payment_method
      * @param {string} saleData.created_by
-     * @returns {Promise<Object>} созданная продажа
+     * @returns {Promise<Object>} { id: uuid }
      */
     async create(saleData) {
-        const { data, error } = await supabase
-            .from('sales')
-            .insert({
-                shift_id: saleData.shift_id,
-                items: saleData.items,
-                total: saleData.total,
-                profit: saleData.profit,
-                payment_method: saleData.payment_method,
-                created_by: saleData.created_by
-            })
-            .select()
-            .single();
+        const { data, error } = await supabase.rpc('checkout_sale', {
+            p_shift_id: saleData.shift_id,
+            p_items: saleData.items,
+            p_total: saleData.total,
+            p_profit: saleData.profit,
+            p_payment_method: saleData.payment_method,
+            p_user_id: saleData.created_by
+        });
 
         if (error) throw error;
-        return data;
+        return { id: data };
     },
 
     /**
-     * Возвращает продажи с фильтрацией (для отчётов).
+     * Возвращает продажи с фильтрацией.
      * 
      * @param {Object} [options]
      * @param {string} [options.shiftId]
