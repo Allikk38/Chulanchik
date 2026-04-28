@@ -32,5 +32,9 @@ export const PERMISSIONS = {
     SHIFT_OPEN: 'shift:open',
     SHIFT_CLOSE: 'shift:close',
     REPORTS_VIEW: 'reports:view',
-    REPORTS_EXPORT: 'reports:export'
+    REPORTS_EXPORT: 'reports:export',
+    EXPENSES_VIEW: 'expenses:view',
+    EXPENSES_CREATE: 'expenses:create',
+    EXPENSES_EDIT: 'expenses:edit',
+    EXPENSES_DELETE: 'expenses:delete'
 };

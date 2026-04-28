@@ -15,40 +15,16 @@
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
 
-    <!-- Стили -->
-    <link rel="stylesheet" href="css/base/variables.css">
-    <link rel="stylesheet" href="css/base/reset.css">
-    <link rel="stylesheet" href="css/base/typography.css">
-    <link rel="stylesheet" href="css/components/buttons.css">
-    <link rel="stylesheet" href="css/components/forms.css">
-    <link rel="stylesheet" href="css/components/tables.css">
-    <link rel="stylesheet" href="css/components/modal.css">
-    <link rel="stylesheet" href="css/components/notifications.css">
-    <link rel="stylesheet" href="css/components/product-card.css">
-    <link rel="stylesheet" href="css/components/cart.css">
-    <link rel="stylesheet" href="css/layouts/app.css">
-    <link rel="stylesheet" href="css/layouts/cashier.css">
-    <link rel="stylesheet" href="css/layouts/inventory.css">
-    <link rel="stylesheet" href="css/layouts/reports.css">
-    <link rel="stylesheet" href="css/utils/utilities.css">
-    <link rel="stylesheet" href="css/utils/responsive.css">
+    <!-- Единый файл стилей -->
+    <link rel="stylesheet" href="css/styles.css">
 
     <style>
-        html {
-            height: 100%;
-            overflow: hidden;
-            overscroll-behavior: none;
-        }
-
-        body {
-            height: 100%;
-            overflow: hidden;
-            overscroll-behavior: none;
-            touch-action: manipulation;
-        }
+        /* ============================================================ */
+        /* Уникальные стили страницы отчётов */
+        /* ============================================================ */
 
         .reports-page {
             display: flex;
@@ -67,10 +43,17 @@
             margin-bottom: var(--spacing-5);
         }
 
+        .reports-header h1 {
+            font-size: var(--font-size-xl);
+            font-weight: var(--font-weight-semibold);
+            margin: 0;
+        }
+
         .period-selector {
             display: flex;
             align-items: center;
             gap: var(--spacing-3);
+            flex-wrap: wrap;
         }
 
         .reports-tabs {
@@ -82,6 +65,7 @@
             border: var(--border-width) solid var(--color-border);
             width: fit-content;
             margin-bottom: var(--spacing-5);
+            overflow-x: auto;
         }
 
         .tab-btn {
@@ -96,6 +80,7 @@
             background: transparent;
             border: none;
             cursor: pointer;
+            white-space: nowrap;
         }
 
         .tab-btn.active {
@@ -124,6 +109,11 @@
             border-radius: var(--radius-lg);
             border: var(--border-width) solid var(--color-border);
             border-left: 3px solid var(--color-primary);
+        }
+
+        .net-profit-card {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%) !important;
+            border-left: 3px solid #fbbf24 !important;
         }
 
         .kpi-header {
@@ -167,6 +157,17 @@
             letter-spacing: var(--letter-spacing-wide);
             margin-bottom: var(--spacing-3);
             color: var(--color-text);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: var(--spacing-3);
+        }
+
+        .card-header h4 {
+            margin-bottom: 0;
         }
 
         .charts-row {
@@ -221,6 +222,7 @@
             color: var(--color-text-muted);
             text-transform: uppercase;
             letter-spacing: var(--letter-spacing-wide);
+            display: block;
         }
 
         .summary-card .value {
@@ -228,6 +230,195 @@
             font-weight: 700;
             font-family: var(--font-family-mono);
             color: var(--color-text);
+            display: block;
+        }
+
+        /* Расходы */
+        .expenses-tab-header {
+            margin-bottom: var(--spacing-4);
+        }
+
+        .expenses-actions {
+            display: flex;
+            gap: var(--spacing-3);
+            margin-bottom: var(--spacing-4);
+        }
+
+        .expense-filters {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: flex-end;
+            gap: var(--spacing-4);
+            padding: var(--spacing-4);
+            background: var(--color-white);
+            border-radius: var(--radius-lg);
+            border: var(--border-width) solid var(--color-border);
+            margin-bottom: var(--spacing-4);
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-1);
+        }
+
+        .filter-group label {
+            font-size: var(--font-size-xs);
+            color: var(--color-text-muted);
+            margin-bottom: 0;
+        }
+
+        .filter-input,
+        .filter-select {
+            height: 36px;
+            padding: 0 var(--spacing-3);
+            border: var(--border-width) solid var(--color-border);
+            border-radius: var(--radius-md);
+            font-size: var(--font-size-sm);
+        }
+
+        .expenses-summary {
+            display: flex;
+            gap: var(--spacing-4);
+            margin-bottom: var(--spacing-5);
+        }
+
+        .expense-summary-bar {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: var(--spacing-3);
+            padding: var(--spacing-2) var(--spacing-4);
+            background: var(--color-gray-50);
+            border-radius: var(--radius-md);
+            margin-bottom: var(--spacing-3);
+        }
+
+        .expense-total-label {
+            font-size: var(--font-size-sm);
+            color: var(--color-text-secondary);
+        }
+
+        .expense-total-value {
+            font-size: var(--font-size-lg);
+            font-weight: 700;
+            color: var(--color-danger-dark);
+        }
+
+        .expenses-summary-card {
+            background: var(--color-white);
+            border-radius: var(--radius-lg);
+            border: var(--border-width) solid var(--color-border);
+            padding: var(--spacing-4);
+            margin-bottom: var(--spacing-5);
+        }
+
+        .expenses-summary-stats {
+            display: flex;
+            gap: var(--spacing-4);
+            margin-bottom: var(--spacing-3);
+            padding-bottom: var(--spacing-3);
+            border-bottom: var(--border-width) solid var(--color-border-light);
+        }
+
+        .expense-stat {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .expense-stat-label {
+            font-size: var(--font-size-xs);
+            color: var(--color-text-muted);
+        }
+
+        .expense-stat-value {
+            font-size: var(--font-size-lg);
+            font-weight: 700;
+            color: var(--color-text);
+        }
+
+        .recent-expenses-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-2);
+        }
+
+        .recent-expense-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: var(--spacing-2) var(--spacing-3);
+            background: var(--color-gray-50);
+            border-radius: var(--radius-md);
+        }
+
+        .expense-info {
+            display: flex;
+            gap: var(--spacing-3);
+            align-items: center;
+        }
+
+        .expense-category {
+            padding: var(--spacing-0-5) var(--spacing-2);
+            background: var(--color-gray-200);
+            border-radius: var(--radius-full);
+            font-size: var(--font-size-xs);
+            font-weight: 500;
+        }
+
+        .expense-description {
+            font-size: var(--font-size-sm);
+            color: var(--color-text-secondary);
+        }
+
+        .expense-amount {
+            font-weight: 600;
+            color: var(--color-danger-dark);
+            font-family: var(--font-family-mono);
+        }
+
+        /* Таблица расходов */
+        .expense-table {
+            min-width: 700px;
+        }
+
+        .expense-table .date-cell {
+            white-space: nowrap;
+        }
+
+        .expense-table .category-badge {
+            padding: var(--spacing-0-5) var(--spacing-2);
+            border-radius: var(--radius-full);
+            font-size: var(--font-size-xs);
+            font-weight: 500;
+        }
+
+        .category-badge.rent { background: #e0e7ff; color: #4338ca; }
+        .category-badge.advertising { background: #fce7f3; color: #be185d; }
+        .category-badge.supplies { background: #d1fae5; color: #065f46; }
+        .category-badge.utilities { background: #fed7aa; color: #9a3412; }
+        .category-badge.salary { background: #e0e7ff; color: #3730a3; }
+        .category-badge.taxes { background: #fecaca; color: #991b1b; }
+        .category-badge.repair { background: #fef3c7; color: #92400e; }
+        .category-badge.other { background: #f3f4f6; color: #374151; }
+
+        .expense-description {
+            max-width: 250px;
+            display: block;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .expense-id {
+            font-size: var(--font-size-xs);
+            color: var(--color-text-muted);
+            display: block;
+        }
+
+        .amount-cell .expense-amount {
+            font-weight: 600;
+            font-family: var(--font-family-mono);
         }
 
         /* Топ-товары */
@@ -239,7 +430,9 @@
             border-bottom: var(--border-width) solid var(--color-border-light);
         }
 
-        .top-product-item:last-child { border-bottom: none; }
+        .top-product-item:last-child {
+            border-bottom: none;
+        }
 
         .top-product-item .rank {
             width: 24px;
@@ -282,7 +475,9 @@
             border-bottom: var(--border-width) solid var(--color-border-light);
         }
 
-        .slow-item:last-child { border-bottom: none; }
+        .slow-item:last-child {
+            border-bottom: none;
+        }
 
         .slow-item .days {
             padding: 2px 8px;
@@ -328,7 +523,11 @@
             border-bottom: var(--border-width) solid var(--color-border-light);
         }
 
-        .money { font-family: var(--font-family-mono); font-weight: 500; text-align: right; }
+        .money {
+            font-family: var(--font-family-mono);
+            font-weight: 500;
+            text-align: right;
+        }
 
         .status-badge {
             display: inline-block;
@@ -339,8 +538,15 @@
             text-transform: uppercase;
         }
 
-        .status-in_stock { background: var(--color-success-bg); color: var(--color-success-dark); }
-        .status-sold { background: var(--color-danger-bg); color: var(--color-danger-dark); }
+        .status-in_stock {
+            background: var(--color-success-bg);
+            color: var(--color-success-dark);
+        }
+
+        .status-sold {
+            background: var(--color-danger-bg);
+            color: var(--color-danger-dark);
+        }
 
         .empty-message {
             padding: var(--spacing-4);
@@ -349,8 +555,25 @@
             font-size: var(--font-size-sm);
         }
 
-        .text-success { color: var(--color-success-dark); }
-        .text-danger { color: var(--color-danger-dark); }
+        .text-success {
+            color: var(--color-success-dark);
+        }
+
+        .text-danger {
+            color: var(--color-danger-dark);
+        }
+
+        .text-muted {
+            color: var(--color-text-muted);
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .text-right {
+            text-align: right;
+        }
 
         .reports-loader {
             display: flex;
@@ -360,26 +583,59 @@
             color: var(--color-text-muted);
         }
 
+        /* Адаптивность */
         @media (max-width: 1024px) {
-            .charts-row { grid-template-columns: 1fr; }
-            .dashboard-bottom { grid-template-columns: 1fr; }
-            .two-columns { grid-template-columns: 1fr; }
+            .charts-row {
+                grid-template-columns: 1fr;
+            }
+            .dashboard-bottom {
+                grid-template-columns: 1fr;
+            }
+            .two-columns {
+                grid-template-columns: 1fr;
+            }
         }
 
         @media (max-width: 768px) {
-            html {
-                overflow: auto;
+            .reports-page {
+                padding: var(--spacing-3);
             }
-            body {
-                overflow: auto;
+            .kpi-grid {
+                grid-template-columns: repeat(2, 1fr);
             }
-            .kpi-grid { grid-template-columns: repeat(2, 1fr); }
-            .reports-header { flex-direction: column; align-items: stretch; }
-            .period-selector { flex-wrap: wrap; }
+            .reports-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .period-selector {
+                flex-wrap: wrap;
+            }
+            .expense-filters {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .filter-group {
+                width: 100%;
+            }
+            .expenses-actions {
+                flex-direction: column;
+            }
+            .expenses-actions button {
+                width: 100%;
+            }
+            .expenses-summary {
+                flex-direction: column;
+            }
         }
 
         @media (max-width: 480px) {
-            .kpi-grid { grid-template-columns: 1fr; }
+            .kpi-grid {
+                grid-template-columns: 1fr;
+            }
+            .reports-tabs {
+                width: 100%;
+                overflow-x: auto;
+            }
         }
     </style>
 </head>
@@ -415,6 +671,7 @@
 
                         <button class="btn-secondary btn-sm" id="refreshBtn">Обновить</button>
                         <button class="btn-secondary btn-sm" id="exportBtn">CSV Экспорт</button>
+                        <button class="btn-primary btn-sm" id="exportPdfBtn">📄 PDF Отчёт</button>
                     </div>
                 </div>
 
