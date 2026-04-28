@@ -6,12 +6,12 @@
  * Специфичные для страниц правила находятся в соответствующих файлах.
  * 
  * @stylesheet responsive
- * @version 5.3.0
+ * @version 5.4.0
  * @changes
+ * - v5.4.0: Исправлен скролл кассы — touch-action вынесен из manipulation в pan-y
+ *          только на скроллящихся контейнерах. Касса больше не блокирует скролл.
  * - v5.3.0: Полный рефакторинг скролла. Касса — жёсткий overflow:hidden.
  *          Склад и отчёты — вертикальный скролл на мобильных, без зума.
- * - v5.2.0: Касса на мобильных — корзина fixed, лейаут не скроллится.
- * - v5.1.0: Разблокирован скролл на мобильных для всех страниц и контейнеров.
  */
 
 /* ========== БРЕЙКПОИНТЫ ========== */
@@ -34,8 +34,8 @@
 @media (max-width: 768px) {
 
     /*
-     * КОРЕНЬ — разблокируем вертикальный скролл для склада и отчётов.
-     * Для кассы — жёстко фиксируем (переопределено ниже).
+     * КОРЕНЬ — фиксируем, без скролла всей страницы.
+     * Скролл разрешён только внутри отдельных панелей.
      */
     html {
         height: 100%;
@@ -48,10 +48,14 @@
         overflow: hidden;
         overscroll-behavior: none;
         position: static;
-        touch-action: manipulation;
     }
 
     #app-root {
+        height: 100%;
+        overflow: hidden;
+    }
+
+    .app {
         height: 100%;
         overflow: hidden;
     }
@@ -109,20 +113,10 @@
     }
 
     /* ========================================
-     * КАССА — жёсткий overflow: hidden
+     * КАССА — страница зафиксирована,
+     * скролл только внутри сетки товаров и корзины
      * ======================================== */
     .cashier-page {
-        height: 100%;
-        overflow: hidden;
-        touch-action: manipulation;
-    }
-
-    .cashier-page-container {
-        height: 100%;
-        overflow: hidden;
-    }
-
-    .cashier-app-wrapper {
         height: 100%;
         overflow: hidden;
     }
@@ -142,14 +136,22 @@
         flex-direction: column;
     }
 
+    /* Шапка смены — фиксирована */
+    .shift-bar {
+        flex-shrink: 0;
+    }
+
+    /* Тулбар — фиксирован */
     .products-toolbar {
         flex-shrink: 0;
     }
 
+    /* Категории — фиксированы */
     .category-bar {
         flex-shrink: 0;
     }
 
+    /* Сетка товаров — единственное место, где разрешён скролл */
     .products-grid-container {
         flex: 1;
         min-height: 0;
@@ -159,13 +161,15 @@
         touch-action: pan-y;
     }
 
-    /* Строка смены */
-    .shift-bar {
-        flex-shrink: 0;
+    /* Состояние «смена закрыта» */
+    .cashier-layout.shift-closed-mode {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
     }
 
-    /* Корзина — управляется через fixed + transform в cashier.css,
-       здесь только подтверждаем, что cart-panel не внутри потока */
+    /* Корзина — fixed, выезжает справа */
     .cart-panel {
         position: fixed;
         top: 0;
@@ -185,20 +189,14 @@
         transform: translateX(0);
     }
 
+    /* Кнопка-триггер корзины */
     .cart-toggle-btn {
         display: flex;
     }
 
+    /* Оверлей корзины */
     .cart-overlay {
         display: none;
-    }
-
-    /* Состояние «смена закрыта» */
-    .cashier-layout.shift-closed-mode {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        overflow: hidden;
     }
 
     /* ========================================
@@ -237,7 +235,7 @@
         -webkit-overflow-scrolling: touch;
     }
 
-    /* Графики — не сжимаем, разрешаем горизонтальный скролл если нужно */
+    /* Графики — не сжимаем */
     .charts-row {
         flex-shrink: 0;
     }
@@ -265,20 +263,20 @@
     .text-sm\:hidden {
         display: none;
     }
-    
+
     /* Контейнеры */
     .container {
         padding-left: var(--spacing-3);
         padding-right: var(--spacing-3);
     }
-    
+
     /* Модальные окна на весь экран */
     .modal {
         max-height: 100vh;
         border-radius: 0;
         border: none;
     }
-    
+
     /* Уведомления на всю ширину */
     #notificationContainer {
         top: var(--spacing-2);
@@ -295,17 +293,17 @@
     .user-email {
         display: none;
     }
-    
+
     /* Упрощаем отступы */
     .app-main {
         padding: var(--spacing-2);
     }
-    
+
     /* Кнопки на всю ширину в формах */
     .form-actions {
         flex-direction: column;
     }
-    
+
     .form-actions .btn {
         width: 100%;
     }
@@ -344,7 +342,7 @@
     .row-actions {
         opacity: 1;
     }
-    
+
     /* Увеличиваем зону нажатия (минимальная высота 44px по Apple HIG) */
     .btn,
     .category-tab,
@@ -352,7 +350,7 @@
     [data-action] {
         min-height: 44px;
     }
-    
+
     .btn-icon {
         min-width: 44px;
     }
@@ -382,21 +380,21 @@
     .cart-overlay {
         display: none !important;
     }
-    
+
     /* Основной контент на всю ширину */
     .page-container {
         overflow: visible;
         height: auto;
         padding: 0 !important;
     }
-    
+
     .inventory-page,
     .cashier-page,
     .reports-page {
         padding: 0 !important;
         background: white !important;
     }
-    
+
     /* Таблицы */
     .products-table-wrapper,
     .table-container {
@@ -404,12 +402,12 @@
         border: var(--border-width) solid var(--color-border);
         overflow: visible;
     }
-    
+
     .products-table td,
     .data-table td {
         border: var(--border-width) solid var(--color-border-light);
     }
-    
+
     /* Карточки */
     .kpi-card,
     .chart-card,
@@ -418,13 +416,13 @@
         border: var(--border-width) solid var(--color-border);
         break-inside: avoid;
     }
-    
+
     /* Статусы (без фона) */
     .status-badge {
         border: var(--border-width) solid currentColor;
         background: transparent !important;
     }
-    
+
     /* Ссылки с URL */
     a[href]:after {
         content: " (" attr(href) ")";
