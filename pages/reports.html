@@ -6,7 +6,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Отчёты | Чуланчик</title>
 
     <base href="/Chulanchik/">
@@ -22,6 +22,19 @@
     <link rel="stylesheet" href="css/styles.css">
 
     <style>
+        html {
+            height: 100%;
+            overflow: hidden;
+            overscroll-behavior: none;
+        }
+
+        body {
+            height: 100%;
+            overflow: hidden;
+            overscroll-behavior: none;
+            touch-action: manipulation;
+        }
+
         .reports-page {
             display: flex;
             flex-direction: column;
@@ -79,6 +92,7 @@
             flex: 1;
             min-height: 0;
             overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
         }
 
         /* KPI */
@@ -104,7 +118,10 @@
             margin-bottom: var(--spacing-2);
         }
 
-        .kpi-icon { font-size: 18px; }
+        .kpi-icon {
+            font-size: 18px;
+            opacity: 0.6;
+        }
 
         .kpi-title {
             font-size: var(--font-size-xs);
@@ -335,6 +352,12 @@
         }
 
         @media (max-width: 768px) {
+            html {
+                overflow: auto;
+            }
+            body {
+                overflow: auto;
+            }
             .kpi-grid { grid-template-columns: repeat(2, 1fr); }
             .reports-header { flex-direction: column; align-items: stretch; }
             .period-selector { flex-wrap: wrap; }
@@ -348,7 +371,7 @@
 <body>
     <div class="app">
         <header class="app-header">
-            <h1>📊 Чуланчик</h1>
+            <h1>Отчёты | Чуланчик</h1>
             <nav class="app-nav">
                 <a href="pages/inventory.html">Склад</a>
                 <a href="pages/cashier.html">Касса</a>
@@ -356,7 +379,7 @@
             </nav>
             <div class="header-actions">
                 <span class="user-email" id="userEmail"></span>
-                <button class="btn-ghost btn-sm" id="logoutBtn">🚪 Выход</button>
+                <button class="btn-ghost btn-sm" id="logoutBtn">Выход</button>
             </div>
         </header>
 
@@ -375,8 +398,8 @@
                             <option value="year">Год</option>
                         </select>
 
-                        <button class="btn-secondary btn-sm" id="refreshBtn">🔄</button>
-                        <button class="btn-secondary btn-sm" id="exportBtn">📥 Экспорт</button>
+                        <button class="btn-secondary btn-sm" id="refreshBtn">Обновить</button>
+                        <button class="btn-secondary btn-sm" id="exportBtn">CSV Экспорт</button>
                     </div>
                 </div>
 
