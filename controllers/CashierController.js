@@ -20,6 +20,7 @@ import ShiftService from '../services/ShiftService.js';
 import { formatMoney, getCategoryName, debounce } from '../utils/formatters.js';
 import { showNotification, showPaymentModal, showConfirmDialog } from '../utils/ui.js';
 import { openProductFormModal } from '../components/ProductForm.js';
+import { startBarcodeScan, isScanSupported } from '../utils/BarcodeScanner.js';
 
 // ============================================================
 // Локальное состояние
@@ -28,7 +29,8 @@ import { openProductFormModal } from '../components/ProductForm.js';
 const state = {
     user: null,
     searchQuery: '',
-    selectedCategory: null
+    selectedCategory: null,
+    isScanning: false
 };
 
 // ============================================================
@@ -66,12 +68,14 @@ function render() {
         </div>`;
 
     bindEvents();
+    updateFabVisibility();
     renderMobileCartTrigger();
 }
 
 function renderClosedShift() {
     document.getElementById('cartToggleBtn')?.remove();
     document.getElementById('cartOverlay')?.remove();
+    document.getElementById('fabQuickAdd')?.remove();
 
     DOM.content.innerHTML = `
         <div class="cashier-layout shift-closed-mode">
@@ -123,15 +127,24 @@ function renderShiftBar() {
 }
 
 function renderToolbar() {
-    const cats = productStore.getCategories();
+    const showScanner = isScanSupported();
+
     return `
         <div class="products-toolbar">
             <div class="toolbar-left">
                 <div class="search-wrapper">
                     <input type="text" id="searchInput" class="search-input"
                         placeholder="Поиск или сканирование..."
-                        value="${escapeHtml(state.searchQuery)}">
+                        value="${escapeHtml(state.searchQuery)}"
+                        ${state.isScanning ? 'disabled' : ''}>
                 </div>
+                ${showScanner ? `
+                    <button class="btn-secondary btn-sm" id="scanBtn"
+                        title="Сканировать штрихкод"
+                        ${state.isScanning ? 'disabled' : ''}>
+                        ${state.isScanning ? 'Скан...' : 'Скан'}
+                    </button>
+                ` : ''}
                 <button class="btn-secondary btn-sm" id="quickAddBtn" title="Быстрое добавление">
                     + Быстрый товар
                 </button>
@@ -146,7 +159,7 @@ function renderToolbar() {
             <button class="category-tab ${!state.selectedCategory ? 'active' : ''}" data-category="">
                 Все (${productStore.getInStock().length})
             </button>
-            ${cats.map(c => `
+            ${productStore.getCategories().map(c => `
                 <button class="category-tab ${state.selectedCategory === c.value ? 'active' : ''}"
                     data-category="${c.value}">
                     ${getCategoryName(c.value)} (${c.count})
@@ -219,7 +232,7 @@ function renderCartPanel() {
                             <button class="btn-qty" data-action="increase" data-id="${item.id}">+</button>
                         </div>
                         <span class="item-total">${formatMoney(cartStore.getItemTotal(item.id))}</span>
-                        <button class="btn-remove" data-action="remove" data-id="${item.id}">&#10005;</button>
+                        <button class="btn-remove" data-action="remove" data-id="${item.id}">x</button>
                     </div>
                 </div>
             </div>
@@ -299,6 +312,81 @@ function closeCart() {
     const overlay = document.getElementById('cartOverlay');
     if (panel) panel.classList.remove('open');
     if (overlay) overlay.style.display = 'none';
+}
+
+// ============================================================
+// FAB кнопка (мобильные)
+// ============================================================
+
+function updateFabVisibility() {
+    let fab = document.getElementById('fabQuickAdd');
+
+    if (!fab) {
+        fab = document.createElement('button');
+        fab.id = 'fabQuickAdd';
+        fab.className = 'fab-add-product';
+        fab.title = 'Быстрый товар';
+        fab.textContent = '+';
+        fab.addEventListener('click', quickAdd);
+        document.body.appendChild(fab);
+    }
+
+    const isMobile = window.innerWidth <= 768;
+    fab.style.display = isMobile ? 'flex' : 'none';
+}
+
+// ============================================================
+// Сканирование штрихкода
+// ============================================================
+
+async function startScan() {
+    if (state.isScanning) return;
+
+    state.isScanning = true;
+    render();
+
+    try {
+        showNotification('Наведите камеру на штрихкод', 'info', { duration: 2000 });
+
+        const barcode = await startBarcodeScan();
+
+        state.searchQuery = barcode;
+        state.selectedCategory = null;
+
+        // Ищем товар по штрихкоду
+        const products = productStore.getInStock().filter(p =>
+            p.name?.toLowerCase().includes(barcode.toLowerCase()) ||
+            p.id?.toLowerCase().includes(barcode.toLowerCase())
+        );
+
+        if (products.length === 1) {
+            // Один товар найден — сразу в корзину
+            cartStore.addItem(products[0]);
+            showNotification(`"${products[0].name}" добавлен в корзину`, 'success');
+            state.searchQuery = '';
+        } else if (products.length > 1) {
+            // Несколько товаров — оставляем в поиске
+            showNotification(`Найдено ${products.length} товаров`, 'info');
+        } else {
+            // Ничего не найдено — пробуем поиск по ID
+            const product = productStore.getById(barcode);
+            if (product && product.status === 'in_stock') {
+                cartStore.addItem(product);
+                showNotification(`"${product.name}" добавлен в корзину`, 'success');
+                state.searchQuery = '';
+            } else {
+                showNotification('Товар не найден', 'warning');
+            }
+        }
+
+    } catch (err) {
+        if (err.message !== 'Время сканирования истекло') {
+            showNotification(err.message || 'Ошибка сканирования', 'error');
+        }
+    } finally {
+        state.isScanning = false;
+        render();
+    }
 }
 
 // ============================================================
@@ -384,6 +472,8 @@ function bindEvents() {
 
     document.getElementById('quickAddBtn')?.addEventListener('click', quickAdd);
 
+    document.getElementById('scanBtn')?.addEventListener('click', startScan);
+
     document.getElementById('resetFiltersBtn')?.addEventListener('click', () => {
         state.searchQuery = '';
         state.selectedCategory = null;
@@ -397,7 +487,7 @@ function bindEvents() {
             render();
         }, 300);
         searchInput.addEventListener('input', e => debounced(e.target.value));
-        searchInput.focus();
+        setTimeout(() => searchInput.focus(), 100);
     }
 
     document.querySelectorAll('[data-category]').forEach(btn => {
@@ -448,6 +538,7 @@ function onStoreChange() {
             <span>${formatMoney(total)}</span>
         `;
     }
+    updateFabVisibility();
 }
 
 // ============================================================
@@ -477,6 +568,8 @@ function bindGlobalEvents() {
     productStore.on('change', onStoreChange);
     cartStore.on('change', onStoreChange);
     shiftStore.on('change', onStoreChange);
+
+    window.addEventListener('resize', updateFabVisibility);
 }
 
 async function init() {
