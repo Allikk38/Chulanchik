@@ -6,8 +6,9 @@
  * которые не входят в общие компоненты.
  * 
  * @stylesheet cashier-page
- * @version 5.0.0
+ * @version 5.1.0
  * @changes
+ * - v5.1.0: Удалены стили быстрых сумм и поля ввода оплаты (quick-amounts, payment-input, change-row).
  * - Удалены дублирующиеся стили (макет и компоненты).
  * - Оставлены только уникальные для страницы правила.
  */
@@ -122,65 +123,6 @@
     font-size: var(--font-size-xl);
 }
 
-.payment-input-row {
-    padding: var(--spacing-4) 0;
-}
-
-.payment-input {
-    width: 100%;
-    height: 56px;
-    padding: 0 var(--spacing-4);
-    font-size: var(--font-size-xl);
-    font-weight: var(--font-weight-semibold);
-    font-family: var(--font-family-mono);
-    border: var(--border-width) solid var(--color-border);
-    border-radius: var(--radius-md);
-    text-align: right;
-}
-
-.quick-amounts {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: var(--spacing-2);
-    margin: var(--spacing-3) 0;
-}
-
-.quick-amount-btn {
-    padding: var(--spacing-2);
-    background: var(--color-white);
-    border: var(--border-width) solid var(--color-border);
-    border-radius: var(--radius-md);
-    font-size: var(--font-size-sm);
-    font-weight: var(--font-weight-medium);
-    cursor: pointer;
-}
-
-.quick-amount-btn:hover {
-    background: var(--color-gray-50);
-}
-
-.change-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    padding: var(--spacing-4) 0;
-    background: var(--color-gray-50);
-    margin: 0 calc(-1 * var(--spacing-5));
-    padding: var(--spacing-4) var(--spacing-5);
-}
-
-.change-label {
-    font-size: var(--font-size-base);
-    font-weight: var(--font-weight-medium);
-}
-
-.change-value {
-    font-size: var(--font-size-xl);
-    font-weight: var(--font-weight-bold);
-    color: var(--color-success-dark);
-    font-family: var(--font-family-mono);
-}
-
 .payment-info-message {
     padding: var(--spacing-4);
     text-align: center;
@@ -188,6 +130,7 @@
     background: var(--color-gray-50);
     border-radius: var(--radius-md);
 }
+
 /* ========== ФУТЕР КОРЗИНЫ (STICKY) ========== */
 .cart-footer {
     position: sticky;
@@ -195,6 +138,7 @@
     z-index: 10;
     background: var(--color-gray-50);
 }
+
 /* ========== ПЕРЕОПРЕДЕЛЕНИЯ ДЛЯ МОБИЛЬНЫХ (ТОЛЬКО СПЕЦИФИЧНЫЕ) ========== */
 @media (max-width: 768px) {
     .payment-methods {
@@ -210,9 +154,5 @@
 @media (max-width: 480px) {
     .payment-modal {
         max-width: 100%;
-    }
-    
-    .quick-amounts {
-        grid-template-columns: repeat(2, 1fr);
     }
 }
