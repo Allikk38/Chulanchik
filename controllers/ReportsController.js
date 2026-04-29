@@ -26,6 +26,7 @@ import { showNotification, showConfirmDialog } from '../utils/ui.js';
 import { openExpenseFormModal } from '../components/ExpenseForm.js';
 import { renderExpenseTable, renderExpenseFilters, bindExpenseListEvents, showReceiptModal } from '../components/ExpenseList.js';
 import { exportFinancialReport, exportExpensesReport } from '../utils/pdfExport.js';
+import { renderAppHeader, bindAppHeaderEvents, updateUserName } from '../components/AppHeader.js';
 
 // ============================================================
 // Локальное состояние
@@ -38,7 +39,7 @@ const state = {
 
     sales: [],
     shifts: [],
-    
+
     // Фильтры для расходов
     expenseFilters: {
         fromDate: '',
@@ -60,9 +61,7 @@ const DOM = {
     exportBtn: null,
     exportPdfBtn: null,
     exportExpensesPdfBtn: null,
-    addExpenseBtn: null,
-    userEmail: null,
-    logoutBtn: null
+    addExpenseBtn: null
 };
 
 // ============================================================
@@ -130,9 +129,9 @@ async function loadData() {
 
         state.sales = sales;
         state.shifts = shifts;
-        
+
         await loadExpenses();
-        
+
     } catch (err) {
         console.error('[Reports] loadData error:', err);
         showNotification('Ошибка загрузки данных', 'error');
@@ -141,42 +140,40 @@ async function loadData() {
 
 async function loadExpenses() {
     state.isLoadingExpenses = true;
-    
+
     try {
         await expenseStore.loadExpenses();
-        
+
         let expenses = expenseStore.getAll();
-        
-        // Определяем даты для фильтрации
+
         let fromDate, toDate;
-        
+
         if (state.expenseFilters.fromDate) {
             fromDate = state.expenseFilters.fromDate;
         }
         if (state.expenseFilters.toDate) {
             toDate = state.expenseFilters.toDate;
         }
-        
-        // Если фильтры не заданы, используем период из основного селектора
+
         if (!fromDate && !toDate) {
             const { from, to } = getPeriodDates();
             fromDate = from;
             toDate = to;
         }
-        
+
         if (fromDate) {
             expenses = expenses.filter(e => e.expense_date >= fromDate);
         }
         if (toDate) {
             expenses = expenses.filter(e => e.expense_date <= toDate);
         }
-        
+
         if (state.expenseFilters.category) {
             expenses = expenses.filter(e => e.category === state.expenseFilters.category);
         }
-        
+
         state.expenses = expenses;
-        
+
     } catch (err) {
         console.error('[Reports] loadExpenses error:', err);
         showNotification('Ошибка загрузки расходов', 'error');
@@ -199,7 +196,7 @@ function computeOverview() {
     const inStock = productStore.getStats().inStock;
     const stockValue = productStore.getStats().stockValue;
     const potentialProfit = productStore.getStats().potentialProfit;
-    
+
     const totalExpenses = state.expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
     const netProfit = profit - totalExpenses;
 
@@ -334,7 +331,7 @@ function renderNetProfitCard(overview) {
     return `
         <div class="kpi-card net-profit-card" style="border-left-color: var(--color-primary); background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);">
             <div class="kpi-header">
-                <span class="kpi-icon" style="color: white;">💰</span>
+                <span class="kpi-icon" style="color: white;">$</span>
                 <span class="kpi-title" style="color: #94a3b8;">ЧИСТАЯ ПРИБЫЛЬ</span>
             </div>
             <div class="kpi-value" style="color: white; font-size: 28px;">${formatMoney(overview.netProfit)}</div>
@@ -358,12 +355,12 @@ function renderDashboard() {
                 ${renderNetProfitCard(overview)}
             </div>
             ${renderInventoryKpis(overview)}
-            
+
             ${totalExpenses > 0 ? `
             <div class="expenses-summary-card">
                 <div class="card-header">
-                    <h4>📊 Расходы за период</h4>
-                    <button class="btn-ghost btn-sm" id="viewAllExpensesBtn">Все расходы →</button>
+                    <h4>$ Расходы за период</h4>
+                    <button class="btn-ghost btn-sm" id="viewAllExpensesBtn">Все расходы</button>
                 </div>
                 <div class="expenses-summary-stats">
                     <div class="expense-stat">
@@ -390,7 +387,7 @@ function renderDashboard() {
                 ` : '<div class="empty-message">Нет расходов за период</div>'}
             </div>
             ` : ''}
-            
+
             <div class="charts-row">
                 <div class="chart-card"><h4>Выручка и прибыль по дням</h4><div class="chart-container"><canvas id="revenueChart"></canvas></div></div>
                 <div class="chart-card"><h4>Категории</h4><div class="chart-container"><canvas id="categoryChart"></canvas></div></div>
@@ -514,13 +511,12 @@ function renderShiftsTab() {
 
 function renderExpensesTab() {
     const totalExpenses = state.expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
-    const byCategory = getExpensesByCategory();
-    
+
     return `
         <div class="expenses-tab-header">
             <div class="expenses-actions">
                 <button class="btn-primary" id="addExpenseBtn">+ Добавить расход</button>
-                <button class="btn-secondary" id="exportExpensesPdfBtn">📄 Экспорт PDF</button>
+                <button class="btn-secondary" id="exportExpensesPdfBtn">$ Экспорт PDF</button>
             </div>
             ${renderExpenseFilters({
                 fromDate: state.expenseFilters.fromDate,
@@ -528,7 +524,7 @@ function renderExpensesTab() {
                 category: state.expenseFilters.category
             })}
         </div>
-        
+
         <div class="expenses-summary">
             <div class="summary-card">
                 <span class="label">Всего расходов</span>
@@ -539,7 +535,7 @@ function renderExpensesTab() {
                 <span class="value">${state.expenses.length}</span>
             </div>
         </div>
-        
+
         <div id="expensesTableContainer">
             ${renderExpenseTable({
                 expenses: state.expenses,
@@ -609,7 +605,7 @@ async function editExpense(id) {
 
 async function deleteExpense(id) {
     const result = await ExpenseService.remove(id);
-    
+
     if (result.success) {
         showNotification('Расход удалён', 'success');
         await loadExpenses();
@@ -629,9 +625,9 @@ async function handleExportFinancialPdf() {
     const expensesByCategory = getExpensesByCategory();
     const topExpenses = getTopExpenses(5);
     const { from, to } = getPeriodDates();
-    
+
     const periodStr = `${formatDate(from)} — ${formatDate(to)}`;
-    
+
     try {
         await exportFinancialReport({
             shopName: 'Чуланчик',
@@ -658,7 +654,7 @@ async function handleExportExpensesPdf() {
     const { from, to } = getPeriodDates();
     const periodStr = `${formatDate(from)} — ${formatDate(to)}`;
     const total = state.expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
-    
+
     try {
         await exportExpensesReport({
             shopName: 'Чуланчик',
@@ -713,7 +709,7 @@ function renderContent() {
     if (state.activeTab === 'dashboard') {
         setTimeout(() => drawCharts(), 100);
     }
-    
+
     if (state.activeTab === 'expenses') {
         setTimeout(() => bindExpensesEvents(), 100);
     }
@@ -728,22 +724,22 @@ function bindExpensesEvents() {
             onViewReceipt: (url) => showReceiptModal(url)
         });
     }
-    
+
     DOM.addExpenseBtn = document.getElementById('addExpenseBtn');
     if (DOM.addExpenseBtn) {
         DOM.addExpenseBtn.addEventListener('click', addExpense);
     }
-    
+
     DOM.exportExpensesPdfBtn = document.getElementById('exportExpensesPdfBtn');
     if (DOM.exportExpensesPdfBtn) {
         DOM.exportExpensesPdfBtn.addEventListener('click', handleExportExpensesPdf);
     }
-    
+
     const fromDateInput = document.getElementById('expenseFromDate');
     const toDateInput = document.getElementById('expenseToDate');
     const categorySelect = document.getElementById('expenseCategory');
     const resetBtn = document.getElementById('resetExpenseFilters');
-    
+
     if (fromDateInput) {
         fromDateInput.addEventListener('change', async () => {
             state.expenseFilters.fromDate = fromDateInput.value;
@@ -751,7 +747,7 @@ function bindExpensesEvents() {
             renderContent();
         });
     }
-    
+
     if (toDateInput) {
         toDateInput.addEventListener('change', async () => {
             state.expenseFilters.toDate = toDateInput.value;
@@ -759,7 +755,7 @@ function bindExpensesEvents() {
             renderContent();
         });
     }
-    
+
     if (categorySelect) {
         categorySelect.addEventListener('change', async () => {
             state.expenseFilters.category = categorySelect.value;
@@ -767,7 +763,7 @@ function bindExpensesEvents() {
             renderContent();
         });
     }
-    
+
     if (resetBtn) {
         resetBtn.addEventListener('click', async () => {
             state.expenseFilters = { fromDate: '', toDate: '', category: '' };
@@ -853,8 +849,6 @@ function cacheDom() {
     DOM.refreshBtn = document.getElementById('refreshBtn');
     DOM.exportBtn = document.getElementById('exportBtn');
     DOM.exportPdfBtn = document.getElementById('exportPdfBtn');
-    DOM.userEmail = document.getElementById('userEmail');
-    DOM.logoutBtn = document.getElementById('logoutBtn');
 }
 
 function bindEvents() {
@@ -871,20 +865,18 @@ function bindEvents() {
     });
 
     DOM.exportBtn?.addEventListener('click', exportCsv);
-    
+
     if (DOM.exportPdfBtn) {
         DOM.exportPdfBtn.addEventListener('click', handleExportFinancialPdf);
     } else {
         const btn = document.getElementById('exportPdfBtn');
         if (btn) btn.addEventListener('click', handleExportFinancialPdf);
     }
-    
-    DOM.logoutBtn?.addEventListener('click', logout);
 
     productStore.on('change', () => {
         if (DOM.content) renderContent();
     });
-    
+
     expenseStore.on('change', () => {
         if (DOM.content && (state.activeTab === 'expenses' || state.activeTab === 'dashboard')) {
             loadExpenses().then(() => renderContent());
@@ -893,8 +885,6 @@ function bindEvents() {
 }
 
 async function init() {
-    cacheDom();
-
     const { user, authError } = await requireAuth();
     if (authError || !user) {
         window.location.href = 'pages/login.html';
@@ -902,10 +892,34 @@ async function init() {
     }
 
     state.user = user;
-    if (DOM.userEmail) {
-        DOM.userEmail.textContent = user.fullName || user.email?.split('@')[0] || 'Пользователь';
+
+    // Рендерим шапку через AppHeader
+    const headerHtml = renderAppHeader({
+        currentPage: 'reports',
+        userName: user.fullName || user.email?.split('@')[0] || 'Пользователь'
+    });
+
+    const appEl = document.querySelector('.app');
+    if (appEl) {
+        appEl.insertAdjacentHTML('afterbegin', headerHtml);
     }
 
+    bindAppHeaderEvents({
+        onNavigate: (pageId) => {
+            const pages = {
+                inventory: 'pages/inventory.html',
+                cashier: 'pages/cashier.html',
+                reports: 'pages/reports.html'
+            };
+            const href = pages[pageId];
+            if (href && pageId !== 'reports') {
+                window.location.href = href;
+            }
+        },
+        onLogout: () => logout()
+    });
+
+    cacheDom();
     bindEvents();
 
     await productStore.loadProducts();
