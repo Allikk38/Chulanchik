@@ -3,17 +3,13 @@
  * 
  * Строгие модальные окна для бизнес-приложений.
  * Без анимаций, без эффектов стекла.
- * Включает полноценную форму добавления/редактирования товара.
+ * Тёплая цветовая гамма, единая с переменными приложения.
  * 
  * @stylesheet modal
- * @version 5.1.0
+ * @version 6.0.0
  * @changes
- * - Добавлены стили для .product-form-modal (полноценная форма товара).
- * - Добавлены стили для загрузки фото (.photo-upload).
- * - Добавлены стили для секции ценообразования (.pricing-section, .margin-indicator).
- * - Добавлены стили для динамических полей категорий (.category-fields).
- * - Добавлены стили для валидации в реальном времени (.field-error).
- * - Улучшена адаптивность для мобильных устройств.
+ * - v6.0.0: Тёплая гамма. Замена жёстких цветов на переменные.
+ * - v5.1.0: Добавлены стили для .product-form-modal.
  */
 
 /* ========== MODAL OVERLAY ========== */
@@ -87,7 +83,7 @@
 }
 
 .modal-header .btn-close:hover {
-    background: var(--color-gray-100);
+    background: var(--color-primary-bg);
     color: var(--color-text);
 }
 
@@ -109,7 +105,7 @@
 .modal-footer {
     padding: var(--spacing-4) var(--spacing-5);
     border-top: var(--border-width) solid var(--color-border);
-    background: var(--color-gray-50);
+    background: var(--color-bg-secondary);
     flex-shrink: 0;
     display: flex;
     gap: var(--spacing-3);
@@ -164,9 +160,9 @@
 .photo-preview {
     width: 120px;
     height: 120px;
-    background: var(--color-gray-100);
+    background: var(--color-bg);
     border-radius: var(--radius-md);
-    border: var(--border-width) dashed var(--color-border);
+    border: 2px dashed var(--color-border);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -216,8 +212,8 @@
 }
 
 .photo-upload-btn:hover {
-    background: var(--color-gray-50);
-    border-color: var(--color-gray-400);
+    background: var(--color-bg-secondary);
+    border-color: var(--color-text-muted);
 }
 
 .photo-upload-hint {
@@ -237,7 +233,7 @@
 
 /* Секция ценообразования */
 .pricing-section {
-    background: var(--color-gray-50);
+    background: var(--color-bg-secondary);
     padding: var(--spacing-4);
     border-radius: var(--radius-md);
     margin: var(--spacing-4) 0;
@@ -408,13 +404,13 @@
 }
 
 .quick-view-content .btn-close:hover {
-    background: var(--color-gray-100);
+    background: var(--color-bg-secondary);
 }
 
 .quick-view-photo {
     flex: 1;
     min-width: 300px;
-    background: var(--color-gray-100);
+    background: var(--color-bg);
     display: flex;
     align-items: center;
     justify-content: center;
