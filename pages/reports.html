@@ -13,7 +13,7 @@
 
     <!-- PWA -->
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#0f172a">
+    <meta name="theme-color" content="#1a3c2a">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
@@ -22,9 +22,9 @@
     <link rel="stylesheet" href="css/styles.css">
 
     <style>
-        /* ============================================================ */
-        /* Уникальные стили страницы отчётов */
-        /* ============================================================ */
+        /* ============================================================
+           Уникальные стили страницы отчётов
+           ============================================================ */
 
         .reports-page {
             display: flex;
@@ -641,19 +641,6 @@
 </head>
 <body>
     <div class="app">
-        <header class="app-header">
-            <h1>Отчёты | Чуланчик</h1>
-            <nav class="app-nav">
-                <a href="pages/inventory.html">Склад</a>
-                <a href="pages/cashier.html">Касса</a>
-                <a href="pages/reports.html" class="active" aria-current="page">Отчёты</a>
-            </nav>
-            <div class="header-actions">
-                <span class="user-email" id="userEmail"></span>
-                <button class="btn-ghost btn-sm" id="logoutBtn">Выход</button>
-            </div>
-        </header>
-
         <main class="page-container">
             <div class="reports-page">
                 <div class="reports-header">
@@ -671,7 +658,7 @@
 
                         <button class="btn-secondary btn-sm" id="refreshBtn">Обновить</button>
                         <button class="btn-secondary btn-sm" id="exportBtn">CSV Экспорт</button>
-                        <button class="btn-primary btn-sm" id="exportPdfBtn">📄 PDF Отчёт</button>
+                        <button class="btn-primary btn-sm" id="exportPdfBtn">PDF Отчёт</button>
                     </div>
                 </div>
 
@@ -688,7 +675,7 @@
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/Chulanchik/sw.js', { scope: '/Chulanchik/' })
-                .catch(() => {});
+                .catch(function() {});
         }
     </script>
 </body>
