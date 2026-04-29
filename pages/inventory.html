@@ -27,6 +27,17 @@
            Только то, что отсутствует в общих компонентах и макетах.
            ============================================================ */
 
+        :root {
+            --inventory-accent: #1a3c2a;
+            --inventory-bg: #f5f2ed;
+            --inventory-card: #ffffff;
+            --inventory-text: #1e1a16;
+            --inventory-text-secondary: #6b5e53;
+            --inventory-text-muted: #8c7b6e;
+            --inventory-border: #e0dbd3;
+            --inventory-border-light: #f0ede8;
+        }
+
         html {
             height: 100%;
             overflow: hidden;
@@ -97,12 +108,18 @@
                         <option value="name-asc">Название: А-Я</option>
                     </select>
 
+                    <!-- Переключатель таблица / карточки (виден только на мобильных) -->
+                    <div class="view-toggle">
+                        <button class="view-toggle-btn" id="viewToggleBtn" title="Показать таблицей">::</button>
+                    </div>
+
                     <button class="btn-primary" id="addProductBtn">+ Добавить товар</button>
                     <button class="btn-secondary" id="refreshBtn">Обновить</button>
                 </div>
 
                 <div class="inventory-stats" id="statsBar"></div>
 
+                <!-- Таблица (десктоп + мобильные при переключении) -->
                 <div class="products-table-wrapper">
                     <table class="products-table">
                         <thead>
@@ -119,6 +136,9 @@
                         <tbody id="tableBody"></tbody>
                     </table>
                 </div>
+
+                <!-- Карточки (мобильные по умолчанию) -->
+                <div class="mobile-product-cards" id="mobileCardsContainer"></div>
             </div>
         </main>
     </div>
