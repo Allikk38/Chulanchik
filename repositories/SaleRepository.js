@@ -1,14 +1,14 @@
 // ============================================================
 // repositories/SaleRepository.js
+// Шаг 2: Нормализация items + исправление передачи параметров в RPC
 // ============================================================
 
 /**
  * Репозиторий продаж.
  *
  * Единственный модуль, который обращается к таблице sales в Supabase.
- * Владеет кэшем в sessionStorage (TTL 2 минуты) для стабильной работы
- * при нестабильном подключении.
- * Нормализует поле items (может быть JSON-строкой или массивом).
+ * Владеет кэшем в sessionStorage (TTL 2 минуты).
+ * Нормализует поле items и числовые поля.
  *
  * @module repositories/SaleRepository
  */
@@ -29,11 +29,6 @@ const CACHE_TTL_MS = 2 * 60 * 1000;
 /** @type {Object|null} */
 let cacheEntry = null;
 
-/**
- * Пытается загрузить кэш из sessionStorage.
- *
- * @returns {Object[]|null}
- */
 function loadCache() {
     if (cacheEntry) {
         if (Date.now() - cacheEntry.timestamp < CACHE_TTL_MS) {
@@ -59,11 +54,6 @@ function loadCache() {
     return null;
 }
 
-/**
- * Сохраняет данные в кэш.
- *
- * @param {Object[]} data
- */
 function saveCache(data) {
     cacheEntry = { data, timestamp: Date.now() };
     try {
@@ -77,13 +67,6 @@ function saveCache(data) {
 // Нормализация
 // ============================================================
 
-/**
- * Нормализует поле items — может прийти как JSON-строка или как массив.
- * Supabase JSONB-поля иногда возвращаются строкой после RPC-вызовов.
- *
- * @param {*} items
- * @returns {Object[]}
- */
 function normalizeItems(items) {
     if (!items) return [];
     if (Array.isArray(items)) return items;
@@ -98,12 +81,6 @@ function normalizeItems(items) {
     return [];
 }
 
-/**
- * Нормализует числовые поля — total, profit могут прийти как строки.
- *
- * @param {Object} sale
- * @returns {Object}
- */
 function normalizeSale(sale) {
     return {
         ...sale,
@@ -120,20 +97,15 @@ function normalizeSale(sale) {
 export const SaleRepository = {
     /**
      * Создаёт продажу через RPC.
+     * p_items передаётся как массив (Supabase JS-клиент сам преобразует в JSONB).
      *
      * @param {Object} saleData
-     * @param {string} saleData.shift_id
-     * @param {Object[]} saleData.items
-     * @param {number} saleData.total
-     * @param {number} saleData.profit
-     * @param {string} saleData.payment_method
-     * @param {string} saleData.user_id
      * @returns {Promise<Object>}
      */
     async create(saleData) {
         const { data, error } = await supabase.rpc('checkout_sale', {
             p_shift_id: saleData.shift_id,
-            p_items: JSON.stringify(saleData.items),
+            p_items: saleData.items,
             p_total: saleData.total,
             p_profit: saleData.profit,
             p_payment_method: saleData.payment_method,
@@ -146,19 +118,12 @@ export const SaleRepository = {
 
     /**
      * Загружает продажи с фильтрацией.
-     * При недоступности сервера возвращает кэшированные данные.
-     * Нормализует items и числовые поля в каждой продаже.
+     * Нормализует items и числовые поля.
      *
      * @param {Object} [options]
-     * @param {string} [options.shiftId]
-     * @param {string} [options.from] - ISO дата начала
-     * @param {string} [options.to] - ISO дата конца
-     * @param {number} [options.limit=100]
-     * @param {boolean} [options.force=false] - принудительно с сервера
      * @returns {Promise<Object[]>}
      */
     async getAll({ shiftId, from, to, limit = 100, force = false } = {}) {
-        // Пробуем кэш если не принудительная загрузка
         if (!force) {
             const cached = loadCache();
             if (cached) return cached;
@@ -179,7 +144,6 @@ export const SaleRepository = {
 
             if (error) throw error;
 
-            // Нормализуем каждую продажу перед сохранением в кэш
             const sales = (data || []).map(normalizeSale);
             saveCache(sales);
             return sales;
@@ -187,14 +151,12 @@ export const SaleRepository = {
         } catch (err) {
             console.error('[SaleRepository] getAll error:', err);
 
-            // Если сервер недоступен — пробуем вернуть кэш независимо от TTL
             const staleCache = loadCache();
             if (staleCache) {
                 console.warn('[SaleRepository] returning stale cache due to network error');
                 return staleCache;
             }
 
-            // Если кэша нет — возвращаем пустой массив, не роняем приложение
             return [];
         }
     },
