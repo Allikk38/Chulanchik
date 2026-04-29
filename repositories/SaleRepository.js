@@ -11,7 +11,8 @@ export const SaleRepository = {
             p_items: JSON.stringify(saleData.items),
             p_total: saleData.total,
             p_profit: saleData.profit,
-            p_payment_method: saleData.payment_method
+            p_payment_method: saleData.payment_method,
+            p_user_id: saleData.user_id
         });
 
         if (error) throw error;
