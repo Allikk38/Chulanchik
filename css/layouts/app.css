@@ -1,16 +1,15 @@
 /**
- * App Layout - Business Professional
+ * App Layout — Business Professional
  * 
- * Основной макет приложения со строгой навигацией в стиле Excel.
- * Без анимаций, без градиентов.
+ * Основной макет приложения со строгой навигацией.
+ * Тёплая цветовая гамма, единая со страницей входа.
  * 
  * @stylesheet app
- * @version 5.0.0
+ * @version 6.0.0
  * @changes
- * - Удалены дублирующиеся стили (skeleton, loading-spinner).
- * - Добавлена переменная --product-card-width.
- * - Удалены медиа-запросы (вынесены в responsive.css).
- * - Упрощены селекторы.
+ * - v6.0.0: Тёплая гамма в стиле страницы входа. Акцент — тёмно-зелёный #1a3c2a.
+ *           Добавлены классы .app-brand, .app-section, .app-divider.
+ * - v5.0.0: Удалены дублирующиеся стили. Добавлена переменная --product-card-width.
  */
 
 /* ========== ПЕРЕМЕННЫЕ ========== */
@@ -23,6 +22,16 @@
     --table-row-hover: var(--color-gray-50);
     --skeleton-bg: var(--color-gray-200);
     --skeleton-radius: var(--radius-sm);
+
+    /* Тёплая навигация */
+    --app-header-height: 52px;
+    --app-header-bg: #faf9f7;
+    --app-header-border: #e0dbd3;
+    --app-tab-color: #6b5e53;
+    --app-tab-active-color: #1a3c2a;
+    --app-tab-hover-bg: #f5f0e9;
+    --app-brand-color: #1a3c2a;
+    --app-section-color: #6b5e53;
 }
 
 /* ========== ROOT CONTAINERS ========== */
@@ -62,26 +71,64 @@ body {
     align-items: center;
     justify-content: space-between;
     padding: 0 var(--spacing-6);
-    height: 48px;
-    background: var(--color-white);
-    border-bottom: var(--border-width) solid var(--color-border);
+    height: var(--app-header-height);
+    background: var(--app-header-bg);
+    border-bottom: 1px solid var(--app-header-border);
 }
 
+/* Левая часть: бренд + разделитель + название раздела */
+.app-header-left {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    flex-shrink: 0;
+}
+
+.app-brand {
+    font-family: 'Lobster', cursive;
+    font-size: 20px;
+    font-weight: 400;
+    color: var(--app-brand-color);
+    line-height: 1;
+    letter-spacing: 0.01em;
+}
+
+.app-divider {
+    width: 1px;
+    height: 20px;
+    background: var(--app-header-border);
+    flex-shrink: 0;
+}
+
+.app-section {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--app-section-color);
+    line-height: 1;
+}
+
+/* Заголовок h1 (устаревший, оставлен для обратной совместимости) */
 .app-header h1 {
     margin: 0;
     font-size: var(--font-size-base);
     font-weight: var(--font-weight-semibold);
-    color: var(--color-text);
+    color: #1e1a16;
     letter-spacing: var(--letter-spacing-tight);
 }
 
+/* Правая часть: действия */
 .header-actions {
     display: flex;
     align-items: center;
     gap: var(--spacing-2);
 }
 
-/* ========== NAVIGATION TABS (EXCEL STYLE) ========== */
+.header-actions .user-email {
+    font-size: 12px;
+    color: var(--app-section-color);
+}
+
+/* ========== NAVIGATION TABS ========== */
 .app-tabs {
     flex-shrink: 0;
     display: flex;
@@ -89,8 +136,8 @@ body {
     gap: 0;
     padding: 0 var(--spacing-6);
     margin: 0;
-    background: var(--color-white);
-    border-bottom: var(--border-width) solid var(--color-border);
+    background: var(--app-header-bg);
+    border-bottom: 1px solid var(--app-header-border);
     overflow-x: auto;
     overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
@@ -105,7 +152,7 @@ body {
 }
 
 .app-tabs::-webkit-scrollbar-thumb {
-    background: var(--color-gray-300);
+    background: #d4ccc3;
     border-radius: var(--radius-full);
 }
 
@@ -115,17 +162,17 @@ body {
     gap: var(--spacing-2);
     padding: var(--spacing-2) var(--spacing-4);
     margin-right: var(--spacing-1);
-    
+
     background: transparent;
-    color: var(--color-text-secondary);
-    
+    color: var(--app-tab-color);
+
     font-weight: var(--font-weight-medium);
-    font-size: var(--font-size-sm);
+    font-size: 13px;
     line-height: 1;
-    
+
     border: none;
     border-bottom: 2px solid transparent;
-    
+
     cursor: pointer;
     white-space: nowrap;
 }
@@ -136,12 +183,12 @@ body {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    opacity: 0.6;
+    opacity: 0.55;
 }
 
 .app-tab:hover {
-    background: var(--color-gray-50);
-    color: var(--color-text);
+    background: var(--app-tab-hover-bg);
+    color: #1e1a16;
 }
 
 .app-tab:hover .tab-icon {
@@ -149,8 +196,8 @@ body {
 }
 
 .app-tab.active {
-    color: var(--color-primary-dark);
-    border-bottom-color: var(--color-primary);
+    color: var(--app-tab-active-color);
+    border-bottom-color: var(--app-tab-active-color);
     font-weight: var(--font-weight-semibold);
 }
 
@@ -190,7 +237,7 @@ body {
     margin: 0;
     font-size: var(--font-size-xl);
     font-weight: var(--font-weight-semibold);
-    color: var(--color-text);
+    color: #1e1a16;
 }
 
 .header-right {
@@ -313,7 +360,7 @@ body {
     margin-bottom: var(--spacing-6);
     font-size: var(--font-size-xl);
     font-weight: var(--font-weight-semibold);
-    color: var(--color-text);
+    color: #1e1a16;
 }
 
 /* ========== ERROR STATE ========== */
