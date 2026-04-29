@@ -628,23 +628,20 @@ function bindGlobalEvents() {
 }
 
 async function init() {
-    const { user, authError } = await requireAuth();
-    if (authError || !user) {
-        window.location.href = 'pages/login.html';
-        return;
-    }
+    console.log('[Cashier] init() started');
 
-    state.user = user;
-
-    // Рендерим шапку через AppHeader
+    // 1. Вставляем навигацию синхронно, до любых асинхронных операций
     const headerHtml = renderAppHeader({
         currentPage: 'cashier',
-        userName: user.fullName || user.email?.split('@')[0] || 'Пользователь'
+        userName: 'Пользователь'
     });
 
     const appEl = document.querySelector('.app');
     if (appEl) {
         appEl.insertAdjacentHTML('afterbegin', headerHtml);
+        console.log('[Cashier] header inserted into .app');
+    } else {
+        console.error('[Cashier] .app element not found in DOM');
     }
 
     bindAppHeaderEvents({
@@ -662,16 +659,34 @@ async function init() {
         onLogout: () => logout()
     });
 
+    // 2. Проверяем авторизацию
+    const { user, authError } = await requireAuth();
+    if (authError || !user) {
+        window.location.href = 'pages/login.html';
+        return;
+    }
+
+    state.user = user;
+    console.log('[Cashier] user authenticated:', user.email);
+
+    // 3. Обновляем имя пользователя в уже вставленной шапке
+    updateUserName(user.fullName || user.email?.split('@')[0] || 'Пользователь');
+
+    // 4. Кэшируем DOM и вешаем события
     cacheDom();
     bindGlobalEvents();
 
+    // 5. Загружаем данные
     cartStore.loadFromCache();
 
     await shiftStore.checkOpenShift(user.id);
 
     await productStore.loadProducts();
 
+    // 6. Первый рендер
     render();
+
+    console.log('[Cashier] init() completed');
 }
 
 // ============================================================
