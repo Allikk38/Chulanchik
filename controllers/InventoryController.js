@@ -20,6 +20,32 @@ import { openProductFormModal } from '../components/ProductForm.js';
 import { renderAppHeader, bindAppHeaderEvents, updateUserName } from '../components/AppHeader.js';
 
 // ============================================================
+// Шапка — рендерится синхронно, до загрузки данных
+// ============================================================
+
+(function insertHeader() {
+    const headerHtml = renderAppHeader({ currentPage: 'inventory' });
+    const appEl = document.querySelector('.app');
+    if (appEl) {
+        appEl.insertAdjacentHTML('afterbegin', headerHtml);
+    }
+    bindAppHeaderEvents({
+        onNavigate: (pageId) => {
+            const pages = {
+                inventory: 'pages/inventory.html',
+                cashier: 'pages/cashier.html',
+                reports: 'pages/reports.html'
+            };
+            const href = pages[pageId];
+            if (href && pageId !== 'inventory') {
+                window.location.href = href;
+            }
+        },
+        onLogout: () => logout()
+    });
+})();
+
+// ============================================================
 // Локальное состояние страницы
 // ============================================================
 
@@ -379,31 +405,8 @@ async function init() {
 
     state.user = user;
 
-    // Рендерим шапку через AppHeader
-    const headerHtml = renderAppHeader({
-        currentPage: 'inventory',
-        userName: user.fullName || user.email?.split('@')[0] || 'Пользователь'
-    });
-
-    const appEl = document.querySelector('.app');
-    if (appEl) {
-        appEl.insertAdjacentHTML('afterbegin', headerHtml);
-    }
-
-    bindAppHeaderEvents({
-        onNavigate: (pageId) => {
-            const pages = {
-                inventory: 'pages/inventory.html',
-                cashier: 'pages/cashier.html',
-                reports: 'pages/reports.html'
-            };
-            const href = pages[pageId];
-            if (href && pageId !== 'inventory') {
-                window.location.href = href;
-            }
-        },
-        onLogout: () => logout()
-    });
+    // Обновляем имя пользователя в уже отрендеренной шапке
+    updateUserName(user.fullName || user.email?.split('@')[0] || 'Пользователь');
 
     cacheDom();
     bindEvents();
