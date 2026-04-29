@@ -269,4 +269,4 @@ class ShiftStore extends EventEmitter {
 /** @type {ShiftStore} */
 export const shiftStore = new ShiftStore();
 
-export default shiftStore;
+export default shiftStore; 
