@@ -10,32 +10,22 @@
     <title>Склад | Чуланчик</title>
 
     <base href="/Chulanchik/">
+
     <!-- PWA -->
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#0f172a">
+    <meta name="theme-color" content="#1a3c2a">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
 
-    <!-- Стили -->
-    <link rel="stylesheet" href="css/base/variables.css">
-    <link rel="stylesheet" href="css/base/reset.css">
-    <link rel="stylesheet" href="css/base/typography.css">
-    <link rel="stylesheet" href="css/components/buttons.css">
-    <link rel="stylesheet" href="css/components/forms.css">
-    <link rel="stylesheet" href="css/components/tables.css">
-    <link rel="stylesheet" href="css/components/modal.css">
-    <link rel="stylesheet" href="css/components/notifications.css">
-    <link rel="stylesheet" href="css/components/product-card.css">
-    <link rel="stylesheet" href="css/components/cart.css">
-    <link rel="stylesheet" href="css/layouts/app.css">
-    <link rel="stylesheet" href="css/layouts/cashier.css">
-    <link rel="stylesheet" href="css/layouts/inventory.css">
-    <link rel="stylesheet" href="css/layouts/reports.css">
-    <link rel="stylesheet" href="css/utils/utilities.css">
-    <link rel="stylesheet" href="css/utils/responsive.css">
+    <!-- Единый файл стилей -->
+    <link rel="stylesheet" href="css/styles.css">
 
     <style>
+        /* ============================================================
+           Уникальные стили страницы склада
+           ============================================================ */
+
         html {
             height: 100%;
             overflow: hidden;
@@ -80,15 +70,24 @@
         }
 
         .search-wrapper::before {
-            content: '>';
+            content: '';
             position: absolute;
             left: 12px;
             top: 50%;
             transform: translateY(-50%);
-            font-size: 14px;
-            opacity: 0.4;
+            width: 16px;
+            height: 16px;
+            background: currentColor;
+            opacity: 0.35;
             pointer-events: none;
-            font-weight: 600;
+            mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'%3E%3C/circle%3E%3Cpath d='M21 21l-4.35-4.35'%3E%3C/path%3E%3C/svg%3E");
+            mask-size: contain;
+            mask-repeat: no-repeat;
+            mask-position: center;
+            -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'%3E%3C/circle%3E%3Cpath d='M21 21l-4.35-4.35'%3E%3C/path%3E%3C/svg%3E");
+            -webkit-mask-size: contain;
+            -webkit-mask-repeat: no-repeat;
+            -webkit-mask-position: center;
         }
 
         .inventory-stats {
@@ -249,19 +248,6 @@
 </head>
 <body>
     <div class="app">
-        <header class="app-header">
-            <h1>Склад | Чуланчик</h1>
-            <nav class="app-nav">
-                <a href="pages/inventory.html" class="active" aria-current="page">Склад</a>
-                <a href="pages/cashier.html">Касса</a>
-                <a href="pages/reports.html">Отчёты</a>
-            </nav>
-            <div class="header-actions">
-                <span class="user-email" id="userEmail"></span>
-                <button class="btn-ghost btn-sm" id="logoutBtn">Выход</button>
-            </div>
-        </header>
-
         <main class="page-container">
             <div class="inventory-page">
                 <div class="filters-panel">
@@ -321,7 +307,7 @@
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/Chulanchik/sw.js', { scope: '/Chulanchik/' })
-                .catch(() => {});
+                .catch(function() {});
         }
     </script>
 </body>
