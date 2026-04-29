@@ -1,10 +1,20 @@
+// ============================================================
 // controllers/ReportsController.js
-// Шаг 2: Обход зависания — синхронная проверка сессии
+// Шаг 3: Загрузка данных (продажи, смены, товары, расходы)
 // ============================================================
 
-import { requireAuth, logout } from '../core/auth.js';
+/**
+ * Контроллер страницы отчётов (минимальная версия с загрузкой данных).
+ *
+ * @module controllers/ReportsController
+ */
+
+import { logout } from '../core/auth.js';
+import { productStore } from '../stores/ProductStore.js';
+import { expenseStore } from '../stores/ExpenseStore.js';
+import SaleRepository from '../repositories/SaleRepository.js';
+import ShiftRepository from '../repositories/ShiftRepository.js';
 import { renderAppHeader, bindAppHeaderEvents, updateUserName } from '../components/AppHeader.js';
-import { supabase } from '../core/supabase-client.js';
 
 // ============================================================
 // Состояние
@@ -12,7 +22,12 @@ import { supabase } from '../core/supabase-client.js';
 
 const state = {
     user: null,
-    period: 'week'
+    period: 'week',
+    sales: [],
+    shifts: [],
+    expenses: [],
+    isLoading: true,
+    loadError: null
 };
 
 // ============================================================
@@ -21,22 +36,16 @@ const state = {
 
 const DOM = {
     content: null,
-    periodSelect: null
+    periodSelect: null,
+    refreshBtn: null
 };
 
 // ============================================================
 // Хелпер: синхронная проверка наличия сессии
 // ============================================================
 
-/**
- * Проверяет, есть ли сохранённая сессия Supabase в localStorage.
- * Не делает сетевых запросов — работает мгновенно.
- *
- * @returns {boolean}
- */
 function hasCachedSession() {
     try {
-        // Supabase хранит сессию в localStorage с ключом вида sb-<project-id>-auth-token
         for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
             if (key && key.includes('-auth-token')) {
@@ -50,9 +59,97 @@ function hasCachedSession() {
             }
         }
     } catch (e) {
-        // битый localStorage — считаем что сессии нет
+        // битый localStorage
     }
     return false;
+}
+
+// ============================================================
+// Период
+// ============================================================
+
+function getPeriodDates() {
+    const now = new Date();
+    const to = now.toISOString();
+    let from;
+
+    switch (state.period) {
+        case 'today':
+            from = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+            break;
+        case 'yesterday': {
+            const y = new Date(now);
+            y.setDate(y.getDate() - 1);
+            from = new Date(y.getFullYear(), y.getMonth(), y.getDate()).toISOString();
+            break;
+        }
+        case 'week': {
+            from = new Date(now);
+            from.setDate(from.getDate() - 7);
+            from = from.toISOString();
+            break;
+        }
+        case 'month': {
+            from = new Date(now);
+            from.setMonth(from.getMonth() - 1);
+            from = from.toISOString();
+            break;
+        }
+        case 'quarter': {
+            from = new Date(now);
+            from.setMonth(from.getMonth() - 3);
+            from = from.toISOString();
+            break;
+        }
+        case 'year': {
+            from = new Date(now);
+            from.setFullYear(from.getFullYear() - 1);
+            from = from.toISOString();
+            break;
+        }
+        default:
+            from = new Date(now.setDate(now.getDate() - 7)).toISOString();
+    }
+
+    return { from, to };
+}
+
+// ============================================================
+// Загрузка данных
+// ============================================================
+
+async function loadData() {
+    const { from, to } = getPeriodDates();
+
+    console.log('[Reports] loading data for period:', state.period, { from, to });
+
+    try {
+        // Загружаем товары, расходы, продажи и смены параллельно
+        const [products, expenses, sales, shifts] = await Promise.all([
+            productStore.loadProducts(),
+            expenseStore.loadExpenses(),
+            SaleRepository.getAll({ from, to, limit: 200 }),
+            ShiftRepository.getAll({ from, to, limit: 100 })
+        ]);
+
+        state.sales = sales;
+        state.shifts = shifts;
+        state.expenses = expenses;
+        state.isLoading = false;
+        state.loadError = null;
+
+        console.log('[Reports] data loaded:', {
+            products: products.length,
+            expenses: expenses.length,
+            sales: sales.length,
+            shifts: shifts.length
+        });
+
+    } catch (err) {
+        console.error('[Reports] loadData error:', err);
+        state.isLoading = false;
+        state.loadError = err.message || 'Ошибка загрузки данных';
+    }
 }
 
 // ============================================================
@@ -62,30 +159,89 @@ function hasCachedSession() {
 function renderContent() {
     if (!DOM.content) return;
 
+    if (state.isLoading) {
+        DOM.content.innerHTML = `
+            <div class="reports-tabs" role="tablist">
+                <button class="tab-btn active" data-tab="dashboard" role="tab" aria-selected="true">Дашборд</button>
+                <button class="tab-btn" data-tab="sales" role="tab">Продажи</button>
+                <button class="tab-btn" data-tab="products" role="tab">Товары</button>
+                <button class="tab-btn" data-tab="shifts" role="tab">Смены</button>
+                <button class="tab-btn" data-tab="expenses" role="tab">Расходы</button>
+            </div>
+            <div class="reports-content-inner">
+                <div class="loading-overlay">
+                    <div class="loading-spinner"></div>
+                    <span class="loading-text">Загрузка данных...</span>
+                </div>
+            </div>`;
+        return;
+    }
+
+    if (state.loadError) {
+        DOM.content.innerHTML = `
+            <div class="reports-tabs" role="tablist">
+                <button class="tab-btn active" data-tab="dashboard" role="tab" aria-selected="true">Дашборд</button>
+                <button class="tab-btn" data-tab="sales" role="tab">Продажи</button>
+                <button class="tab-btn" data-tab="products" role="tab">Товары</button>
+                <button class="tab-btn" data-tab="shifts" role="tab">Смены</button>
+                <button class="tab-btn" data-tab="expenses" role="tab">Расходы</button>
+            </div>
+            <div class="reports-content-inner">
+                <div class="error-state">
+                    <div class="error-state-icon">!</div>
+                    <p>Ошибка загрузки данных</p>
+                    <small>${state.loadError}</small>
+                </div>
+            </div>`;
+        return;
+    }
+
+    // Данные загружены — показываем сводку
+    const totalSales = state.sales.length;
+    const totalRevenue = state.sales.reduce((s, r) => s + (r.total || 0), 0);
+    const totalExpenses = state.expenses.reduce((s, e) => s + (e.amount || 0), 0);
+    const totalShifts = state.shifts.length;
+
     DOM.content.innerHTML = `
         <div class="reports-tabs" role="tablist">
-            <button class="tab-btn active" data-tab="dashboard" role="tab" aria-selected="true">
-                Дашборд
-            </button>
-            <button class="tab-btn" data-tab="sales" role="tab">
-                Продажи
-            </button>
-            <button class="tab-btn" data-tab="products" role="tab">
-                Товары
-            </button>
-            <button class="tab-btn" data-tab="shifts" role="tab">
-                Смены
-            </button>
-            <button class="tab-btn" data-tab="expenses" role="tab">
-                Расходы
-            </button>
+            <button class="tab-btn active" data-tab="dashboard" role="tab" aria-selected="true">Дашборд</button>
+            <button class="tab-btn" data-tab="sales" role="tab">Продажи</button>
+            <button class="tab-btn" data-tab="products" role="tab">Товары</button>
+            <button class="tab-btn" data-tab="shifts" role="tab">Смены</button>
+            <button class="tab-btn" data-tab="expenses" role="tab">Расходы</button>
         </div>
         <div class="reports-content-inner">
-            <div class="loading-overlay">
-                <div class="loading-spinner"></div>
-                <span class="loading-text">Отчёты загружаются...</span>
+            <div class="summary-cards">
+                <div class="summary-card">
+                    <span class="label">Продаж</span>
+                    <span class="value">${totalSales}</span>
+                </div>
+                <div class="summary-card">
+                    <span class="label">Выручка</span>
+                    <span class="value">${totalRevenue.toLocaleString('ru-RU')} RUB</span>
+                </div>
+                <div class="summary-card">
+                    <span class="label">Расходов</span>
+                    <span class="value">${totalExpenses.toLocaleString('ru-RU')} RUB</span>
+                </div>
+                <div class="summary-card">
+                    <span class="label">Смен</span>
+                    <span class="value">${totalShifts}</span>
+                </div>
+            </div>
+            <div class="card">
+                <h4>Данные загружены успешно</h4>
+                <p>Продаж: ${totalSales}, Смен: ${totalShifts}, Расходов: ${state.expenses.length}</p>
             </div>
         </div>`;
+
+    // Вешаем обработчики на табы
+    DOM.content.querySelectorAll('[data-tab]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const tab = btn.dataset.tab;
+            console.log('[Reports] tab clicked:', tab);
+        });
+    });
 }
 
 // ============================================================
@@ -95,12 +251,23 @@ function renderContent() {
 function cacheDom() {
     DOM.content = document.getElementById('reportsContent');
     DOM.periodSelect = document.getElementById('periodSelect');
+    DOM.refreshBtn = document.getElementById('refreshBtn');
 }
 
 function bindEvents() {
-    DOM.periodSelect?.addEventListener('change', (e) => {
+    DOM.periodSelect?.addEventListener('change', async (e) => {
         state.period = e.target.value;
-        console.log('[Reports] period changed to:', state.period);
+        state.isLoading = true;
+        renderContent();
+        await loadData();
+        renderContent();
+    });
+
+    DOM.refreshBtn?.addEventListener('click', async () => {
+        state.isLoading = true;
+        renderContent();
+        await loadData();
+        renderContent();
     });
 }
 
@@ -136,7 +303,7 @@ async function init() {
         onLogout: () => logout()
     });
 
-    // 2. Быстрая проверка: есть ли сохранённая сессия?
+    // 2. Быстрая проверка сессии
     console.log('[Reports] checking cached session...');
 
     if (!hasCachedSession()) {
@@ -147,37 +314,16 @@ async function init() {
 
     console.log('[Reports] cached session found');
 
-    // 3. Кэшируем DOM и рендерим заглушку СРАЗУ
+    // 3. Кэшируем DOM, вешаем события, рендерим заглушку
     cacheDom();
     bindEvents();
     renderContent();
 
-    console.log('[Reports] skeleton rendered');
+    console.log('[Reports] skeleton rendered, loading data...');
 
-    // 4. Теперь в фоне пытаемся подтвердить сессию через сервер
-    console.log('[Reports] verifying session in background...');
-
-    try {
-        const { user, authError } = await requireAuth();
-
-        if (authError || !user) {
-            console.warn('[Reports] session verification failed, redirecting to login');
-            window.location.href = 'pages/login.html';
-            return;
-        }
-
-        state.user = user;
-        console.log('[Reports] user authenticated:', user.email);
-
-        // Обновляем имя пользователя
-        updateUserName(user.fullName || user.email?.split('@')[0] || 'Пользователь');
-
-    } catch (err) {
-        console.error('[Reports] auth error in background:', err);
-        // Не редиректим — страница уже показана, продолжаем с тем что есть
-        // Если пользователь попытается выполнить действие требующее сервер —
-        // оно упадёт с понятной ошибкой
-    }
+    // 4. Загружаем данные
+    await loadData();
+    renderContent();
 
     console.log('[Reports] init() completed');
 }
