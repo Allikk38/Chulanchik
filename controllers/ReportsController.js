@@ -1,13 +1,10 @@
 // ============================================================
 // controllers/ReportsController.js
-// Шаг 10: Исправлена передача userId для CRUD расходов
+// v11: Добавлена поддержка кнопки «Отчёт сдатчику»
 // ============================================================
 
 /**
  * Контроллер страницы отчётов.
- *
- * Координирует загрузку данных, переключение табов,
- * отрисовку графиков, экспорт CSV и CRUD расходов.
  *
  * @module controllers/ReportsController
  */
@@ -76,12 +73,6 @@ function hasCachedSession() {
     return false;
 }
 
-/**
- * Достаёт данные пользователя из кэша Supabase в localStorage.
- * Не делает сетевых запросов — работает мгновенно.
- *
- * @returns {Object|null} { id, email, fullName } или null
- */
 function getUserFromCache() {
     try {
         for (let i = 0; i < localStorage.length; i++) {
@@ -281,7 +272,6 @@ function renderTabContent() {
 function renderContent() {
     if (!DOM.content) return;
 
-    // Сбрасываем таймеры
     if (state._chartsTimeoutId !== null) {
         clearTimeout(state._chartsTimeoutId);
         state._chartsTimeoutId = null;
@@ -297,7 +287,6 @@ function renderContent() {
             ${renderTabContent()}
         </div>`;
 
-    // Обработчики табов
     DOM.content.querySelectorAll('[data-tab]').forEach(btn => {
         btn.addEventListener('click', () => {
             const newTab = btn.dataset.tab;
@@ -307,7 +296,7 @@ function renderContent() {
         });
     });
 
-    // Графики для дашборда
+    // Графики
     if (state.activeTab === 'dashboard' && !state.isLoading && !state.loadError) {
         state._chartsTimeoutId = setTimeout(() => {
             state._chartsTimeoutId = null;
@@ -319,7 +308,7 @@ function renderContent() {
         }, 200);
     }
 
-    // Обработчики для вкладки расходов
+    // Расходы
     if (state.activeTab === 'expenses' && !state.isLoading && !state.loadError) {
         state._expensesTimeoutId = setTimeout(() => {
             state._expensesTimeoutId = null;
@@ -327,6 +316,15 @@ function renderContent() {
                 loadData().then(() => renderContent());
             });
         }, 100);
+    }
+
+    // Товары — кнопка «Отчёт сдатчику»
+    if (state.activeTab === 'products' && !state.isLoading && !state.loadError) {
+        import('../components/ReportProducts.js').then(module => {
+            if (state.activeTab === 'products') {
+                module.bindProductsEvents();
+            }
+        });
     }
 }
 
@@ -363,10 +361,10 @@ function bindEvents() {
 }
 
 async function init() {
-    console.log('[Reports] v10 - fixed userId from cache');
+    console.log('[Reports] v11 - consignor report button');
     console.log('[Reports] init() started');
 
-    // 1. Вставляем навигацию синхронно
+    // 1. Навигация
     const headerHtml = renderAppHeader({
         currentPage: 'reports',
         userName: 'Пользователь'
@@ -395,7 +393,7 @@ async function init() {
         onLogout: () => logout()
     });
 
-    // 2. Быстрая проверка сессии
+    // 2. Сессия
     console.log('[Reports] checking cached session...');
 
     if (!hasCachedSession()) {
@@ -406,24 +404,21 @@ async function init() {
 
     console.log('[Reports] cached session found');
 
-    // 3. Достаём пользователя из кэша localStorage (без сетевого запроса)
     const cachedUser = getUserFromCache();
     if (cachedUser) {
         state.user = cachedUser;
         updateUserName(cachedUser.fullName || cachedUser.email?.split('@')[0] || 'Пользователь');
         console.log('[Reports] user loaded from cache:', cachedUser.email);
-    } else {
-        console.warn('[Reports] could not extract user from cache, CRUD operations may fail');
     }
 
-    // 4. Кэшируем DOM, вешаем события, рендерим заглушку
+    // 3. DOM и события
     cacheDom();
     bindEvents();
     renderContent();
 
     console.log('[Reports] skeleton rendered, loading data...');
 
-    // 5. Загружаем данные
+    // 4. Загрузка данных
     await loadData();
     renderContent();
 
