@@ -8,6 +8,7 @@
  * Единственный модуль, который обращается к таблице sales в Supabase.
  * Владеет кэшем в sessionStorage (TTL 2 минуты) для стабильной работы
  * при нестабильном подключении.
+ * Нормализует поле items (может быть JSON-строкой или массивом).
  *
  * @module repositories/SaleRepository
  */
@@ -73,6 +74,46 @@ function saveCache(data) {
 }
 
 // ============================================================
+// Нормализация
+// ============================================================
+
+/**
+ * Нормализует поле items — может прийти как JSON-строка или как массив.
+ * Supabase JSONB-поля иногда возвращаются строкой после RPC-вызовов.
+ *
+ * @param {*} items
+ * @returns {Object[]}
+ */
+function normalizeItems(items) {
+    if (!items) return [];
+    if (Array.isArray(items)) return items;
+    if (typeof items === 'string') {
+        try {
+            const parsed = JSON.parse(items);
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (e) {
+            return [];
+        }
+    }
+    return [];
+}
+
+/**
+ * Нормализует числовые поля — total, profit могут прийти как строки.
+ *
+ * @param {Object} sale
+ * @returns {Object}
+ */
+function normalizeSale(sale) {
+    return {
+        ...sale,
+        items: normalizeItems(sale.items),
+        total: Number(sale.total) || 0,
+        profit: Number(sale.profit) || 0
+    };
+}
+
+// ============================================================
 // Репозиторий
 // ============================================================
 
@@ -106,6 +147,7 @@ export const SaleRepository = {
     /**
      * Загружает продажи с фильтрацией.
      * При недоступности сервера возвращает кэшированные данные.
+     * Нормализует items и числовые поля в каждой продаже.
      *
      * @param {Object} [options]
      * @param {string} [options.shiftId]
@@ -137,7 +179,8 @@ export const SaleRepository = {
 
             if (error) throw error;
 
-            const sales = data || [];
+            // Нормализуем каждую продажу перед сохранением в кэш
+            const sales = (data || []).map(normalizeSale);
             saveCache(sales);
             return sales;
 
@@ -171,7 +214,7 @@ export const SaleRepository = {
                 .single();
 
             if (error && error.code !== 'PGRST116') throw error;
-            return data || null;
+            return data ? normalizeSale(data) : null;
 
         } catch (err) {
             console.error('[SaleRepository] getById error:', err);
