@@ -6,7 +6,7 @@
  * Репозиторий смен.
  * 
  * Единственный модуль, который обращается к таблице shifts в Supabase.
- * Владеет кэшем активной смены в localStorage.
+ * Владеет кэшем активной смены в localStorage и списка смен в sessionStorage.
  * 
  * @module repositories/ShiftRepository
  */
@@ -19,6 +19,8 @@ import { supabase } from '../core/supabase-client.js';
 
 const ACTIVE_SHIFT_KEY = 'active_shift_cache';
 const ACTIVE_SHIFT_TTL_MS = 24 * 60 * 60 * 1000;
+const SHIFTS_LIST_KEY = 'shifts_list_cache';
+const SHIFTS_LIST_TTL_MS = 2 * 60 * 1000;
 
 // ============================================================
 // Кэш активной смены
@@ -77,6 +79,61 @@ function saveCachedActiveShift(shift) {
         console.warn('[ShiftRepository] failed to save cache:', e);
     }
 }
+
+// ============================================================
+// Кэш списка смен
+// ============================================================
+
+/** @type {Object|null} */
+let shiftsListCache = null;
+
+/**
+ * Загружает кэш списка смен из sessionStorage.
+ *
+ * @returns {Object[]|null}
+ */
+function loadShiftsListCache() {
+    if (shiftsListCache) {
+        if (Date.now() - shiftsListCache.timestamp < SHIFTS_LIST_TTL_MS) {
+            return shiftsListCache.data;
+        }
+        shiftsListCache = null;
+    }
+
+    try {
+        const raw = sessionStorage.getItem(SHIFTS_LIST_KEY);
+        if (raw) {
+            const parsed = JSON.parse(raw);
+            if (Date.now() - parsed.timestamp < SHIFTS_LIST_TTL_MS) {
+                shiftsListCache = parsed;
+                return parsed.data;
+            }
+            sessionStorage.removeItem(SHIFTS_LIST_KEY);
+        }
+    } catch (e) {
+        sessionStorage.removeItem(SHIFTS_LIST_KEY);
+    }
+
+    return null;
+}
+
+/**
+ * Сохраняет список смен в sessionStorage.
+ *
+ * @param {Object[]} data
+ */
+function saveShiftsListCache(data) {
+    shiftsListCache = { data, timestamp: Date.now() };
+    try {
+        sessionStorage.setItem(SHIFTS_LIST_KEY, JSON.stringify(shiftsListCache));
+    } catch (e) {
+        // не критично
+    }
+}
+
+// ============================================================
+// Хелперы
+// ============================================================
 
 /**
  * Нормализует поле items — может прийти как JSON-строка или уже как массив.
@@ -276,28 +333,54 @@ export const ShiftRepository = {
 
     /**
      * Возвращает список смен (для отчётов).
+     * При недоступности сервера возвращает кэшированные данные.
      *
      * @param {Object} [options]
      * @param {string} [options.userId] — фильтр по пользователю
      * @param {string} [options.from] — ISO-дата «с»
      * @param {string} [options.to] — ISO-дата «по»
      * @param {number} [options.limit=50]
+     * @param {boolean} [options.force=false] — принудительно с сервера
      * @returns {Promise<Object[]>}
      */
-    async getAll({ userId, from, to, limit = 50 } = {}) {
-        let query = supabase
-            .from('shifts')
-            .select('*')
-            .order('opened_at', { ascending: false })
-            .limit(limit);
+    async getAll({ userId, from, to, limit = 50, force = false } = {}) {
+        // Пробуем кэш если не принудительная загрузка
+        if (!force) {
+            const cached = loadShiftsListCache();
+            if (cached) return cached;
+        }
 
-        if (userId) query = query.eq('user_id', userId);
-        if (from) query = query.gte('opened_at', from);
-        if (to) query = query.lte('opened_at', to);
+        try {
+            let query = supabase
+                .from('shifts')
+                .select('*')
+                .order('opened_at', { ascending: false })
+                .limit(limit);
 
-        const { data, error } = await query;
-        if (error) throw error;
-        return data || [];
+            if (userId) query = query.eq('user_id', userId);
+            if (from) query = query.gte('opened_at', from);
+            if (to) query = query.lte('opened_at', to);
+
+            const { data, error } = await query;
+
+            if (error) throw error;
+
+            const shifts = data || [];
+            saveShiftsListCache(shifts);
+            return shifts;
+
+        } catch (err) {
+            console.error('[ShiftRepository] getAll error:', err);
+
+            // Если сервер недоступен — пробуем вернуть кэш независимо от TTL
+            const staleCache = loadShiftsListCache();
+            if (staleCache) {
+                console.warn('[ShiftRepository] returning stale cache due to network error');
+                return staleCache;
+            }
+
+            return [];
+        }
     },
 
     /**
