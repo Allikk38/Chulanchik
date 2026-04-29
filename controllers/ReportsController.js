@@ -1,13 +1,13 @@
 // ============================================================
 // controllers/ReportsController.js
-// Шаг 7: Все табы используют компоненты, заглушек больше нет
+// Шаг 8: Графики + CSV-экспорт
 // ============================================================
 
 /**
  * Контроллер страницы отчётов.
  *
  * Координирует загрузку данных, переключение табов,
- * передаёт state в компоненты для рендеринга.
+ * отрисовку графиков и экспорт CSV.
  *
  * @module controllers/ReportsController
  */
@@ -18,7 +18,7 @@ import { expenseStore } from '../stores/ExpenseStore.js';
 import SaleRepository from '../repositories/SaleRepository.js';
 import ShiftRepository from '../repositories/ShiftRepository.js';
 import { renderAppHeader, bindAppHeaderEvents, updateUserName } from '../components/AppHeader.js';
-import { renderDashboard } from '../components/ReportDashboard.js';
+import { renderDashboard, drawCharts } from '../components/ReportDashboard.js';
 import { renderSalesTab } from '../components/ReportSales.js';
 import { renderProductsTab } from '../components/ReportProducts.js';
 import { renderShiftsTab } from '../components/ReportShifts.js';
@@ -36,7 +36,9 @@ const state = {
     shifts: [],
     expenses: [],
     isLoading: true,
-    loadError: null
+    loadError: null,
+    /** @type {number|null} ID таймаута для отложенной отрисовки графиков */
+    _chartsTimeoutId: null
 };
 
 // ============================================================
@@ -46,7 +48,8 @@ const state = {
 const DOM = {
     content: null,
     periodSelect: null,
-    refreshBtn: null
+    refreshBtn: null,
+    exportBtn: null
 };
 
 // ============================================================
@@ -157,6 +160,35 @@ async function loadData() {
 }
 
 // ============================================================
+// Экспорт CSV
+// ============================================================
+
+function exportCsv() {
+    const revenue = state.sales.reduce((s, r) => s + (Number(r.total) || 0), 0);
+    const profit = state.sales.reduce((s, r) => s + (Number(r.profit) || 0), 0);
+    const count = state.sales.length;
+    const totalExpenses = state.expenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+    const netProfit = profit - totalExpenses;
+
+    let csv = 'Показатель,Значение\n';
+    csv += `Выручка,${revenue}\n`;
+    csv += `Прибыль,${profit}\n`;
+    csv += `Продаж,${count}\n`;
+    csv += `Расходы,${totalExpenses}\n`;
+    csv += `Чистая прибыль,${netProfit}\n`;
+
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `report_${state.period}_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    console.log('[Reports] CSV exported');
+}
+
+// ============================================================
 // Рендеринг
 // ============================================================
 
@@ -219,6 +251,12 @@ function renderTabContent() {
 function renderContent() {
     if (!DOM.content) return;
 
+    // Сбрасываем таймер графиков чтобы избежать множественных вызовов
+    if (state._chartsTimeoutId !== null) {
+        clearTimeout(state._chartsTimeoutId);
+        state._chartsTimeoutId = null;
+    }
+
     DOM.content.innerHTML = `
         ${renderTabs()}
         <div class="reports-content-inner">
@@ -234,6 +272,18 @@ function renderContent() {
             renderContent();
         });
     });
+
+    // Отрисовка графиков после вставки дашборда в DOM
+    if (state.activeTab === 'dashboard' && !state.isLoading && !state.loadError) {
+        state._chartsTimeoutId = setTimeout(() => {
+            state._chartsTimeoutId = null;
+            try {
+                drawCharts(state);
+            } catch (err) {
+                console.error('[Reports] drawCharts error:', err);
+            }
+        }, 200);
+    }
 }
 
 // ============================================================
@@ -244,6 +294,7 @@ function cacheDom() {
     DOM.content = document.getElementById('reportsContent');
     DOM.periodSelect = document.getElementById('periodSelect');
     DOM.refreshBtn = document.getElementById('refreshBtn');
+    DOM.exportBtn = document.getElementById('exportBtn');
 }
 
 function bindEvents() {
@@ -261,10 +312,14 @@ function bindEvents() {
         await loadData();
         renderContent();
     });
+
+    DOM.exportBtn?.addEventListener('click', () => {
+        exportCsv();
+    });
 }
 
 async function init() {
-    console.log('[Reports] v7 - all tabs with components');
+    console.log('[Reports] v8 - charts + CSV export');
     console.log('[Reports] init() started');
 
     // 1. Вставляем навигацию синхронно
