@@ -24,6 +24,7 @@
     <style>
         /* ============================================================
            Уникальные стили страницы склада
+           Только то, что отсутствует в общих компонентах и макетах.
            ============================================================ */
 
         html {
@@ -39,210 +40,33 @@
             touch-action: manipulation;
         }
 
-        .inventory-page {
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-            padding: var(--spacing-5);
-            background: var(--color-bg);
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
 
-        .filters-panel {
-            display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            gap: var(--spacing-4);
-            margin-bottom: var(--spacing-5);
-            padding: var(--spacing-3) var(--spacing-4);
-            background: var(--color-white);
-            border-radius: var(--radius-lg);
-            border: var(--border-width) solid var(--color-border);
-        }
-
-        .search-wrapper {
-            position: relative;
-            max-width: 320px;
-            width: 100%;
-        }
-
-        .search-wrapper input {
-            padding-left: var(--spacing-8);
-        }
-
-        .search-wrapper::before {
-            content: '';
-            position: absolute;
-            left: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 16px;
-            height: 16px;
-            background: currentColor;
-            opacity: 0.35;
-            pointer-events: none;
-            mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'%3E%3C/circle%3E%3Cpath d='M21 21l-4.35-4.35'%3E%3C/path%3E%3C/svg%3E");
-            mask-size: contain;
-            mask-repeat: no-repeat;
-            mask-position: center;
-            -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'%3E%3C/circle%3E%3Cpath d='M21 21l-4.35-4.35'%3E%3C/path%3E%3C/svg%3E");
-            -webkit-mask-size: contain;
-            -webkit-mask-repeat: no-repeat;
-            -webkit-mask-position: center;
-        }
-
-        .inventory-stats {
-            display: flex;
-            gap: var(--spacing-4);
-            margin-bottom: var(--spacing-5);
-            flex-wrap: wrap;
-        }
-
-        .stat-card-inline {
-            display: flex;
-            align-items: center;
-            gap: var(--spacing-4);
-            padding: var(--spacing-4);
-            background: var(--color-white);
-            border-radius: var(--radius-lg);
-            border: var(--border-width) solid var(--color-border);
-            flex: 1;
-            min-width: 140px;
-        }
-
-        .stat-icon {
-            font-size: 24px;
-            opacity: 0.6;
-        }
-
-        .stat-label {
-            font-size: var(--font-size-xs);
-            color: var(--color-text-muted);
-            text-transform: uppercase;
-            letter-spacing: var(--letter-spacing-wide);
-        }
-
-        .stat-value {
-            font-size: var(--font-size-xl);
-            font-weight: 700;
-            color: var(--color-text);
-        }
-
-        .products-table-wrapper {
-            background: var(--color-white);
-            border-radius: var(--radius-lg);
-            border: var(--border-width) solid var(--color-border);
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-        }
-
-        .products-table {
-            width: 100%;
-            border-collapse: collapse;
-            min-width: 700px;
-        }
-
-        .products-table thead {
-            background: var(--color-gray-50);
-            border-bottom: var(--border-width) solid var(--color-border);
-        }
-
-        .products-table th {
-            padding: var(--spacing-3) var(--spacing-4);
-            font-size: var(--font-size-xs);
-            font-weight: 600;
-            color: var(--color-text-muted);
-            text-transform: uppercase;
-            letter-spacing: var(--letter-spacing-wide);
-            text-align: left;
-            white-space: nowrap;
-        }
-
-        .products-table td {
-            padding: var(--spacing-3) var(--spacing-4);
-            border-bottom: var(--border-width) solid var(--color-border-light);
-            font-size: var(--font-size-sm);
-            vertical-align: middle;
-        }
-
-        .products-table tbody tr:hover td {
-            background: var(--color-gray-50);
-        }
-
-        .products-table tbody tr.selected td {
-            background: var(--color-primary-bg);
-        }
-
-        .product-thumb {
-            width: 44px;
-            height: 44px;
-            background: var(--color-gray-100);
-            border-radius: var(--radius-md);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-            border: var(--border-width) solid var(--color-border-light);
-        }
-
-        .product-thumb img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        .thumb-placeholder {
-            font-size: 20px;
-            opacity: 0.4;
-            color: var(--color-text-muted);
-        }
-
-        .product-name { font-weight: 500; color: var(--color-text); }
-        .product-id { font-size: var(--font-size-xs); color: var(--color-text-muted); }
-
-        .price-main { font-weight: 600; font-family: var(--font-family-mono); }
-        .price-cost { font-size: var(--font-size-xs); color: var(--color-text-muted); }
-
-        .status-badge {
-            display: inline-block;
-            padding: var(--spacing-1) var(--spacing-3);
-            border-radius: var(--radius-full);
-            font-size: var(--font-size-xs);
-            font-weight: 600;
-            text-transform: uppercase;
-        }
-
-        .status-in_stock { background: var(--color-success-bg); color: var(--color-success-dark); }
-        .status-sold { background: var(--color-danger-bg); color: var(--color-danger-dark); }
-        .status-reserved { background: var(--color-warning-bg); color: var(--color-warning-dark); }
-
-        .row-actions {
-            display: flex;
-            gap: var(--spacing-1);
-            justify-content: flex-end;
-        }
-
-        .loading-spinner {
-            width: 32px;
-            height: 32px;
-            border: 3px solid var(--color-border);
-            border-top-color: var(--color-primary);
-            border-radius: 50%;
-            animation: spin 0.7s linear infinite;
-            margin: 40px auto;
-        }
-
-        @keyframes spin { to { transform: rotate(360deg); } }
-
+        /* ========== АДАПТИВНОСТЬ ========== */
         @media (max-width: 768px) {
             html {
                 overflow: auto;
             }
+
             body {
                 overflow: auto;
             }
-            .inventory-page { padding: var(--spacing-3); }
-            .filters-panel { flex-direction: column; align-items: stretch; }
-            .stat-card-inline { min-width: 100px; padding: var(--spacing-3); }
+
+            .inventory-page {
+                padding: var(--spacing-3);
+            }
+
+            .filters-panel {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .stat-card-inline {
+                min-width: 100px;
+                padding: var(--spacing-3);
+            }
         }
     </style>
 </head>
