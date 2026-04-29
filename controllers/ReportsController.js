@@ -184,76 +184,94 @@ async function loadExpenses() {
 // ============================================================
 
 function renderContent() {
-    if (!DOM.content || state.isRendering) return;
+    if (!DOM.content) return;
+    if (state.isRendering) {
+        // Очередь на перерисовку после завершения текущей
+        if (!state._pendingRender) {
+            state._pendingRender = true;
+            Promise.resolve().then(() => {
+                state._pendingRender = false;
+                renderContent();
+            });
+        }
+        return;
+    }
 
     state.isRendering = true;
 
-    const tabs = ['dashboard', 'sales', 'products', 'shifts', 'expenses'];
-    const tabLabels = {
-        dashboard: 'Дашборд',
-        sales: 'Продажи',
-        products: 'Товары',
-        shifts: 'Смены',
-        expenses: 'Расходы'
-    };
+    try {
+        const tabs = ['dashboard', 'sales', 'products', 'shifts', 'expenses'];
+        const tabLabels = {
+            dashboard: 'Дашборд',
+            sales: 'Продажи',
+            products: 'Товары',
+            shifts: 'Смены',
+            expenses: 'Расходы'
+        };
 
-    let body = '<div class="reports-loader">Загрузка...</div>';
+        let body = '<div class="reports-loader">Загрузка...</div>';
 
-    switch (state.activeTab) {
-        case 'dashboard':
-            body = renderDashboard(state);
-            break;
-        case 'sales':
-            body = renderSalesTab(state);
-            break;
-        case 'products':
-            body = renderProductsTab(state);
-            break;
-        case 'shifts':
-            body = renderShiftsTab(state);
-            break;
-        case 'expenses':
-            body = renderExpensesTab(state);
-            break;
-    }
+        switch (state.activeTab) {
+            case 'dashboard':
+                body = renderDashboard(state);
+                break;
+            case 'sales':
+                body = renderSalesTab(state);
+                break;
+            case 'products':
+                body = renderProductsTab(state);
+                break;
+            case 'shifts':
+                body = renderShiftsTab(state);
+                break;
+            case 'expenses':
+                body = renderExpensesTab(state);
+                break;
+        }
 
-    DOM.content.innerHTML = `
-        <div class="reports-tabs" role="tablist">
-            ${tabs.map(t => `
-                <button class="tab-btn ${state.activeTab === t ? 'active' : ''}"
-                    data-tab="${t}" role="tab"
-                    aria-selected="${state.activeTab === t}">
-                    ${tabLabels[t]}
-                </button>
-            `).join('')}
-        </div>
-        <div class="reports-content-inner">${body}</div>`;
+        DOM.content.innerHTML = `
+            <div class="reports-tabs" role="tablist">
+                ${tabs.map(t => `
+                    <button class="tab-btn ${state.activeTab === t ? 'active' : ''}"
+                        data-tab="${t}" role="tab"
+                        aria-selected="${state.activeTab === t}">
+                        ${tabLabels[t]}
+                    </button>
+                `).join('')}
+            </div>
+            <div class="reports-content-inner">${body}</div>`;
 
-    // Обработчики табов
-    DOM.content.querySelectorAll('[data-tab]').forEach(btn => {
-        btn.addEventListener('click', () => {
-            if (state.isRendering) return;
-            state.activeTab = btn.dataset.tab;
-            renderContent();
-        });
-    });
-
-    state.isRendering = false;
-
-    // Графики после вставки в DOM
-    if (state.activeTab === 'dashboard') {
-        setTimeout(() => {
-            drawCharts(state);
-        }, 100);
-    }
-
-    // Биндинг событий для вкладки расходов
-    if (state.activeTab === 'expenses') {
-        setTimeout(() => {
-            bindExpensesEvents(state, () => {
-                loadExpenses().then(() => renderContent());
+        // Обработчики табов
+        DOM.content.querySelectorAll('[data-tab]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (state.isRendering) return;
+                state.activeTab = btn.dataset.tab;
+                renderContent();
             });
-        }, 100);
+        });
+
+        // Графики после вставки в DOM
+        if (state.activeTab === 'dashboard') {
+            setTimeout(() => {
+                try {
+                    drawCharts(state);
+                } catch (err) {
+                    console.error('[Reports] drawCharts error:', err);
+                }
+            }, 100);
+        }
+
+        // Биндинг событий для вкладки расходов
+        if (state.activeTab === 'expenses') {
+            setTimeout(() => {
+                bindExpensesEvents(state, () => {
+                    if (state.isRendering) return;
+                    loadExpenses().then(() => renderContent());
+                });
+            }, 100);
+        }
+    } finally {
+        state.isRendering = false;
     }
 }
 
@@ -369,18 +387,20 @@ function bindEvents() {
         if (btn) btn.addEventListener('click', handleExportFinancialPdf);
     }
 
-    // Подписка на productStore — без ререндера, если DOM не готов
+    // Подписка на productStore — с защитой от рекурсии
     productStore.on('change', () => {
-        if (DOM.content && document.getElementById('reportsContent')) {
+        if (!state.isRendering && DOM.content && document.getElementById('reportsContent')) {
             renderContent();
         }
     });
 
-    // Подписка на expenseStore — только для вкладок с расходами
+    // Подписка на expenseStore — с защитой от рекурсии
     expenseStore.on('change', () => {
-        if (DOM.content && document.getElementById('reportsContent')) {
+        if (!state.isRendering && DOM.content && document.getElementById('reportsContent')) {
             if (state.activeTab === 'expenses' || state.activeTab === 'dashboard') {
-                loadExpenses().then(() => renderContent());
+                loadExpenses().then(() => {
+                    if (!state.isRendering) renderContent();
+                });
             }
         }
     });

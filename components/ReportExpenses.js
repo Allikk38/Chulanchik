@@ -13,8 +13,8 @@
 
 import { expenseStore } from '../stores/ExpenseStore.js';
 import ExpenseService from '../services/ExpenseService.js';
-import { formatMoney } from '../utils/formatters.js';
-import { showNotification, showConfirmDialog } from '../utils/ui.js';
+import { formatMoney, formatDate } from '../utils/formatters.js';
+import { showNotification } from '../utils/ui.js';
 import { hasPermission } from '../core/auth.js';
 import { openExpenseFormModal } from '../components/ExpenseForm.js';
 import {
@@ -23,6 +23,7 @@ import {
     bindExpenseListEvents,
     showReceiptModal
 } from '../components/ExpenseList.js';
+import { exportExpensesReport } from '../utils/pdfExport.js';
 
 // ============================================================
 // Рендеринг
@@ -118,9 +119,6 @@ async function deleteExpense(id, onDataChanged) {
 }
 
 async function handleExportExpensesPdf(state) {
-    const { exportExpensesReport } = await import('../utils/pdfExport.js');
-    const { formatDate } = await import('../utils/formatters.js');
-
     const now = new Date();
     const from = new Date(now);
     from.setDate(from.getDate() - 7);

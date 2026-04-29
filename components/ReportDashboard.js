@@ -22,6 +22,7 @@ import {
     getPaymentMethodName,
     escapeHtml
 } from '../utils/formatters.js';
+import { drawRevenueChart, drawCategoryChart } from '../components/Charts.js';
 
 // ============================================================
 // Вычисления
@@ -204,7 +205,7 @@ function renderExpensesSummaryCard(state, overview) {
     return `
         <div class="expenses-summary-card">
             <div class="card-header">
-                <h4>Расходы за период</h4>
+                <h4>$ Расходы за период</h4>
                 <button class="btn-ghost btn-sm" id="viewAllExpensesBtn">Все расходы</button>
             </div>
             <div class="expenses-summary-stats">
@@ -502,39 +503,32 @@ export function renderShiftsTab(state) {
 // Графики
 // ============================================================
 
-export async function drawCharts(state) {
-    try {
-        const { drawRevenueChart, drawCategoryChart } = await import('../components/Charts.js');
+export function drawCharts(state) {
+    const dailyMap = new Map();
 
-        const dailyMap = new Map();
+    state.sales.forEach(sale => {
+        const day = sale.created_at?.slice(0, 10);
+        if (!day) return;
+        if (!dailyMap.has(day)) dailyMap.set(day, { date: day, revenue: 0, profit: 0 });
+        const d = dailyMap.get(day);
+        d.revenue += sale.total || 0;
+        d.profit += sale.profit || 0;
+    });
 
-        state.sales.forEach(sale => {
-            const day = sale.created_at?.slice(0, 10);
-            if (!day) return;
-            if (!dailyMap.has(day)) dailyMap.set(day, { date: day, revenue: 0, profit: 0 });
-            const d = dailyMap.get(day);
-            d.revenue += sale.total || 0;
-            d.profit += sale.profit || 0;
+    const daily = [...dailyMap.values()].sort((a, b) => a.date.localeCompare(b.date));
+
+    const catMap = new Map();
+    state.sales.forEach(sale => {
+        (sale.items || []).forEach(item => {
+            const product = productStore.getById(item.id);
+            const cat = product?.category || 'other';
+            if (!catMap.has(cat)) catMap.set(cat, { category: cat, revenue: 0 });
+            catMap.get(cat).revenue += (item.price || 0) * (item.quantity || 0);
         });
+    });
 
-        const daily = [...dailyMap.values()].sort((a, b) => a.date.localeCompare(b.date));
+    const categories = [...catMap.values()];
 
-        const catMap = new Map();
-        state.sales.forEach(sale => {
-            (sale.items || []).forEach(item => {
-                const product = productStore.getById(item.id);
-                const cat = product?.category || 'other';
-                if (!catMap.has(cat)) catMap.set(cat, { category: cat, revenue: 0 });
-                catMap.get(cat).revenue += (item.price || 0) * (item.quantity || 0);
-            });
-        });
-
-        const categories = [...catMap.values()];
-
-        drawRevenueChart(daily);
-        drawCategoryChart(categories);
-
-    } catch (err) {
-        console.error('[ReportDashboard] drawCharts error:', err);
-    }
+    drawRevenueChart(daily);
+    drawCategoryChart(categories);
 }
