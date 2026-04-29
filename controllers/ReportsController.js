@@ -1,6 +1,6 @@
 // ============================================================
 // controllers/ReportsController.js
-// Шаг 4: Загрузка данных с таймаутом
+// Шаг 5: Убираем таймауты, нормальная загрузка
 // ============================================================
 
 /**
@@ -15,13 +15,6 @@ import { expenseStore } from '../stores/ExpenseStore.js';
 import SaleRepository from '../repositories/SaleRepository.js';
 import ShiftRepository from '../repositories/ShiftRepository.js';
 import { renderAppHeader, bindAppHeaderEvents, updateUserName } from '../components/AppHeader.js';
-
-// ============================================================
-// Константы
-// ============================================================
-
-/** Таймаут для сетевых запросов (мс) */
-const REQUEST_TIMEOUT_MS = 15000;
 
 // ============================================================
 // Состояние
@@ -71,17 +64,6 @@ function hasCachedSession() {
     return false;
 }
 
-/**
- * Оборачивает промис в таймаут.
- * Если не завершился за ms мс — возвращает fallback.
- */
-function withTimeout(promise, ms, fallback) {
-    return Promise.race([
-        promise,
-        new Promise((resolve) => setTimeout(() => resolve(fallback), ms))
-    ]);
-}
-
 function getPeriodDates() {
     const now = new Date();
     const to = now.toISOString();
@@ -129,7 +111,7 @@ function getPeriodDates() {
 }
 
 // ============================================================
-// Загрузка данных с таймаутами
+// Загрузка данных
 // ============================================================
 
 async function loadData() {
@@ -139,26 +121,10 @@ async function loadData() {
 
     try {
         const [products, expenses, sales, shifts] = await Promise.all([
-            withTimeout(
-                productStore.loadProducts(),
-                REQUEST_TIMEOUT_MS,
-                []
-            ),
-            withTimeout(
-                expenseStore.loadExpenses(),
-                REQUEST_TIMEOUT_MS,
-                []
-            ),
-            withTimeout(
-                SaleRepository.getAll({ from, to, limit: 200 }),
-                REQUEST_TIMEOUT_MS,
-                []
-            ),
-            withTimeout(
-                ShiftRepository.getAll({ from, to, limit: 100 }),
-                REQUEST_TIMEOUT_MS,
-                []
-            )
+            productStore.loadProducts(),
+            expenseStore.loadExpenses(),
+            SaleRepository.getAll({ from, to, limit: 200 }),
+            ShiftRepository.getAll({ from, to, limit: 100 })
         ]);
 
         state.sales = sales;
@@ -168,10 +134,10 @@ async function loadData() {
         state.loadError = null;
 
         console.log('[Reports] data loaded:', {
-            products: Array.isArray(products) ? products.length : 'timeout/error',
-            expenses: Array.isArray(expenses) ? expenses.length : 'timeout/error',
-            sales: Array.isArray(sales) ? sales.length : 'timeout/error',
-            shifts: Array.isArray(shifts) ? shifts.length : 'timeout/error'
+            products: products.length,
+            expenses: expenses.length,
+            sales: sales.length,
+            shifts: shifts.length
         });
 
     } catch (err) {
@@ -227,8 +193,10 @@ function renderContent() {
 
     const totalSales = state.sales.length;
     const totalRevenue = state.sales.reduce((s, r) => s + (Number(r.total) || 0), 0);
+    const totalProfit = state.sales.reduce((s, r) => s + (Number(r.profit) || 0), 0);
     const totalExpenses = state.expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0);
     const totalShifts = state.shifts.length;
+    const netProfit = totalProfit - totalExpenses;
 
     DOM.content.innerHTML = `
         <div class="reports-tabs" role="tablist">
@@ -249,8 +217,16 @@ function renderContent() {
                     <span class="value">${totalRevenue.toLocaleString('ru-RU')} RUB</span>
                 </div>
                 <div class="summary-card">
-                    <span class="label">Расходов</span>
+                    <span class="label">Прибыль</span>
+                    <span class="value">${totalProfit.toLocaleString('ru-RU')} RUB</span>
+                </div>
+                <div class="summary-card">
+                    <span class="label">Расходы</span>
                     <span class="value">${totalExpenses.toLocaleString('ru-RU')} RUB</span>
+                </div>
+                <div class="summary-card">
+                    <span class="label">Чистая прибыль</span>
+                    <span class="value" style="color: ${netProfit >= 0 ? '#2e7d32' : '#c62828'}">${netProfit.toLocaleString('ru-RU')} RUB</span>
                 </div>
                 <div class="summary-card">
                     <span class="label">Смен</span>
@@ -299,6 +275,7 @@ function bindEvents() {
 }
 
 async function init() {
+    console.log('[Reports] v5 - no timeouts');
     console.log('[Reports] init() started');
 
     // 1. Вставляем навигацию синхронно
@@ -348,7 +325,7 @@ async function init() {
 
     console.log('[Reports] skeleton rendered, loading data...');
 
-    // 4. Загружаем данные (каждый запрос с таймаутом 15с)
+    // 4. Загружаем данные
     await loadData();
     renderContent();
 
