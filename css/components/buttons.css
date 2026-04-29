@@ -3,14 +3,14 @@
  * 
  * Строгие, предсказуемые кнопки для бизнес-интерфейсов.
  * Минимум анимаций, максимум иерархии.
+ * Тёплая цветовая гамма, единая с переменными приложения.
  * 
  * @stylesheet buttons
- * @version 5.0.0
+ * @version 6.0.0
  * @changes
+ * - v6.0.0: Тёплая гамма. Все цвета через переменные.
  * - Убраны transform-эффекты (scale).
  * - Убраны анимированные тени.
- * - Упрощены переходы (только фон и цвет).
- * - Объединены дублирующиеся стили.
  */
 
 /* ========== BASE BUTTON ========== */
@@ -45,12 +45,12 @@
 }
 
 .btn:hover {
-    background: var(--color-gray-50);
-    border-color: var(--color-gray-300);
+    background: var(--color-bg-secondary);
+    border-color: var(--color-text-muted);
 }
 
 .btn:active {
-    background: var(--color-gray-100);
+    background: var(--color-bg);
 }
 
 .btn:focus-visible {
@@ -61,7 +61,7 @@
 .btn:disabled {
     opacity: var(--opacity-disabled);
     cursor: not-allowed;
-    background: var(--color-gray-50);
+    background: var(--color-bg-secondary);
     border-color: var(--color-border);
 }
 
@@ -93,13 +93,13 @@
 }
 
 .btn-secondary:hover {
-    background: var(--color-gray-50);
-    border-color: var(--color-gray-400);
+    background: var(--color-bg-secondary);
+    border-color: var(--color-text-muted);
     color: var(--color-text);
 }
 
 .btn-secondary:active {
-    background: var(--color-gray-100);
+    background: var(--color-bg);
 }
 
 /* ========== DANGER BUTTON ========== */
@@ -130,12 +130,12 @@
 }
 
 .btn-ghost:hover {
-    background: var(--color-gray-100);
+    background: var(--color-primary-bg);
     color: var(--color-text);
 }
 
 .btn-ghost:active {
-    background: var(--color-gray-200);
+    background: var(--color-bg);
 }
 
 .btn-ghost:disabled {
@@ -153,7 +153,7 @@
 }
 
 .btn-icon:hover {
-    background: var(--color-gray-100);
+    background: var(--color-primary-bg);
     color: var(--color-text);
 }
 
@@ -205,15 +205,6 @@
 
 /* ========== CHECKOUT BUTTON (КАССА) ========== */
 .btn-checkout {
-    composes: btn-primary; /* CSS Modules, но для обычного CSS используем наследование */
-    width: 100%;
-    height: 48px;
-    font-size: var(--font-size-base);
-    font-weight: var(--font-weight-semibold);
-}
-
-/* Альтернатива для обычного CSS */
-.btn-checkout {
     width: 100%;
     height: 48px;
     background: var(--color-primary);
@@ -255,12 +246,12 @@
 }
 
 .btn-qty:hover {
-    background: var(--color-gray-100);
-    border-color: var(--color-gray-400);
+    background: var(--color-bg-secondary);
+    border-color: var(--color-text-muted);
 }
 
 .btn-qty:active {
-    background: var(--color-gray-200);
+    background: var(--color-bg);
 }
 
 /* ========== REMOVE BUTTON ========== */
