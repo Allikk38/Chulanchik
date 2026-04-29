@@ -1,6 +1,6 @@
 // ============================================================
 // components/ReportProducts.js
-// Шаг 7: Вкладка «Товары» — топ продаж, залежавшиеся, статистика
+// Добавлена кнопка «Отчёт сдатчику»
 // ============================================================
 
 /**
@@ -13,6 +13,8 @@
 
 import { productStore } from '../stores/ProductStore.js';
 import { formatMoney, formatNumber, escapeHtml } from '../utils/formatters.js';
+import { showPromptDialog, showNotification } from '../utils/ui.js';
+import { openConsignorReport } from '../utils/ConsignorReport.js';
 
 // ============================================================
 // Вычисления
@@ -101,6 +103,54 @@ function renderSlowMovingList(products) {
 }
 
 // ============================================================
+// Обработчик: Отчёт сдатчику
+// ============================================================
+
+async function handleConsignorReport() {
+    // Запрашиваем ФИО комитента
+    const fullName = await showPromptDialog({
+        title: 'Отчёт сдатчику',
+        label: 'ФИО комитента (сдатчика)',
+        placeholder: 'Иванов Иван Иванович',
+        defaultValue: '',
+        confirmText: 'Сформировать'
+    });
+
+    if (!fullName) return;
+
+    // Берём все товары (в будущем — с фильтром по комитенту)
+    const allProducts = productStore.getAll();
+
+    // Считаем итоги
+    const soldItems = allProducts.filter(p => p.status === 'sold');
+    const total = soldItems.reduce((sum, p) => sum + (Number(p.price) || 0), 0);
+    const commissionPercent = 30;
+    const commission = Math.round(total * commissionPercent / 100);
+    const toPay = total - commission;
+
+    // Формируем данные для отчёта
+    const reportData = {
+        consignor: {
+            fullName: fullName.trim(),
+            phone: '',
+            contractId: ''
+        },
+        items: allProducts.map(p => ({
+            name: p.name,
+            category: p.category || 'other',
+            price: Number(p.price) || 0,
+            status: p.status || 'in_stock'
+        })),
+        total,
+        commission,
+        toPay
+    };
+
+    openConsignorReport(reportData);
+    showNotification(`Отчёт для «${fullName.trim()}» сформирован`, 'success');
+}
+
+// ============================================================
 // Публичная функция
 // ============================================================
 
@@ -138,6 +188,12 @@ export function renderProductsTab(state) {
                 <span class="value ${stats.potentialProfit >= 0 ? 'text-success' : 'text-danger'}">${formatMoney(stats.potentialProfit)}</span>
             </div>
         </div>
+
+        <div style="display:flex;gap:12px;align-items:center;margin-bottom:16px;">
+            <button class="btn-primary" id="consignorReportBtn">Отчёт сдатчику</button>
+            <span style="font-size:12px;color:#8c7b6e;">Формирует печатную форму для комитента</span>
+        </div>
+
         <div class="two-columns">
             <div class="card">
                 <h4>Самые продаваемые</h4>
@@ -150,4 +206,23 @@ export function renderProductsTab(state) {
         </div>`;
 }
 
-export default { renderProductsTab };
+/**
+ * Привязывает обработчики событий для вкладки «Товары».
+ * Вызывается контроллером после вставки HTML в DOM.
+ */
+export function bindProductsEvents() {
+    const btn = document.getElementById('consignorReportBtn');
+    if (btn && !btn.dataset.eventsBound) {
+        btn.dataset.eventsBound = 'true';
+        btn.addEventListener('click', handleConsignorReport);
+    }
+}
+
+// ============================================================
+// Экспорт по умолчанию
+// ============================================================
+
+export default {
+    renderProductsTab,
+    bindProductsEvents
+};
