@@ -24,375 +24,27 @@
     <style>
         /* ============================================================
            Уникальные стили страницы отчётов
+           Только то, что отсутствует в общих компонентах и макетах.
            ============================================================ */
 
-        .reports-page {
-            display: flex;
-            flex-direction: column;
+        html {
             height: 100%;
-            padding: var(--spacing-5);
-            background: var(--color-bg);
+            overflow: hidden;
+            overscroll-behavior: none;
         }
 
-        .reports-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: var(--spacing-4);
-            margin-bottom: var(--spacing-5);
+        body {
+            height: 100%;
+            overflow: hidden;
+            overscroll-behavior: none;
+            touch-action: manipulation;
         }
 
-        .reports-header h1 {
-            font-size: var(--font-size-xl);
-            font-weight: var(--font-weight-semibold);
-            margin: 0;
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
 
-        .period-selector {
-            display: flex;
-            align-items: center;
-            gap: var(--spacing-3);
-            flex-wrap: wrap;
-        }
-
-        .reports-tabs {
-            display: flex;
-            gap: var(--spacing-1);
-            padding: var(--spacing-1);
-            background: var(--color-white);
-            border-radius: var(--radius-lg);
-            border: var(--border-width) solid var(--color-border);
-            width: fit-content;
-            margin-bottom: var(--spacing-5);
-            overflow-x: auto;
-        }
-
-        .tab-btn {
-            display: flex;
-            align-items: center;
-            gap: var(--spacing-2);
-            padding: var(--spacing-2) var(--spacing-4);
-            border-radius: var(--radius-md);
-            font-weight: 500;
-            font-size: var(--font-size-sm);
-            color: var(--color-text-secondary);
-            background: transparent;
-            border: none;
-            cursor: pointer;
-            white-space: nowrap;
-        }
-
-        .tab-btn.active {
-            background: var(--color-gray-800);
-            color: white;
-        }
-
-        .reports-content-inner {
-            flex: 1;
-            min-height: 0;
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
-        }
-
-        /* KPI */
-        .kpi-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: var(--spacing-4);
-            margin-bottom: var(--spacing-5);
-        }
-
-        .kpi-card {
-            padding: var(--spacing-4);
-            background: var(--color-white);
-            border-radius: var(--radius-lg);
-            border: var(--border-width) solid var(--color-border);
-            border-left: 3px solid var(--color-primary);
-        }
-
-        .net-profit-card {
-            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%) !important;
-            border-left: 3px solid #fbbf24 !important;
-        }
-
-        .kpi-header {
-            display: flex;
-            align-items: center;
-            gap: var(--spacing-2);
-            margin-bottom: var(--spacing-2);
-        }
-
-        .kpi-icon {
-            font-size: 18px;
-            opacity: 0.6;
-        }
-
-        .kpi-title {
-            font-size: var(--font-size-xs);
-            color: var(--color-text-secondary);
-            font-weight: 500;
-            text-transform: uppercase;
-            letter-spacing: var(--letter-spacing-wide);
-        }
-
-        .kpi-value {
-            font-size: var(--font-size-2xl);
-            font-weight: 700;
-            color: var(--color-text);
-            font-family: var(--font-family-mono);
-        }
-
-        /* Карточки */
-        .card {
-            padding: var(--spacing-4);
-            background: var(--color-white);
-            border-radius: var(--radius-lg);
-            border: var(--border-width) solid var(--color-border);
-        }
-
-        .card h4 {
-            font-size: var(--font-size-sm);
-            text-transform: uppercase;
-            letter-spacing: var(--letter-spacing-wide);
-            margin-bottom: var(--spacing-3);
-            color: var(--color-text);
-        }
-
-        .card-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: var(--spacing-3);
-        }
-
-        .card-header h4 {
-            margin-bottom: 0;
-        }
-
-        .charts-row {
-            display: grid;
-            grid-template-columns: 2fr 1fr;
-            gap: var(--spacing-5);
-            margin-bottom: var(--spacing-5);
-        }
-
-        .chart-card {
-            padding: var(--spacing-4);
-            background: var(--color-white);
-            border-radius: var(--radius-lg);
-            border: var(--border-width) solid var(--color-border);
-        }
-
-        .chart-container {
-            height: 220px;
-            position: relative;
-        }
-
-        .dashboard-bottom {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: var(--spacing-5);
-            margin-bottom: var(--spacing-5);
-        }
-
-        .two-columns {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: var(--spacing-5);
-        }
-
-        /* Сводки */
-        .summary-cards {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: var(--spacing-4);
-            margin-bottom: var(--spacing-5);
-        }
-
-        .summary-card {
-            padding: var(--spacing-3) var(--spacing-4);
-            background: var(--color-white);
-            border-radius: var(--radius-lg);
-            border: var(--border-width) solid var(--color-border);
-        }
-
-        .summary-card .label {
-            font-size: var(--font-size-xs);
-            color: var(--color-text-muted);
-            text-transform: uppercase;
-            letter-spacing: var(--letter-spacing-wide);
-            display: block;
-        }
-
-        .summary-card .value {
-            font-size: var(--font-size-xl);
-            font-weight: 700;
-            font-family: var(--font-family-mono);
-            color: var(--color-text);
-            display: block;
-        }
-
-        /* Расходы */
-        .expenses-tab-header {
-            margin-bottom: var(--spacing-4);
-        }
-
-        .expenses-actions {
-            display: flex;
-            gap: var(--spacing-3);
-            margin-bottom: var(--spacing-4);
-        }
-
-        .expense-filters {
-            display: flex;
-            flex-wrap: wrap;
-            align-items: flex-end;
-            gap: var(--spacing-4);
-            padding: var(--spacing-4);
-            background: var(--color-white);
-            border-radius: var(--radius-lg);
-            border: var(--border-width) solid var(--color-border);
-            margin-bottom: var(--spacing-4);
-        }
-
-        .filter-group {
-            display: flex;
-            flex-direction: column;
-            gap: var(--spacing-1);
-        }
-
-        .filter-group label {
-            font-size: var(--font-size-xs);
-            color: var(--color-text-muted);
-            margin-bottom: 0;
-        }
-
-        .filter-input,
-        .filter-select {
-            height: 36px;
-            padding: 0 var(--spacing-3);
-            border: var(--border-width) solid var(--color-border);
-            border-radius: var(--radius-md);
-            font-size: var(--font-size-sm);
-        }
-
-        .expenses-summary {
-            display: flex;
-            gap: var(--spacing-4);
-            margin-bottom: var(--spacing-5);
-        }
-
-        .expense-summary-bar {
-            display: flex;
-            align-items: center;
-            justify-content: flex-end;
-            gap: var(--spacing-3);
-            padding: var(--spacing-2) var(--spacing-4);
-            background: var(--color-gray-50);
-            border-radius: var(--radius-md);
-            margin-bottom: var(--spacing-3);
-        }
-
-        .expense-total-label {
-            font-size: var(--font-size-sm);
-            color: var(--color-text-secondary);
-        }
-
-        .expense-total-value {
-            font-size: var(--font-size-lg);
-            font-weight: 700;
-            color: var(--color-danger-dark);
-        }
-
-        .expenses-summary-card {
-            background: var(--color-white);
-            border-radius: var(--radius-lg);
-            border: var(--border-width) solid var(--color-border);
-            padding: var(--spacing-4);
-            margin-bottom: var(--spacing-5);
-        }
-
-        .expenses-summary-stats {
-            display: flex;
-            gap: var(--spacing-4);
-            margin-bottom: var(--spacing-3);
-            padding-bottom: var(--spacing-3);
-            border-bottom: var(--border-width) solid var(--color-border-light);
-        }
-
-        .expense-stat {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .expense-stat-label {
-            font-size: var(--font-size-xs);
-            color: var(--color-text-muted);
-        }
-
-        .expense-stat-value {
-            font-size: var(--font-size-lg);
-            font-weight: 700;
-            color: var(--color-text);
-        }
-
-        .recent-expenses-list {
-            display: flex;
-            flex-direction: column;
-            gap: var(--spacing-2);
-        }
-
-        .recent-expense-item {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: var(--spacing-2) var(--spacing-3);
-            background: var(--color-gray-50);
-            border-radius: var(--radius-md);
-        }
-
-        .expense-info {
-            display: flex;
-            gap: var(--spacing-3);
-            align-items: center;
-        }
-
-        .expense-category {
-            padding: var(--spacing-0-5) var(--spacing-2);
-            background: var(--color-gray-200);
-            border-radius: var(--radius-full);
-            font-size: var(--font-size-xs);
-            font-weight: 500;
-        }
-
-        .expense-description {
-            font-size: var(--font-size-sm);
-            color: var(--color-text-secondary);
-        }
-
-        .expense-amount {
-            font-weight: 600;
-            color: var(--color-danger-dark);
-            font-family: var(--font-family-mono);
-        }
-
-        /* Таблица расходов */
-        .expense-table {
-            min-width: 700px;
-        }
-
-        .expense-table .date-cell {
-            white-space: nowrap;
-        }
-
-        .expense-table .category-badge {
-            padding: var(--spacing-0-5) var(--spacing-2);
-            border-radius: var(--radius-full);
-            font-size: var(--font-size-xs);
-            font-weight: 500;
-        }
-
+        /* ========== ЦВЕТОВЫЕ БЕЙДЖИ КАТЕГОРИЙ РАСХОДОВ ========== */
         .category-badge.rent { background: #e0e7ff; color: #4338ca; }
         .category-badge.advertising { background: #fce7f3; color: #be185d; }
         .category-badge.supplies { background: #d1fae5; color: #065f46; }
@@ -402,227 +54,50 @@
         .category-badge.repair { background: #fef3c7; color: #92400e; }
         .category-badge.other { background: #f3f4f6; color: #374151; }
 
-        .expense-description {
-            max-width: 250px;
-            display: block;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        .expense-id {
-            font-size: var(--font-size-xs);
-            color: var(--color-text-muted);
-            display: block;
-        }
-
-        .amount-cell .expense-amount {
-            font-weight: 600;
-            font-family: var(--font-family-mono);
-        }
-
-        /* Топ-товары */
-        .top-product-item {
-            display: flex;
-            align-items: center;
-            gap: var(--spacing-3);
-            padding: var(--spacing-2) 0;
-            border-bottom: var(--border-width) solid var(--color-border-light);
-        }
-
-        .top-product-item:last-child {
-            border-bottom: none;
-        }
-
-        .top-product-item .rank {
-            width: 24px;
-            height: 24px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: var(--color-gray-100);
-            border-radius: 50%;
-            font-size: var(--font-size-xs);
-            font-weight: 700;
-            color: var(--color-text-secondary);
-            flex-shrink: 0;
-        }
-
-        .top-product-item .name {
-            flex: 1;
-            font-weight: 500;
-            font-size: var(--font-size-sm);
-        }
-
-        .top-product-item .value {
-            font-size: var(--font-size-xs);
-            color: var(--color-text-muted);
-        }
-
-        .top-product-item .revenue {
-            min-width: 80px;
-            text-align: right;
-            font-weight: 600;
-            font-family: var(--font-family-mono);
-        }
-
-        /* Залежавшиеся */
-        .slow-item {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: var(--spacing-2) 0;
-            border-bottom: var(--border-width) solid var(--color-border-light);
-        }
-
-        .slow-item:last-child {
-            border-bottom: none;
-        }
-
-        .slow-item .days {
-            padding: 2px 8px;
-            background: var(--color-warning-bg);
-            color: var(--color-warning-dark);
-            border-radius: var(--radius-full);
-            font-size: var(--font-size-xs);
-            font-weight: 500;
-        }
-
-        .slow-item .price {
-            font-family: var(--font-family-mono);
-            font-size: var(--font-size-sm);
-            color: var(--color-text-secondary);
-        }
-
-        /* Таблицы */
-        .table-container {
-            overflow-x: auto;
-            border-radius: var(--radius-md);
-            border: var(--border-width) solid var(--color-border);
-            background: var(--color-white);
-        }
-
-        .data-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: var(--font-size-sm);
-        }
-
-        .data-table th {
-            padding: var(--spacing-2) var(--spacing-3);
-            font-size: var(--font-size-xs);
-            text-transform: uppercase;
-            color: var(--color-text-muted);
-            background: var(--color-gray-50);
-            text-align: left;
-            border-bottom: var(--border-width) solid var(--color-border);
-        }
-
-        .data-table td {
-            padding: var(--spacing-2) var(--spacing-3);
-            border-bottom: var(--border-width) solid var(--color-border-light);
-        }
-
-        .money {
-            font-family: var(--font-family-mono);
-            font-weight: 500;
-            text-align: right;
-        }
-
-        .status-badge {
-            display: inline-block;
-            padding: 2px 10px;
-            border-radius: var(--radius-full);
-            font-size: var(--font-size-xs);
-            font-weight: 600;
-            text-transform: uppercase;
-        }
-
-        .status-in_stock {
-            background: var(--color-success-bg);
-            color: var(--color-success-dark);
-        }
-
-        .status-sold {
-            background: var(--color-danger-bg);
-            color: var(--color-danger-dark);
-        }
-
-        .empty-message {
-            padding: var(--spacing-4);
-            text-align: center;
-            color: var(--color-text-muted);
-            font-size: var(--font-size-sm);
-        }
-
-        .text-success {
-            color: var(--color-success-dark);
-        }
-
-        .text-danger {
-            color: var(--color-danger-dark);
-        }
-
-        .text-muted {
-            color: var(--color-text-muted);
-        }
-
-        .text-center {
-            text-align: center;
-        }
-
-        .text-right {
-            text-align: right;
-        }
-
-        .reports-loader {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 300px;
-            color: var(--color-text-muted);
-        }
-
-        /* Адаптивность */
-        @media (max-width: 1024px) {
-            .charts-row {
-                grid-template-columns: 1fr;
-            }
-            .dashboard-bottom {
-                grid-template-columns: 1fr;
-            }
-            .two-columns {
-                grid-template-columns: 1fr;
-            }
-        }
-
+        /* ========== АДАПТИВНОСТЬ ========== */
         @media (max-width: 768px) {
+            html {
+                overflow: auto;
+            }
+
+            body {
+                overflow: auto;
+            }
+
             .reports-page {
                 padding: var(--spacing-3);
             }
+
             .kpi-grid {
                 grid-template-columns: repeat(2, 1fr);
             }
+
             .reports-header {
                 flex-direction: column;
                 align-items: stretch;
             }
+
             .period-selector {
                 flex-wrap: wrap;
             }
+
             .expense-filters {
                 flex-direction: column;
                 align-items: stretch;
             }
+
             .filter-group {
                 width: 100%;
             }
+
             .expenses-actions {
                 flex-direction: column;
             }
+
             .expenses-actions button {
                 width: 100%;
             }
+
             .expenses-summary {
                 flex-direction: column;
             }
@@ -632,6 +107,7 @@
             .kpi-grid {
                 grid-template-columns: 1fr;
             }
+
             .reports-tabs {
                 width: 100%;
                 overflow-x: auto;
