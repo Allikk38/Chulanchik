@@ -5,8 +5,10 @@
  * Тёплая цветовая гамма, единая со страницей входа.
  * 
  * @stylesheet app
- * @version 6.0.0
+ * @version 6.1.0
  * @changes
+ * - v6.1.0: Структура навигации: .app-tabs вынесен из .app-header.
+ *           Убраны старые fallback-правила для h1 в хедере.
  * - v6.0.0: Тёплая гамма в стиле страницы входа. Акцент — тёмно-зелёный #1a3c2a.
  *           Добавлены классы .app-brand, .app-section, .app-divider.
  * - v5.0.0: Удалены дублирующиеся стили. Добавлена переменная --product-card-width.
@@ -107,15 +109,6 @@ body {
     line-height: 1;
 }
 
-/* Заголовок h1 (устаревший, оставлен для обратной совместимости) */
-.app-header h1 {
-    margin: 0;
-    font-size: var(--font-size-base);
-    font-weight: var(--font-weight-semibold);
-    color: #1e1a16;
-    letter-spacing: var(--letter-spacing-tight);
-}
-
 /* Правая часть: действия */
 .header-actions {
     display: flex;
@@ -128,7 +121,7 @@ body {
     color: var(--app-section-color);
 }
 
-/* ========== NAVIGATION TABS ========== */
+/* ========== NAVIGATION TABS (отдельный элемент) ========== */
 .app-tabs {
     flex-shrink: 0;
     display: flex;
@@ -175,6 +168,7 @@ body {
 
     cursor: pointer;
     white-space: nowrap;
+    text-decoration: none;
 }
 
 .tab-icon {
