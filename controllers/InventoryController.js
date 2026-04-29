@@ -20,32 +20,6 @@ import { openProductFormModal } from '../components/ProductForm.js';
 import { renderAppHeader, bindAppHeaderEvents, updateUserName } from '../components/AppHeader.js';
 
 // ============================================================
-// Шапка — рендерится синхронно, до загрузки данных
-// ============================================================
-
-(function insertHeader() {
-    const headerHtml = renderAppHeader({ currentPage: 'inventory' });
-    const appEl = document.querySelector('.app');
-    if (appEl) {
-        appEl.insertAdjacentHTML('afterbegin', headerHtml);
-    }
-    bindAppHeaderEvents({
-        onNavigate: (pageId) => {
-            const pages = {
-                inventory: 'pages/inventory.html',
-                cashier: 'pages/cashier.html',
-                reports: 'pages/reports.html'
-            };
-            const href = pages[pageId];
-            if (href && pageId !== 'inventory') {
-                window.location.href = href;
-            }
-        },
-        onLogout: () => logout()
-    });
-})();
-
-// ============================================================
 // Локальное состояние страницы
 // ============================================================
 
@@ -397,6 +371,38 @@ function bindEvents() {
 }
 
 async function init() {
+    console.log('[Inventory] init() started');
+
+    // 1. Вставляем навигацию синхронно, до любых асинхронных операций
+    const headerHtml = renderAppHeader({
+        currentPage: 'inventory',
+        userName: 'Пользователь'
+    });
+
+    const appEl = document.querySelector('.app');
+    if (appEl) {
+        appEl.insertAdjacentHTML('afterbegin', headerHtml);
+        console.log('[Inventory] header inserted into .app');
+    } else {
+        console.error('[Inventory] .app element not found in DOM');
+    }
+
+    bindAppHeaderEvents({
+        onNavigate: (pageId) => {
+            const pages = {
+                inventory: 'pages/inventory.html',
+                cashier: 'pages/cashier.html',
+                reports: 'pages/reports.html'
+            };
+            const href = pages[pageId];
+            if (href && pageId !== 'inventory') {
+                window.location.href = href;
+            }
+        },
+        onLogout: () => logout()
+    });
+
+    // 2. Проверяем авторизацию
     const { user, authError } = await requireAuth();
     if (authError || !user) {
         window.location.href = 'pages/login.html';
@@ -404,17 +410,23 @@ async function init() {
     }
 
     state.user = user;
+    console.log('[Inventory] user authenticated:', user.email);
 
-    // Обновляем имя пользователя в уже отрендеренной шапке
+    // 3. Обновляем имя пользователя в уже вставленной шапке
     updateUserName(user.fullName || user.email?.split('@')[0] || 'Пользователь');
 
+    // 4. Кэшируем DOM и вешаем события
     cacheDom();
     bindEvents();
 
+    // 5. Подписываемся на изменения стора
     productStore.on('change', () => renderAll());
 
+    // 6. Загружаем данные
     await productStore.loadProducts();
     renderAll();
+
+    console.log('[Inventory] init() completed');
 }
 
 // ============================================================
