@@ -21,6 +21,7 @@ import { formatMoney, getCategoryName, debounce } from '../utils/formatters.js';
 import { showNotification, showPaymentModal, showConfirmDialog } from '../utils/ui.js';
 import { openProductFormModal } from '../components/ProductForm.js';
 import { startBarcodeScan, isScanSupported } from '../utils/BarcodeScanner.js';
+import { renderAppHeader, bindAppHeaderEvents, updateUserName } from '../components/AppHeader.js';
 
 // ============================================================
 // Локальное состояние
@@ -38,9 +39,7 @@ const state = {
 // ============================================================
 
 const DOM = {
-    content: null,
-    userEmail: null,
-    logoutBtn: null
+    content: null
 };
 
 // ============================================================
@@ -309,7 +308,7 @@ function renderMobileCartTrigger() {
     btn.innerHTML = `
         Корзина
         <span class="cart-toggle-badge" id="cartToggleBadge">${count}</span>
-        ·
+        -
         <span>${formatMoney(total)}</span>
     `;
     btn.addEventListener('click', toggleCart);
@@ -590,7 +589,7 @@ function onStoreChange() {
         toggleBtn.innerHTML = `
             Корзина
             <span class="cart-toggle-badge" id="cartToggleBadge">${count}</span>
-            ·
+            -
             <span>${formatMoney(total)}</span>
         `;
     }
@@ -604,13 +603,9 @@ function onStoreChange() {
 
 function cacheDom() {
     DOM.content = document.getElementById('cashierContent');
-    DOM.userEmail = document.getElementById('userEmail');
-    DOM.logoutBtn = document.getElementById('logoutBtn');
 }
 
 function bindGlobalEvents() {
-    DOM.logoutBtn?.addEventListener('click', logout);
-
     document.addEventListener('keydown', e => {
         if (e.ctrlKey && e.key === 'f') {
             e.preventDefault();
@@ -633,8 +628,6 @@ function bindGlobalEvents() {
 }
 
 async function init() {
-    cacheDom();
-
     const { user, authError } = await requireAuth();
     if (authError || !user) {
         window.location.href = 'pages/login.html';
@@ -643,10 +636,33 @@ async function init() {
 
     state.user = user;
 
-    if (DOM.userEmail) {
-        DOM.userEmail.textContent = user.fullName || user.email?.split('@')[0] || 'Пользователь';
+    // Рендерим шапку через AppHeader
+    const headerHtml = renderAppHeader({
+        currentPage: 'cashier',
+        userName: user.fullName || user.email?.split('@')[0] || 'Пользователь'
+    });
+
+    const appEl = document.querySelector('.app');
+    if (appEl) {
+        appEl.insertAdjacentHTML('afterbegin', headerHtml);
     }
 
+    bindAppHeaderEvents({
+        onNavigate: (pageId) => {
+            const pages = {
+                inventory: 'pages/inventory.html',
+                cashier: 'pages/cashier.html',
+                reports: 'pages/reports.html'
+            };
+            const href = pages[pageId];
+            if (href && pageId !== 'cashier') {
+                window.location.href = href;
+            }
+        },
+        onLogout: () => logout()
+    });
+
+    cacheDom();
     bindGlobalEvents();
 
     cartStore.loadFromCache();
