@@ -1,16 +1,10 @@
-// ============================================================
 // controllers/ReportsController.js
-// Шаг 1: Минимальный контроллер — шапка, авторизация, заглушка
+// Шаг 2: Обход зависания — синхронная проверка сессии
 // ============================================================
-
-/**
- * Контроллер страницы отчётов (минимальная версия).
- *
- * @module controllers/ReportsController
- */
 
 import { requireAuth, logout } from '../core/auth.js';
 import { renderAppHeader, bindAppHeaderEvents, updateUserName } from '../components/AppHeader.js';
+import { supabase } from '../core/supabase-client.js';
 
 // ============================================================
 // Состояние
@@ -29,6 +23,37 @@ const DOM = {
     content: null,
     periodSelect: null
 };
+
+// ============================================================
+// Хелпер: синхронная проверка наличия сессии
+// ============================================================
+
+/**
+ * Проверяет, есть ли сохранённая сессия Supabase в localStorage.
+ * Не делает сетевых запросов — работает мгновенно.
+ *
+ * @returns {boolean}
+ */
+function hasCachedSession() {
+    try {
+        // Supabase хранит сессию в localStorage с ключом вида sb-<project-id>-auth-token
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.includes('-auth-token')) {
+                const value = localStorage.getItem(key);
+                if (value) {
+                    const parsed = JSON.parse(value);
+                    if (parsed?.access_token) {
+                        return true;
+                    }
+                }
+            }
+        }
+    } catch (e) {
+        // битый localStorage — считаем что сессии нет
+    }
+    return false;
+}
 
 // ============================================================
 // Рендеринг
@@ -111,47 +136,48 @@ async function init() {
         onLogout: () => logout()
     });
 
-    // 2. Проверяем авторизацию с таймаутом
-    console.log('[Reports] checking auth...');
+    // 2. Быстрая проверка: есть ли сохранённая сессия?
+    console.log('[Reports] checking cached session...');
 
-    let user = null;
-    let authError = false;
-
-    try {
-        const result = await Promise.race([
-            requireAuth(),
-            new Promise((resolve) => {
-                setTimeout(() => {
-                    console.warn('[Reports] auth timed out after 10s');
-                    resolve({ user: null, authError: true });
-                }, 10000);
-            })
-        ]);
-        user = result.user;
-        authError = result.authError;
-    } catch (err) {
-        console.error('[Reports] auth error:', err);
-        authError = true;
-    }
-
-    if (authError || !user) {
-        console.warn('[Reports] not authenticated, redirecting to login');
+    if (!hasCachedSession()) {
+        console.warn('[Reports] no cached session found, redirecting to login');
         window.location.href = 'pages/login.html';
         return;
     }
 
-    state.user = user;
-    console.log('[Reports] user authenticated:', user.email);
+    console.log('[Reports] cached session found');
 
-    // 3. Обновляем имя пользователя в шапке
-    updateUserName(user.fullName || user.email?.split('@')[0] || 'Пользователь');
-
-    // 4. Кэшируем DOM и вешаем события
+    // 3. Кэшируем DOM и рендерим заглушку СРАЗУ
     cacheDom();
     bindEvents();
-
-    // 5. Рендерим заглушку
     renderContent();
+
+    console.log('[Reports] skeleton rendered');
+
+    // 4. Теперь в фоне пытаемся подтвердить сессию через сервер
+    console.log('[Reports] verifying session in background...');
+
+    try {
+        const { user, authError } = await requireAuth();
+
+        if (authError || !user) {
+            console.warn('[Reports] session verification failed, redirecting to login');
+            window.location.href = 'pages/login.html';
+            return;
+        }
+
+        state.user = user;
+        console.log('[Reports] user authenticated:', user.email);
+
+        // Обновляем имя пользователя
+        updateUserName(user.fullName || user.email?.split('@')[0] || 'Пользователь');
+
+    } catch (err) {
+        console.error('[Reports] auth error in background:', err);
+        // Не редиректим — страница уже показана, продолжаем с тем что есть
+        // Если пользователь попытается выполнить действие требующее сервер —
+        // оно упадёт с понятной ошибкой
+    }
 
     console.log('[Reports] init() completed');
 }
