@@ -77,6 +77,7 @@ export const SaleService = {
                 total,
                 profit: Math.round(profit),
                 payment_method: paymentMethod,
+                user_id: userId
             });
 
             // Обновляем сторы
