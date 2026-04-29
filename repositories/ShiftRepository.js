@@ -78,11 +78,52 @@ function saveCachedActiveShift(shift) {
     }
 }
 
+/**
+ * Нормализует поле items — может прийти как JSON-строка или уже как массив.
+ *
+ * @param {*} items
+ * @returns {Object[]}
+ */
+function normalizeItems(items) {
+    if (!items) return [];
+    if (Array.isArray(items)) return items;
+    if (typeof items === 'string') {
+        try {
+            const parsed = JSON.parse(items);
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (e) {
+            return [];
+        }
+    }
+    return [];
+}
+
 // ============================================================
 // Репозиторий
 // ============================================================
 
 export const ShiftRepository = {
+    /**
+     * Получает профиль пользователя (имя продавца).
+     *
+     * @param {string} userId
+     * @returns {Promise<string>}
+     */
+    async getSellerName(userId) {
+        const { data, error } = await supabase
+            .from('profiles')
+            .select('full_name')
+            .eq('id', userId)
+            .single();
+
+        if (error) {
+            console.warn('[ShiftRepository] getSellerName error:', error);
+            return null;
+        }
+
+        return data?.full_name || null;
+    },
+
     /**
      * Получает активную (незакрытую) смену пользователя.
      *
@@ -124,10 +165,16 @@ export const ShiftRepository = {
     async open(userId) {
         console.log('[ShiftRepository] open() called, userId:', userId);
 
+        const sellerName = await this.getSellerName(userId);
+
         const shiftData = {
             user_id: userId,
+            seller_name: sellerName,
             opened_at: new Date().toISOString(),
-            status: 'active'
+            status: 'active',
+            total_revenue: 0,
+            total_profit: 0,
+            sales_count: 0
         };
 
         console.log('[ShiftRepository] inserting shift:', shiftData);
@@ -150,7 +197,7 @@ export const ShiftRepository = {
 
     /**
      * Закрывает смену.
-     * Обновляет только closed_at и status.
+     * Обновляет closed_at, status, а также статистику (total_revenue, total_profit, sales_count).
      *
      * @param {string} shiftId
      * @returns {Promise<Object>}
@@ -158,12 +205,17 @@ export const ShiftRepository = {
     async close(shiftId) {
         console.log('[ShiftRepository] close() called, shiftId:', shiftId);
 
+        const stats = await this.loadStats(shiftId);
+
         const updateData = {
             closed_at: new Date().toISOString(),
-            status: 'closed'
+            status: 'closed',
+            total_revenue: stats.revenue,
+            total_profit: stats.profit,
+            sales_count: stats.salesCount
         };
 
-        console.log('[ShiftRepository] updating shift:', updateData);
+        console.log('[ShiftRepository] updating shift with stats:', updateData);
 
         const { data, error } = await supabase
             .from('shifts')
@@ -183,27 +235,7 @@ export const ShiftRepository = {
     },
 
     /**
-     * Нормализует поле items — может прийти как JSON-строка или уже как массив.
-     *
-     * @param {*} items
-     * @returns {Object[]}
-     */
-    _normalizeItems(items) {
-        if (!items) return [];
-        if (Array.isArray(items)) return items;
-        if (typeof items === 'string') {
-            try {
-                const parsed = JSON.parse(items);
-                return Array.isArray(parsed) ? parsed : [];
-            } catch (e) {
-                return [];
-            }
-        }
-        return [];
-    },
-
-    /**
-     * Возвращает статистику активной смены на основе продаж.
+     * Возвращает статистику смены на основе продаж.
      *
      * @param {string} shiftId
      * @returns {Promise<{revenue: number, profit: number, salesCount: number, itemsCount: number}>}
@@ -231,7 +263,7 @@ export const ShiftRepository = {
             revenue += sale.total || 0;
             profit += sale.profit || 0;
 
-            const saleItems = this._normalizeItems(sale.items);
+            const saleItems = normalizeItems(sale.items);
             for (const item of saleItems) {
                 itemsCount += item.quantity || 0;
             }
