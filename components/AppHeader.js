@@ -5,8 +5,8 @@
 /**
  * Компонент верхней панели навигации.
  *
- * Чистый UI. Рендерит HTML-строку шапки и предоставляет
- * функцию для привязки обработчиков событий.
+ * Чистый UI. Рендерит HTML-строку шапки и табов навигации,
+ * предоставляет функции для привязки обработчиков событий.
  *
  * Используется всеми страницами приложения.
  *
@@ -49,6 +49,10 @@ function escapeHtml(str) {
 /**
  * Рендерит HTML верхней панели навигации.
  *
+ * Возвращает строку с двумя элементами:
+ * - <header class="app-header"> — бренд, раздел, действия
+ * - <nav class="app-tabs"> — табы навигации
+ *
  * @param {Object} options
  * @param {string} options.currentPage - идентификатор страницы ('inventory', 'cashier', 'reports')
  * @param {string} [options.userName] - имя пользователя для отображения
@@ -77,15 +81,14 @@ export function renderAppHeader({ currentPage, userName }) {
                 <span class="app-section">${escapeHtml(sectionLabel)}</span>
             </div>
 
-            <nav class="app-tabs">
-                ${tabsHtml}
-            </nav>
-
             <div class="header-actions">
                 <span class="user-email" id="userEmail">${escapeHtml(displayName)}</span>
                 <button class="btn-ghost btn-sm" id="logoutBtn">Выход</button>
             </div>
-        </header>`;
+        </header>
+        <nav class="app-tabs">
+            ${tabsHtml}
+        </nav>`;
 }
 
 /**
@@ -126,6 +129,23 @@ export function updateUserName(userName) {
     }
 }
 
+/**
+ * Обновляет активную вкладку в навигации.
+ *
+ * @param {string} currentPage - идентификатор страницы ('inventory', 'cashier', 'reports')
+ */
+export function updateActiveTab(currentPage) {
+    document.querySelectorAll('.app-tab').forEach(tab => {
+        const isActive = tab.dataset.page === currentPage;
+        tab.classList.toggle('active', isActive);
+        if (isActive) {
+            tab.setAttribute('aria-current', 'page');
+        } else {
+            tab.removeAttribute('aria-current');
+        }
+    });
+}
+
 // ============================================================
 // Экспорт по умолчанию
 // ============================================================
@@ -133,5 +153,6 @@ export function updateUserName(userName) {
 export default {
     renderAppHeader,
     bindAppHeaderEvents,
-    updateUserName
+    updateUserName,
+    updateActiveTab
 };
