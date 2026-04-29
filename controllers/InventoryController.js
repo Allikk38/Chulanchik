@@ -29,6 +29,8 @@ const state = {
     selectedIds: new Set(),
     /** @type {boolean} идёт операция (удаление) */
     isBusy: false,
+    /** @type {boolean} показывать таблицу (true) или карточки (false) на мобильных */
+    showTable: false,
 
     // Фильтры (UI-состояние)
     filters: {
@@ -52,7 +54,9 @@ const DOM = {
     sortSelect: null,
     addBtn: null,
     refreshBtn: null,
-    selectAllCb: null
+    selectAllCb: null,
+    mobileCardsContainer: null,
+    viewToggleBtn: null
 };
 
 // ============================================================
@@ -218,6 +222,7 @@ function renderTable() {
                 ? state.selectedIds.add(cb.dataset.id)
                 : state.selectedIds.delete(cb.dataset.id);
             updateSelectAll();
+            updateMobileCardsSelection();
         });
     });
 
@@ -230,11 +235,106 @@ function renderTable() {
     });
 }
 
+/**
+ * Рендерит мобильные карточки товаров.
+ * Использует те же данные getFilteredProducts(), что и таблица.
+ */
+function renderMobileCards() {
+    if (!DOM.mobileCardsContainer) return;
+
+    const products = getFilteredProducts();
+
+    if (productStore.isLoading() && products.length === 0) {
+        DOM.mobileCardsContainer.innerHTML = `
+            <div style="text-align:center;padding:40px;">
+                <div class="loading-spinner"></div>
+            </div>`;
+        return;
+    }
+
+    if (products.length === 0) {
+        DOM.mobileCardsContainer.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">--</div>
+                <p>${state.filters.search || state.filters.status || state.filters.category
+                    ? 'По вашему запросу ничего не найдено'
+                    : 'Нет товаров. Нажмите «Добавить товар»'}</p>
+            </div>`;
+        return;
+    }
+
+    DOM.mobileCardsContainer.innerHTML = products.map(p => {
+        const isSelected = state.selectedIds.has(p.id);
+        const statusClass = p.status || 'unknown';
+
+        return `
+            <div class="mobile-product-card ${isSelected ? 'selected' : ''}" data-id="${p.id}">
+                <div class="card-photo">
+                    ${p.photo_url
+                        ? `<img src="${escapeAttr(p.photo_url)}" alt="" loading="lazy">`
+                        : '<span class="photo-placeholder">--</span>'}
+                </div>
+                <div class="card-info">
+                    <div class="card-name">${escapeHtml(p.name)}</div>
+                    <div class="card-meta">
+                        <span class="card-category">${getCategoryName(p.category)}</span>
+                        <span class="card-status status-${statusClass}">${getStatusText(p.status)}</span>
+                    </div>
+                </div>
+                <div class="card-price">
+                    <div class="price-value">${formatMoney(p.price)}</div>
+                    ${p.cost_price ? `<div class="price-cost">Себ. ${formatMoney(p.cost_price)}</div>` : ''}
+                </div>
+                <div class="card-actions">
+                    <button class="btn-icon" data-action="edit" data-id="${p.id}"
+                        ${state.isBusy ? 'disabled' : ''} title="Редактировать">Edit</button>
+                    <button class="btn-icon btn-danger" data-action="delete" data-id="${p.id}"
+                        ${state.isBusy ? 'disabled' : ''} title="Удалить">Del</button>
+                </div>
+            </div>`;
+    }).join('');
+
+    // Обработчики карточек
+    DOM.mobileCardsContainer.querySelectorAll('.mobile-product-card').forEach(card => {
+        // Клик по карточке — выбор (как чекбокс)
+        card.addEventListener('click', (e) => {
+            // Не срабатываем если кликнули по кнопке
+            if (e.target.closest('button')) return;
+
+            const id = card.dataset.id;
+            if (state.selectedIds.has(id)) {
+                state.selectedIds.delete(id);
+            } else {
+                state.selectedIds.add(id);
+            }
+            updateSelectAll();
+            renderMobileCards();
+            renderTable();
+        });
+    });
+
+    // Кнопки действий в карточках
+    DOM.mobileCardsContainer.querySelectorAll('[data-action="edit"]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            editProduct(btn.dataset.id);
+        });
+    });
+    DOM.mobileCardsContainer.querySelectorAll('[data-action="delete"]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            deleteProduct(btn.dataset.id);
+        });
+    });
+}
+
 function renderAll() {
     renderStats();
     updateCategoryOptions();
     renderTable();
+    renderMobileCards();
     updateSelectAll();
+    updateViewToggleButton();
 }
 
 function updateSelectAll() {
@@ -243,6 +343,62 @@ function updateSelectAll() {
     const checked = document.querySelectorAll('.table-checkbox:checked');
     DOM.selectAllCb.checked = checked.length > 0 && checked.length === checkboxes.length;
     DOM.selectAllCb.indeterminate = checked.length > 0 && checked.length < checkboxes.length;
+}
+
+/**
+ * Синхронизирует состояние чекбоксов в таблице с выбранными карточками и наоборот.
+ */
+function updateMobileCardsSelection() {
+    if (!DOM.mobileCardsContainer) return;
+
+    DOM.mobileCardsContainer.querySelectorAll('.mobile-product-card').forEach(card => {
+        const id = card.dataset.id;
+        if (state.selectedIds.has(id)) {
+            card.classList.add('selected');
+        } else {
+            card.classList.remove('selected');
+        }
+    });
+
+    // Также синхронизируем чекбоксы в таблице
+    document.querySelectorAll('.table-checkbox').forEach(cb => {
+        cb.checked = state.selectedIds.has(cb.dataset.id);
+    });
+}
+
+/**
+ * Обновляет вид кнопки переключения таблица/карточки.
+ */
+function updateViewToggleButton() {
+    if (!DOM.viewToggleBtn) return;
+
+    if (state.showTable) {
+        DOM.viewToggleBtn.classList.add('active');
+        DOM.viewToggleBtn.textContent = '|||';
+        DOM.viewToggleBtn.title = 'Показать карточками';
+    } else {
+        DOM.viewToggleBtn.classList.remove('active');
+        DOM.viewToggleBtn.textContent = '::';
+        DOM.viewToggleBtn.title = 'Показать таблицей';
+    }
+}
+
+/**
+ * Переключает режим отображения на мобильных.
+ */
+function toggleView() {
+    state.showTable = !state.showTable;
+
+    const inventoryPage = document.querySelector('.inventory-page');
+    if (inventoryPage) {
+        if (state.showTable) {
+            inventoryPage.classList.add('show-table');
+        } else {
+            inventoryPage.classList.remove('show-table');
+        }
+    }
+
+    updateViewToggleButton();
 }
 
 // ============================================================
@@ -300,6 +456,7 @@ async function deleteProduct(id) {
 
     state.isBusy = true;
     renderTable();
+    renderMobileCards();
 
     const { success, error } = await ProductService.remove(id);
 
@@ -313,6 +470,7 @@ async function deleteProduct(id) {
     }
 
     renderTable();
+    renderMobileCards();
 }
 
 // ============================================================
@@ -329,27 +487,33 @@ function cacheDom() {
     DOM.addBtn = document.getElementById('addProductBtn');
     DOM.refreshBtn = document.getElementById('refreshBtn');
     DOM.selectAllCb = document.getElementById('selectAllCheckbox');
+    DOM.mobileCardsContainer = document.getElementById('mobileCardsContainer');
+    DOM.viewToggleBtn = document.getElementById('viewToggleBtn');
 }
 
 function bindEvents() {
     DOM.searchInput?.addEventListener('input', e => {
         state.filters.search = e.target.value.trim();
         renderTable();
+        renderMobileCards();
     });
 
     DOM.categoryFilter?.addEventListener('change', e => {
         state.filters.category = e.target.value;
         renderTable();
+        renderMobileCards();
     });
 
     DOM.statusFilter?.addEventListener('change', e => {
         state.filters.status = e.target.value;
         renderTable();
+        renderMobileCards();
     });
 
     DOM.sortSelect?.addEventListener('change', e => {
         state.filters.sort = e.target.value;
         renderTable();
+        renderMobileCards();
     });
 
     DOM.addBtn?.addEventListener('click', addProduct);
@@ -362,12 +526,26 @@ function bindEvents() {
         const checked = e.target.checked;
         document.querySelectorAll('.table-checkbox').forEach(cb => {
             cb.checked = checked;
-            checked
-                ? state.selectedIds.add(cb.dataset.id)
-                : state.selectedIds.delete(cb.dataset.id);
+            if (checked) {
+                state.selectedIds.add(cb.dataset.id);
+            } else {
+                state.selectedIds.delete(cb.dataset.id);
+            }
         });
         updateSelectAll();
+        updateMobileCardsSelection();
     });
+
+    bindViewToggle();
+}
+
+/**
+ * Привязывает обработчик кнопки переключения таблица/карточки.
+ */
+function bindViewToggle() {
+    if (!DOM.viewToggleBtn) return;
+
+    DOM.viewToggleBtn.addEventListener('click', toggleView);
 }
 
 async function init() {
