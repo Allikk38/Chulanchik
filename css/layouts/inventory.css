@@ -6,12 +6,10 @@
  * На мобильных — карточки вместо таблицы.
  * 
  * @stylesheet inventory
- * @version 6.0.0
+ * @version 6.0.1
  * @changes
+ * - v6.0.1: Исправлен конфликт display-правил. Таблица и карточки корректно переключаются.
  * - v6.0.0: Тёплая гамма в стиле страницы входа. Акцент — тёмно-зелёный #1a3c2a.
- * - Убраны холодные slate-тона, заменены на тёплые.
- * - Добавлен режим карточек для мобильных.
- * - Упрощены селекторы.
  */
 
 /* ========== INVENTORY PAGE CONTAINER ========== */
@@ -524,34 +522,6 @@
     height: 36px;
 }
 
-/* ========== FAB (мобильный) ========== */
-.fab-add-product {
-    position: fixed;
-    bottom: var(--spacing-6);
-    right: var(--spacing-6);
-    width: 56px;
-    height: 56px;
-    border-radius: var(--radius-full);
-    background: #1a3c2a;
-    color: #ffffff;
-    border: none;
-    font-size: 24px;
-    cursor: pointer;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    z-index: var(--z-fixed);
-    box-shadow: 0 2px 8px rgba(26, 60, 42, 0.3);
-}
-
-.fab-add-product:hover {
-    background: #153023;
-}
-
-.fab-add-product:active {
-    background: #0e2118;
-}
-
 /* ========== АДАПТИВНОСТЬ ========== */
 @media (max-width: 768px) {
     .inventory-page .filters-panel {
@@ -593,31 +563,22 @@
         display: flex;
     }
 
-    /* Таблицу прячем, карточки показываем */
-    .products-table-wrapper.table-view {
-        display: none;
-    }
-
-    .mobile-product-cards.cards-view {
-        display: flex;
-    }
-
     /* По умолчанию на мобильных — карточки */
-    .products-table-wrapper:not(.table-view) {
-        display: none;
-    }
-
-    .mobile-product-cards:not(.cards-view) {
-        display: none;
-    }
-
-    /* Начальное состояние: карточки включены */
     .products-table-wrapper {
         display: none;
     }
 
     .mobile-product-cards {
         display: flex;
+    }
+
+    /* Когда активна таблица */
+    .inventory-page.show-table .products-table-wrapper {
+        display: flex;
+    }
+
+    .inventory-page.show-table .mobile-product-cards {
+        display: none;
     }
 
     /* Кнопка FAB */
@@ -630,17 +591,6 @@
     }
 
     .header-right .btn-primary {
-        display: none;
-    }
-}
-
-@media (min-width: 769px) {
-    /* На десктопе всегда таблица */
-    .products-table-wrapper {
-        display: flex;
-    }
-
-    .mobile-product-cards {
         display: none;
     }
 }
