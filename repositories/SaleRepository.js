@@ -8,7 +8,7 @@ export const SaleRepository = {
     async create(saleData) {
         const { data, error } = await supabase.rpc('checkout_sale', {
             p_shift_id: saleData.shift_id,
-            p_items: saleData.items,
+            p_items: JSON.stringify(saleData.items),
             p_total: saleData.total,
             p_profit: saleData.profit,
             p_payment_method: saleData.payment_method
