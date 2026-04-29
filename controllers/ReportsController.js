@@ -1,10 +1,10 @@
 // ============================================================
 // controllers/ReportsController.js
-// Шаг 3: Загрузка данных (продажи, смены, товары, расходы)
+// Шаг 4: Загрузка данных с таймаутом
 // ============================================================
 
 /**
- * Контроллер страницы отчётов (минимальная версия с загрузкой данных).
+ * Контроллер страницы отчётов.
  *
  * @module controllers/ReportsController
  */
@@ -15,6 +15,13 @@ import { expenseStore } from '../stores/ExpenseStore.js';
 import SaleRepository from '../repositories/SaleRepository.js';
 import ShiftRepository from '../repositories/ShiftRepository.js';
 import { renderAppHeader, bindAppHeaderEvents, updateUserName } from '../components/AppHeader.js';
+
+// ============================================================
+// Константы
+// ============================================================
+
+/** Таймаут для сетевых запросов (мс) */
+const REQUEST_TIMEOUT_MS = 15000;
 
 // ============================================================
 // Состояние
@@ -41,7 +48,7 @@ const DOM = {
 };
 
 // ============================================================
-// Хелпер: синхронная проверка наличия сессии
+// Хелперы
 // ============================================================
 
 function hasCachedSession() {
@@ -64,9 +71,16 @@ function hasCachedSession() {
     return false;
 }
 
-// ============================================================
-// Период
-// ============================================================
+/**
+ * Оборачивает промис в таймаут.
+ * Если не завершился за ms мс — возвращает fallback.
+ */
+function withTimeout(promise, ms, fallback) {
+    return Promise.race([
+        promise,
+        new Promise((resolve) => setTimeout(() => resolve(fallback), ms))
+    ]);
+}
 
 function getPeriodDates() {
     const now = new Date();
@@ -115,7 +129,7 @@ function getPeriodDates() {
 }
 
 // ============================================================
-// Загрузка данных
+// Загрузка данных с таймаутами
 // ============================================================
 
 async function loadData() {
@@ -124,12 +138,27 @@ async function loadData() {
     console.log('[Reports] loading data for period:', state.period, { from, to });
 
     try {
-        // Загружаем товары, расходы, продажи и смены параллельно
         const [products, expenses, sales, shifts] = await Promise.all([
-            productStore.loadProducts(),
-            expenseStore.loadExpenses(),
-            SaleRepository.getAll({ from, to, limit: 200 }),
-            ShiftRepository.getAll({ from, to, limit: 100 })
+            withTimeout(
+                productStore.loadProducts(),
+                REQUEST_TIMEOUT_MS,
+                []
+            ),
+            withTimeout(
+                expenseStore.loadExpenses(),
+                REQUEST_TIMEOUT_MS,
+                []
+            ),
+            withTimeout(
+                SaleRepository.getAll({ from, to, limit: 200 }),
+                REQUEST_TIMEOUT_MS,
+                []
+            ),
+            withTimeout(
+                ShiftRepository.getAll({ from, to, limit: 100 }),
+                REQUEST_TIMEOUT_MS,
+                []
+            )
         ]);
 
         state.sales = sales;
@@ -139,10 +168,10 @@ async function loadData() {
         state.loadError = null;
 
         console.log('[Reports] data loaded:', {
-            products: products.length,
-            expenses: expenses.length,
-            sales: sales.length,
-            shifts: shifts.length
+            products: Array.isArray(products) ? products.length : 'timeout/error',
+            expenses: Array.isArray(expenses) ? expenses.length : 'timeout/error',
+            sales: Array.isArray(sales) ? sales.length : 'timeout/error',
+            shifts: Array.isArray(shifts) ? shifts.length : 'timeout/error'
         });
 
     } catch (err) {
@@ -196,10 +225,9 @@ function renderContent() {
         return;
     }
 
-    // Данные загружены — показываем сводку
     const totalSales = state.sales.length;
-    const totalRevenue = state.sales.reduce((s, r) => s + (r.total || 0), 0);
-    const totalExpenses = state.expenses.reduce((s, e) => s + (e.amount || 0), 0);
+    const totalRevenue = state.sales.reduce((s, r) => s + (Number(r.total) || 0), 0);
+    const totalExpenses = state.expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0);
     const totalShifts = state.shifts.length;
 
     DOM.content.innerHTML = `
@@ -235,7 +263,6 @@ function renderContent() {
             </div>
         </div>`;
 
-    // Вешаем обработчики на табы
     DOM.content.querySelectorAll('[data-tab]').forEach(btn => {
         btn.addEventListener('click', () => {
             const tab = btn.dataset.tab;
@@ -321,7 +348,7 @@ async function init() {
 
     console.log('[Reports] skeleton rendered, loading data...');
 
-    // 4. Загружаем данные
+    // 4. Загружаем данные (каждый запрос с таймаутом 15с)
     await loadData();
     renderContent();
 
