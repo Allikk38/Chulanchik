@@ -63,8 +63,8 @@ export const ShiftService = {
             return { success: false, error: 'Нет открытой смены' };
         }
 
-        const stats = shiftStore.getStats();
-        console.log('[ShiftService] current stats before close:', stats);
+        const statsBeforeClose = shiftStore.getStats();
+        console.log('[ShiftService] stats before close:', statsBeforeClose);
 
         console.log('[ShiftService] calling shiftStore.closeShift()...');
 
@@ -75,8 +75,15 @@ export const ShiftService = {
             return { success: false, error: 'Не удалось закрыть смену' };
         }
 
-        console.log('[ShiftService] closeShift completed successfully, returning stats:', stats);
-        return { success: true, stats };
+        const finalStats = {
+            revenue: statsBeforeClose.revenue || 0,
+            profit: statsBeforeClose.profit || 0,
+            salesCount: statsBeforeClose.salesCount || 0,
+            itemsCount: statsBeforeClose.itemsCount || 0
+        };
+
+        console.log('[ShiftService] closeShift completed successfully, returning stats:', finalStats);
+        return { success: true, stats: finalStats };
     }
 };
 
