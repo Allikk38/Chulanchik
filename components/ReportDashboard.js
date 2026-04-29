@@ -1,13 +1,13 @@
 // ============================================================
 // components/ReportDashboard.js
-// Шаг 6: Дашборд — KPI-карточки, топ-товары, топ-категории
+// Шаг 8: Добавлены контейнеры для графиков + функция drawCharts
 // ============================================================
 
 /**
  * Компонент дашборда для страницы отчётов.
  *
  * Чистый UI. Принимает state, возвращает HTML-строку.
- * Не зависит от контроллера.
+ * Также экспортирует drawCharts для отрисовки графиков после вставки в DOM.
  *
  * @module components/ReportDashboard
  */
@@ -19,6 +19,7 @@ import {
     formatPercent,
     escapeHtml
 } from '../utils/formatters.js';
+import { drawRevenueChart, drawCategoryChart } from '../components/Charts.js';
 
 // ============================================================
 // Вычисления
@@ -95,10 +96,6 @@ function computeTopCategories(state, limit = 5) {
 
 /**
  * Нормализует поле items — может быть массивом или JSON-строкой.
- * Защита от падения если Supabase возвращает строку вместо массива.
- *
- * @param {*} items
- * @returns {Object[]}
  */
 function normalizeItems(items) {
     if (!items) return [];
@@ -202,13 +199,13 @@ function renderTopCategories(categories) {
 }
 
 // ============================================================
-// Публичная функция
+// Публичные функции
 // ============================================================
 
 /**
  * Рендерит HTML дашборда.
  *
- * @param {Object} state — состояние контроллера (sales, shifts, expenses, period)
+ * @param {Object} state — состояние контроллера
  * @returns {string} HTML
  */
 export function renderDashboard(state) {
@@ -220,6 +217,21 @@ export function renderDashboard(state) {
         <div class="dashboard-content">
             ${renderKpiCards(overview)}
             ${renderNetProfitCard(overview)}
+
+            <div class="charts-row">
+                <div class="chart-card">
+                    <h4>Выручка и прибыль по дням</h4>
+                    <div class="chart-container">
+                        <canvas id="revenueChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <h4>Категории</h4>
+                    <div class="chart-container">
+                        <canvas id="categoryChart"></canvas>
+                    </div>
+                </div>
+            </div>
 
             <div class="dashboard-bottom">
                 <div class="card">
@@ -234,10 +246,53 @@ export function renderDashboard(state) {
         </div>`;
 }
 
+/**
+ * Отрисовывает графики на дашборде.
+ * Должна вызываться после вставки HTML в DOM.
+ *
+ * @param {Object} state — состояние контроллера
+ */
+export function drawCharts(state) {
+    const dailyMap = new Map();
+
+    state.sales.forEach(sale => {
+        const day = sale.created_at?.slice(0, 10);
+        if (!day) return;
+        if (!dailyMap.has(day)) {
+            dailyMap.set(day, { date: day, revenue: 0, profit: 0 });
+        }
+        const d = dailyMap.get(day);
+        d.revenue += Number(sale.total) || 0;
+        d.profit += Number(sale.profit) || 0;
+    });
+
+    const daily = [...dailyMap.values()].sort((a, b) => a.date.localeCompare(b.date));
+
+    const catMap = new Map();
+
+    state.sales.forEach(sale => {
+        const items = normalizeItems(sale.items);
+        items.forEach(item => {
+            const product = productStore.getById(item.id);
+            const cat = product?.category || 'other';
+            if (!catMap.has(cat)) {
+                catMap.set(cat, { category: cat, revenue: 0 });
+            }
+            catMap.get(cat).revenue += (Number(item.price) || 0) * (item.quantity || 0);
+        });
+    });
+
+    const categories = [...catMap.values()];
+
+    drawRevenueChart(daily);
+    drawCategoryChart(categories);
+}
+
 // ============================================================
 // Экспорт по умолчанию
 // ============================================================
 
 export default {
-    renderDashboard
+    renderDashboard,
+    drawCharts
 };
