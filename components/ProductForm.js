@@ -5,13 +5,13 @@
 /**
  * Компонент формы товара.
  * 
- * Чистый UI. Не зависит от сервисов или сторов.
+ * Чистый UI. Не зависит от репозиториев или сторов.
  * Принимает данные, возвращает Promise с сохранённым товаром.
  * 
  * @module components/ProductForm
  */
 
-import { supabase } from '../core/supabase-client.js';
+import { ProductService } from '../services/ProductService.js';
 import { formatMoney, escapeHtml } from '../utils/formatters.js';
 import {
     getCategorySchema,
@@ -24,35 +24,8 @@ import {
 // Константы
 // ============================================================
 
-const BUCKET = 'product-photos';
 const MAX_PHOTO_MB = 5;
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-
-// ============================================================
-// Загрузка фото
-// ============================================================
-
-async function uploadPhoto(file) {
-    const ext = file.name.split('.').pop();
-    const fileName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-
-    const { error } = await supabase.storage
-        .from(BUCKET)
-        .upload(fileName, file, { cacheControl: '3600', upsert: false });
-
-    if (error) throw new Error('Ошибка загрузки фото: ' + error.message);
-
-    const { data } = supabase.storage.from(BUCKET).getPublicUrl(fileName);
-    return data.publicUrl;
-}
-
-async function deletePhoto(photoUrl) {
-    if (!photoUrl) return;
-    try {
-        const fileName = photoUrl.split('/').pop();
-        if (fileName) await supabase.storage.from(BUCKET).remove([fileName]);
-    } catch (e) { /* не критично */ }
-}
 
 // ============================================================
 // Рендеринг полей категории
@@ -199,50 +172,47 @@ export function openProductFormModal({ mode = 'create', initialData = {}, userId
     return new Promise(resolve => {
         const container = document.getElementById('modalContainer') || document.body;
 
-        // Состояние формы
         let photoFile = null;
-        let photoUrl = initialData.photo_url || null;
         let isSubmitting = false;
 
-        // Рендерим
         container.insertAdjacentHTML('beforeend', modalHtml({ mode, initialData }));
         const overlay = document.getElementById('productFormOverlay');
 
-        // DOM-элементы
         const $ = id => document.getElementById(id);
         const nameEl = $('pfName');
         const catEl = $('pfCategory');
         const priceEl = $('pfPrice');
         const costEl = $('pfCost');
 
-        // --- Фото ---
+        // --- Фото (только локальный превью, загрузка через сервис) ---
         $('pfUploadBtn').onclick = () => $('pfPhotoInput').click();
 
         $('pfPhotoInput').onchange = (e) => {
             const file = e.target.files?.[0];
             if (!file) return;
-            if (!ALLOWED_TYPES.includes(file.type)) return;
-            if (file.size > MAX_PHOTO_MB * 1024 * 1024) return;
+            if (!ALLOWED_TYPES.includes(file.type)) {
+                alert('Поддерживаются только JPG, PNG, WEBP');
+                return;
+            }
+            if (file.size > MAX_PHOTO_MB * 1024 * 1024) {
+                alert(`Файл не должен превышать ${MAX_PHOTO_MB} MB`);
+                return;
+            }
 
             photoFile = file;
             const reader = new FileReader();
             reader.onload = () => {
-                photoUrl = reader.result;
                 $('pfPreview').classList.add('has-image');
                 $('pfPlaceholder').style.display = 'none';
-                $('pfImg').src = photoUrl;
+                $('pfImg').src = reader.result;
                 $('pfImg').style.display = 'block';
                 $('pfRemoveBtn').style.display = 'inline-flex';
             };
             reader.readAsDataURL(file);
         };
 
-        $('pfRemoveBtn').onclick = async () => {
-            if (mode === 'edit' && initialData.photo_url && !photoFile) {
-                await deletePhoto(initialData.photo_url);
-            }
+        $('pfRemoveBtn').onclick = () => {
             photoFile = null;
-            photoUrl = null;
             $('pfPreview').classList.remove('has-image');
             $('pfPlaceholder').style.display = 'flex';
             $('pfImg').style.display = 'none';
@@ -261,6 +231,7 @@ export function openProductFormModal({ mode = 'create', initialData = {}, userId
         };
         priceEl.addEventListener('input', updateMargin);
         costEl.addEventListener('input', updateMargin);
+        updateMargin();
 
         // --- Категория → поля ---
         catEl.addEventListener('change', () => {
@@ -290,7 +261,10 @@ export function openProductFormModal({ mode = 'create', initialData = {}, userId
             }
 
             const price = parseFloat(priceEl.value);
-            if (isNaN(price) || price < 0) return;
+            if (isNaN(price) || price < 0) {
+                alert('Некорректная цена');
+                return;
+            }
 
             const category = catEl.value;
             const cost = parseFloat(costEl.value) || 0;
@@ -314,39 +288,34 @@ export function openProductFormModal({ mode = 'create', initialData = {}, userId
             $('pfSubmit').disabled = true;
 
             try {
-                // Загрузка фото
-                if (photoFile) {
-                    if (mode === 'edit' && initialData.photo_url) {
-                        await deletePhoto(initialData.photo_url);
-                    }
-                    photoUrl = await uploadPhoto(photoFile);
-                }
-
-                const formData = {
-                    name,
-                    category,
-                    price,
-                    cost_price: cost,
-                    attributes: attrs,
-                    photo_url: photoUrl,
-                    created_by: userId
-                };
-
-                // Вызываем ProductService через колбэк — контроллер сам решит что делать
-                const { ProductService } = await import('../services/ProductService.js');
                 let result;
 
                 if (mode === 'create') {
-                    result = await ProductService.create(formData);
+                    result = await ProductService.create({
+                        name,
+                        category,
+                        price,
+                        cost_price: cost,
+                        attributes: attrs,
+                        photoFile: photoFile,
+                        created_by: userId
+                    });
                 } else {
-                    result = await ProductService.update(initialData.id, formData);
+                    result = await ProductService.update(initialData.id, {
+                        name,
+                        category,
+                        price,
+                        cost_price: cost,
+                        attributes: attrs,
+                        photoFile: photoFile,
+                        existingPhotoUrl: initialData.photo_url
+                    });
                 }
 
                 if (result.success) {
                     overlay.remove();
                     resolve(result.product);
                 } else {
-                    // Ошибка от сервиса
                     alert(result.error || 'Ошибка сохранения');
                     isSubmitting = false;
                     $('pfSubmit').disabled = false;
