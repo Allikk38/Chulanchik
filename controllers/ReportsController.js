@@ -1,6 +1,6 @@
 // ============================================================
 // controllers/ReportsController.js
-// Шаг 6: Контроллер с табами, дашборд вынесен в компонент
+// Шаг 7: Все табы используют компоненты, заглушек больше нет
 // ============================================================
 
 /**
@@ -19,6 +19,10 @@ import SaleRepository from '../repositories/SaleRepository.js';
 import ShiftRepository from '../repositories/ShiftRepository.js';
 import { renderAppHeader, bindAppHeaderEvents, updateUserName } from '../components/AppHeader.js';
 import { renderDashboard } from '../components/ReportDashboard.js';
+import { renderSalesTab } from '../components/ReportSales.js';
+import { renderProductsTab } from '../components/ReportProducts.js';
+import { renderShiftsTab } from '../components/ReportShifts.js';
+import { renderExpensesTab } from '../components/ReportExpenses.js';
 
 // ============================================================
 // Состояние
@@ -156,10 +160,6 @@ async function loadData() {
 // Рендеринг
 // ============================================================
 
-/**
- * Рендерит табы навигации.
- * @returns {string} HTML
- */
 function renderTabs() {
     const tabs = ['dashboard', 'sales', 'products', 'shifts', 'expenses'];
     const labels = {
@@ -182,10 +182,6 @@ function renderTabs() {
         </div>`;
 }
 
-/**
- * Рендерит тело активной вкладки.
- * @returns {string} HTML
- */
 function renderTabContent() {
     if (state.isLoading) {
         return `
@@ -207,58 +203,17 @@ function renderTabContent() {
     switch (state.activeTab) {
         case 'dashboard':
             return renderDashboard(state);
-
         case 'sales':
-            return renderSalesStub();
-
+            return renderSalesTab(state);
         case 'products':
-            return renderProductsStub();
-
+            return renderProductsTab(state);
         case 'shifts':
-            return renderShiftsStub();
-
+            return renderShiftsTab(state);
         case 'expenses':
-            return renderExpensesStub();
-
+            return renderExpensesTab(state);
         default:
             return renderDashboard(state);
     }
-}
-
-// ============================================================
-// Заглушки для табов (будут вынесены в отдельные компоненты)
-// ============================================================
-
-function renderSalesStub() {
-    return `
-        <div class="card">
-            <h4>Продажи</h4>
-            <p>Компонент в разработке</p>
-        </div>`;
-}
-
-function renderProductsStub() {
-    return `
-        <div class="card">
-            <h4>Товары</h4>
-            <p>Компонент в разработке</p>
-        </div>`;
-}
-
-function renderShiftsStub() {
-    return `
-        <div class="card">
-            <h4>Смены</h4>
-            <p>Компонент в разработке</p>
-        </div>`;
-}
-
-function renderExpensesStub() {
-    return `
-        <div class="card">
-            <h4>Расходы</h4>
-            <p>Компонент в разработке</p>
-        </div>`;
 }
 
 function renderContent() {
@@ -309,7 +264,7 @@ function bindEvents() {
 }
 
 async function init() {
-    console.log('[Reports] v6 - separate components');
+    console.log('[Reports] v7 - all tabs with components');
     console.log('[Reports] init() started');
 
     // 1. Вставляем навигацию синхронно
