@@ -45,7 +45,9 @@ const state = {
     user: null,
     searchQuery: '',
     selectedCategory: null,
-    isScanning: false
+    isScanning: false,
+    /** @type {boolean} идёт первичная загрузка данных */
+    isInitialLoading: true
 };
 
 // ============================================================
@@ -60,8 +62,53 @@ const DOM = {
 // Рендеринг
 // ============================================================
 
+/**
+ * Рендерит заглушку на время первичной загрузки.
+ * Показывает шапку смены (если открыта) и скелетон сетки товаров,
+ * вместо пустого экрана или мигания.
+ *
+ * @returns {string} HTML
+ */
+function renderLoadingSkeleton() {
+    const shiftBarHtml = shiftStore.isOpen() ? renderShiftBar() : '';
+
+    return `
+        <div class="cashier-layout">
+            <div class="products-panel">
+                ${shiftBarHtml}
+                <div class="products-toolbar" style="opacity:0.5;pointer-events:none;">
+                    <div class="toolbar-left">
+                        <div class="search-wrapper">
+                            <input type="text" class="search-input" placeholder="Загрузка товаров..." disabled>
+                        </div>
+                    </div>
+                </div>
+                <div class="products-grid-container" id="productsGridContainer">
+                    <div class="loading-overlay">
+                        <div class="loading-spinner"></div>
+                        <span class="loading-text">Загрузка товаров...</span>
+                    </div>
+                </div>
+            </div>
+            <div class="cart-panel" id="cartPanel">
+                <div class="cart-header">
+                    <h3>Корзина</h3>
+                </div>
+                <div class="cart-items-container">
+                    <div class="cart-empty">Загрузка...</div>
+                </div>
+            </div>
+        </div>`;
+}
+
 function render() {
     if (!DOM.content) return;
+
+    // Первичная загрузка — показываем скелетон, не лезем в сторы за данными
+    if (state.isInitialLoading) {
+        DOM.content.innerHTML = renderLoadingSkeleton();
+        return;
+    }
 
     if (!shiftStore.isOpen()) {
         document.getElementById('cartToggleBtn')?.remove();
@@ -351,6 +398,10 @@ function bindEvents() {
 // ============================================================
 
 function onStoreChange() {
+    // Игнорируем события сторов во время первичной загрузки —
+    // все данные ещё не собраны, финальный render() будет вызван явно
+    if (state.isInitialLoading) return;
+
     render();
     updateFabVisibility();
     updateMobileCartTrigger();
@@ -418,11 +469,7 @@ async function init() {
         onLogout: () => logout()
     });
 
-    // 2. Внедряем зависимости в компоненты
-    initCart({ cartStore, content: DOM.content });
-    initProducts({ productStore, cartStore, shiftStore, state });
-
-    // 3. Проверяем авторизацию
+    // 2. Проверяем авторизацию
     const { user, authError } = await requireAuth();
     if (authError || !user) {
         window.location.href = 'pages/login.html';
@@ -432,21 +479,36 @@ async function init() {
     state.user = user;
     console.log('[Cashier] user authenticated:', user.email);
 
-    // 4. Обновляем имя пользователя в уже вставленной шапке
+    // 3. Обновляем имя пользователя в уже вставленной шапке
     updateUserName(user.fullName || user.email?.split('@')[0] || 'Пользователь');
 
-    // 5. Кэшируем DOM и вешаем события
+    // 4. Внедряем зависимости в компоненты
+    initCart({ cartStore, content: DOM.content });
+    initProducts({ productStore, cartStore, shiftStore, state });
+
+    // 5. Кэшируем DOM и вешаем глобальные события
     cacheDom();
     bindGlobalEvents();
 
-    // 6. Загружаем данные
+    // 6. Показываем скелетон загрузки немедленно,
+    //    чтобы страница не была пустой во время запросов к серверу
+    render();
+
+    // 7. Загружаем корзину из кэша (синхронно, мгновенно)
     cartStore.loadFromCache();
 
-    await shiftStore.checkOpenShift(user.id);
+    // 8. Загружаем смену и товары ПАРАЛЛЕЛЬНО
+    //    Раньше было последовательно: сначала смена, потом товары.
+    //    Теперь оба запроса уходят одновременно — загрузка вдвое быстрее.
+    const [shiftOk] = await Promise.all([
+        shiftStore.checkOpenShift(user.id),
+        productStore.loadProducts()
+    ]);
 
-    await productStore.loadProducts();
+    console.log('[Cashier] data loaded, shift open:', shiftOk);
 
-    // 7. Первый рендер
+    // 9. Финальный рендер с реальными данными
+    state.isInitialLoading = false;
     render();
 
     console.log('[Cashier] init() completed');
