@@ -1,13 +1,13 @@
 // ============================================================
 // controllers/ReportsController.js
-// Шаг 8: Графики + CSV-экспорт
+// Шаг 9: CRUD расходов через модалку
 // ============================================================
 
 /**
  * Контроллер страницы отчётов.
  *
  * Координирует загрузку данных, переключение табов,
- * отрисовку графиков и экспорт CSV.
+ * отрисовку графиков, экспорт CSV и CRUD расходов.
  *
  * @module controllers/ReportsController
  */
@@ -22,7 +22,7 @@ import { renderDashboard, drawCharts } from '../components/ReportDashboard.js';
 import { renderSalesTab } from '../components/ReportSales.js';
 import { renderProductsTab } from '../components/ReportProducts.js';
 import { renderShiftsTab } from '../components/ReportShifts.js';
-import { renderExpensesTab } from '../components/ReportExpenses.js';
+import { renderExpensesTab, bindExpensesEvents } from '../components/ReportExpenses.js';
 
 // ============================================================
 // Состояние
@@ -37,8 +37,8 @@ const state = {
     expenses: [],
     isLoading: true,
     loadError: null,
-    /** @type {number|null} ID таймаута для отложенной отрисовки графиков */
-    _chartsTimeoutId: null
+    _chartsTimeoutId: null,
+    _expensesTimeoutId: null
 };
 
 // ============================================================
@@ -251,10 +251,14 @@ function renderTabContent() {
 function renderContent() {
     if (!DOM.content) return;
 
-    // Сбрасываем таймер графиков чтобы избежать множественных вызовов
+    // Сбрасываем таймеры
     if (state._chartsTimeoutId !== null) {
         clearTimeout(state._chartsTimeoutId);
         state._chartsTimeoutId = null;
+    }
+    if (state._expensesTimeoutId !== null) {
+        clearTimeout(state._expensesTimeoutId);
+        state._expensesTimeoutId = null;
     }
 
     DOM.content.innerHTML = `
@@ -273,7 +277,7 @@ function renderContent() {
         });
     });
 
-    // Отрисовка графиков после вставки дашборда в DOM
+    // Графики для дашборда
     if (state.activeTab === 'dashboard' && !state.isLoading && !state.loadError) {
         state._chartsTimeoutId = setTimeout(() => {
             state._chartsTimeoutId = null;
@@ -283,6 +287,16 @@ function renderContent() {
                 console.error('[Reports] drawCharts error:', err);
             }
         }, 200);
+    }
+
+    // Обработчики для вкладки расходов
+    if (state.activeTab === 'expenses' && !state.isLoading && !state.loadError) {
+        state._expensesTimeoutId = setTimeout(() => {
+            state._expensesTimeoutId = null;
+            bindExpensesEvents(state, () => {
+                loadData().then(() => renderContent());
+            });
+        }, 100);
     }
 }
 
@@ -319,7 +333,7 @@ function bindEvents() {
 }
 
 async function init() {
-    console.log('[Reports] v8 - charts + CSV export');
+    console.log('[Reports] v9 - CRUD expenses + modal');
     console.log('[Reports] init() started');
 
     // 1. Вставляем навигацию синхронно
