@@ -13,30 +13,36 @@
 
     <!-- PWA -->
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#0f172a">
+    <meta name="theme-color" content="#1a3c2a">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
 
+    <!-- Шрифт Lobster для названия -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lobster&display=swap" rel="stylesheet">
+
     <!-- Стили -->
-    <link rel="stylesheet" href="css/base/variables.css">
-    <link rel="stylesheet" href="css/base/reset.css">
-    <link rel="stylesheet" href="css/base/typography.css">
-    <link rel="stylesheet" href="css/components/buttons.css">
-    <link rel="stylesheet" href="css/components/forms.css">
-    <link rel="stylesheet" href="css/components/tables.css">
-    <link rel="stylesheet" href="css/components/modal.css">
-    <link rel="stylesheet" href="css/components/notifications.css">
-    <link rel="stylesheet" href="css/components/product-card.css">
-    <link rel="stylesheet" href="css/components/cart.css">
-    <link rel="stylesheet" href="css/layouts/app.css">
-    <link rel="stylesheet" href="css/layouts/cashier.css">
-    <link rel="stylesheet" href="css/layouts/inventory.css">
-    <link rel="stylesheet" href="css/layouts/reports.css">
-    <link rel="stylesheet" href="css/utils/utilities.css">
-    <link rel="stylesheet" href="css/utils/responsive.css">
+    <link rel="stylesheet" href="css/styles.css">
 
     <style>
+        /* ============================================================
+           Уникальные стили страницы входа (не переопределяют компоненты)
+           ============================================================ */
+
+        :root {
+            --login-accent: #1a3c2a;
+            --login-accent-hover: #153023;
+            --login-bg: #f5f2ed;
+            --login-card: #ffffff;
+            --login-text: #1e1a16;
+            --login-text-secondary: #6b5e53;
+            --login-border: #d4ccc3;
+            --login-error: #b91c1c;
+            --login-error-bg: #fdf2f2;
+        }
+
         html {
             height: 100%;
             overflow: hidden;
@@ -58,116 +64,305 @@
             min-height: 100dvh;
             height: 100%;
             padding: 16px;
-            background: var(--color-bg);
+            background: var(--login-bg);
             overflow: hidden;
         }
 
         .login-card {
             width: 100%;
-            max-width: 400px;
-            padding: 40px;
-            background: var(--color-white);
-            border-radius: var(--radius-xl);
-            box-shadow: var(--shadow-lg);
-            border: var(--border-width) solid var(--color-border);
+            max-width: 380px;
+            padding: 44px 40px 36px;
+            background: var(--login-card);
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.03);
+            border: 1px solid var(--login-border);
         }
 
+        /* Шапка: иконка + название + подзаголовок */
         .login-header {
             text-align: center;
             margin-bottom: 32px;
         }
 
-        .login-header h1 {
-            font-size: 24px;
-            font-weight: 700;
-            color: var(--color-text);
-            margin-bottom: 4px;
+        .login-icon {
+            display: block;
+            margin: 0 auto 12px;
+            width: 44px;
+            height: 44px;
+            color: var(--login-accent);
         }
 
-        .login-header p {
-            font-size: 14px;
-            color: var(--color-text-secondary);
+        .login-title {
+            font-family: 'Lobster', cursive;
+            font-size: 28px;
+            font-weight: 400;
+            color: var(--login-accent);
+            margin: 0 0 4px;
+            line-height: 1.2;
+            letter-spacing: 0.01em;
         }
 
+        .login-subtitle {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            font-size: 13px;
+            font-weight: 400;
+            color: var(--login-text-secondary);
+            margin: 0;
+        }
+
+        /* Офлайн-баннер — снаружи карточки */
         .offline-banner {
             display: none;
-            padding: 12px;
-            margin-bottom: 16px;
-            background: var(--color-warning-bg);
-            border-radius: var(--radius-md);
-            color: var(--color-warning-dark);
-            font-size: 14px;
+            max-width: 380px;
+            width: 100%;
+            margin: 0 auto 16px;
+            padding: 12px 16px;
+            background: #fef9e7;
+            border-radius: 8px;
+            color: #8b6914;
+            font-size: 13px;
             text-align: center;
-            border-left: 3px solid var(--color-warning);
+            border-left: 3px solid #e5a50a;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
         }
 
         .offline-banner.show {
             display: block;
         }
 
+        /* Ошибка формы */
         .form-error {
             display: none;
-            padding: 10px 12px;
+            padding: 10px 14px;
             margin-bottom: 16px;
-            background: var(--color-danger-bg);
-            border-radius: var(--radius-md);
-            color: var(--color-danger-dark);
-            font-size: 13px;
-            border-left: 3px solid var(--color-danger);
+            background: var(--login-error-bg);
+            border-radius: 8px;
+            color: var(--login-error);
+            font-size: 12px;
+            border-left: 3px solid var(--login-error);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
         }
 
         .form-error.show {
             display: block;
         }
 
-        .btn-login {
-            width: 100%;
-            height: 44px;
-            margin-top: 8px;
-            font-size: 15px;
-            font-weight: 600;
+        /* Поля ввода с иконками */
+        .input-group {
+            position: relative;
+            margin-bottom: 16px;
         }
 
+        .input-group .input-icon {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 16px;
+            height: 16px;
+            color: var(--login-text-secondary);
+            pointer-events: none;
+            opacity: 0.55;
+        }
+
+        .input-group input {
+            width: 100%;
+            height: 44px;
+            padding: 0 14px 0 42px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            font-size: 15px;
+            font-weight: 400;
+            color: var(--login-text);
+            background: var(--login-card);
+            border: 1px solid var(--login-border);
+            border-radius: 8px;
+            outline: none;
+            box-sizing: border-box;
+            transition: border-color 0.15s;
+        }
+
+        .input-group input:focus {
+            border-color: var(--login-accent);
+            box-shadow: 0 0 0 3px rgba(26, 60, 42, 0.08);
+        }
+
+        .input-group input::placeholder {
+            color: #aaa59e;
+        }
+
+        /* Ошибка поля */
+        .field-error {
+            margin-top: 4px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            font-size: 12px;
+            font-weight: 400;
+            color: var(--login-error);
+            min-height: 16px;
+        }
+
+        /* Кнопка */
+        .btn-login {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+            height: 46px;
+            margin-top: 4px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            font-size: 15px;
+            font-weight: 500;
+            color: #ffffff;
+            background: var(--login-accent);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.15s;
+        }
+
+        .btn-login:hover {
+            background: var(--login-accent-hover);
+        }
+
+        .btn-login:active {
+            background: #0e2118;
+        }
+
+        .btn-login:disabled {
+            opacity: 0.65;
+            cursor: not-allowed;
+        }
+
+        /* Спиннер внутри кнопки */
+        .btn-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: #ffffff;
+            border-radius: 50%;
+            animation: btn-spin 0.6s linear infinite;
+        }
+
+        @keyframes btn-spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Подсказка под кнопкой */
+        .login-hint {
+            margin-top: 14px;
+            text-align: center;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            font-size: 11px;
+            font-weight: 400;
+            color: var(--login-text-secondary);
+        }
+
+        .login-hint kbd {
+            display: inline-block;
+            padding: 1px 6px;
+            font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Mono', monospace;
+            font-size: 10px;
+            background: #f0ede8;
+            border: 1px solid var(--login-border);
+            border-radius: 4px;
+        }
+
+        /* Адаптивность */
         @media (max-width: 480px) {
             .login-card {
-                padding: 24px;
+                padding: 32px 24px 28px;
+            }
+
+            .login-icon {
+                width: 40px;
+                height: 40px;
+            }
+
+            .login-title {
+                font-size: 24px;
             }
         }
     </style>
 </head>
 <body>
     <div class="login-page">
-        <div class="login-card">
-            <div class="login-header">
-                <h1>Чуланчик</h1>
-                <p>Комиссионный магазин</p>
-            </div>
+        <div style="width: 100%; max-width: 380px;">
 
+            <!-- Офлайн-баннер (вне карточки) -->
             <div class="offline-banner" id="offlineBanner">
                 Нет подключения к интернету
             </div>
 
-            <div class="form-error" id="formError"></div>
+            <div class="login-card">
+                <!-- Шапка -->
+                <div class="login-header">
+                    <!-- SVG-иконка шкафа -->
+                    <svg class="login-icon" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="3" y="2" width="38" height="40" rx="2" stroke="currentColor" stroke-width="2.5" fill="none"/>
+                        <line x1="22" y1="2" x2="22" y2="42" stroke="currentColor" stroke-width="1.5"/>
+                        <circle cx="17" cy="24" r="1.8" fill="currentColor"/>
+                    </svg>
 
-            <form id="loginForm">
-                <div class="form-group">
-                    <label for="email">Email</label>
-                    <input type="email" id="email" placeholder="user@example.com"
-                        autocomplete="email" required>
-                    <div class="field-error" id="emailError"></div>
+                    <h1 class="login-title">Чуланчик</h1>
+                    <p class="login-subtitle">Учёт товаров и продаж</p>
                 </div>
 
-                <div class="form-group">
-                    <label for="password">Пароль</label>
-                    <input type="password" id="password" placeholder="........"
-                        autocomplete="current-password" required>
-                    <div class="field-error" id="passwordError"></div>
-                </div>
+                <!-- Ошибка входа -->
+                <div class="form-error" id="formError"></div>
 
-                <button type="submit" class="btn-primary btn-login" id="loginBtn">
-                    Войти
-                </button>
-            </form>
+                <!-- Форма -->
+                <form id="loginForm">
+                    <!-- Email -->
+                    <div class="form-group">
+                        <div class="input-group">
+                            <svg class="input-icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <rect x="1" y="3" width="14" height="10" rx="1.5" stroke="currentColor" stroke-width="1.2"/>
+                                <path d="M1.5 4L7.2 8.4C7.6 8.75 8.4 8.75 8.8 8.4L14.5 4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                            </svg>
+                            <input
+                                type="email"
+                                id="email"
+                                placeholder="email"
+                                autocomplete="email"
+                                required
+                            >
+                        </div>
+                        <div class="field-error" id="emailError"></div>
+                    </div>
+
+                    <!-- Пароль -->
+                    <div class="form-group">
+                        <div class="input-group">
+                            <svg class="input-icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <rect x="2.5" y="6" width="11" height="8" rx="1.5" stroke="currentColor" stroke-width="1.2"/>
+                                <circle cx="8" cy="10" r="1.2" fill="currentColor"/>
+                                <path d="M8 11.2V12.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                                <path d="M5.5 6V3.5C5.5 2.12 6.62 1 8 1C9.38 1 10.5 2.12 10.5 3.5V6" stroke="currentColor" stroke-width="1.2"/>
+                            </svg>
+                            <input
+                                type="password"
+                                id="password"
+                                placeholder="пароль"
+                                autocomplete="current-password"
+                                required
+                            >
+                        </div>
+                        <div class="field-error" id="passwordError"></div>
+                    </div>
+
+                    <!-- Кнопка -->
+                    <button type="submit" class="btn-login" id="loginBtn">
+                        Войти
+                    </button>
+
+                    <!-- Подсказка -->
+                    <div class="login-hint">
+                        Нажмите <kbd>Enter</kbd> для входа
+                    </div>
+                </form>
+            </div>
+
         </div>
     </div>
 
