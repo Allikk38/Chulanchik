@@ -3,21 +3,22 @@
  * 
  * Строгая, читаемая система дизайна для бизнес-приложений.
  * Минимум анимаций, максимум контраста и иерархии.
+ * Тёплая цветовая гамма, единая со страницей входа.
  * 
  * @stylesheet variables
- * @version 5.0.0
+ * @version 6.0.0
  * @changes
+ * - v6.0.0: Тёплая гамма. Основной акцент — тёмно-зелёный #1a3c2a.
  * - Удалено агрессивное правило * { animation-duration: 0.01ms !important; }
  * - Добавлена поддержка prefers-reduced-motion.
- * - Удалены дублирующиеся переменные.
  */
 
 :root {
     /* ========== ОСНОВНЫЕ ЦВЕТА ========== */
-    --color-primary: #2563eb;
-    --color-primary-light: #3b82f6;
-    --color-primary-dark: #1d4ed8;
-    --color-primary-bg: #eff6ff;
+    --color-primary: #1a3c2a;
+    --color-primary-light: #2d5a3d;
+    --color-primary-dark: #153023;
+    --color-primary-bg: #e8f0ea;
     
     /* ========== НЕЙТРАЛЬНЫЕ ЦВЕТА (SLATE) ========== */
     --color-white: #ffffff;
@@ -56,15 +57,15 @@
     --color-info-bg: #f0f9ff;
 
     /* ========== КОНТЕКСТНЫЕ ЦВЕТА ========== */
-    --color-bg: #f1f5f9;
-    --color-bg-secondary: #f8fafc;
-    --color-border: #e2e8f0;
-    --color-border-light: #f1f5f9;
+    --color-bg: #f5f2ed;
+    --color-bg-secondary: #faf9f7;
+    --color-border: #e0dbd3;
+    --color-border-light: #f0ede8;
     
-    --color-text: #0f172a;
-    --color-text-secondary: #475569;
-    --color-text-muted: #64748b;
-    --color-text-disabled: #94a3b8;
+    --color-text: #1e1a16;
+    --color-text-secondary: #6b5e53;
+    --color-text-muted: #8c7b6e;
+    --color-text-disabled: #b8afa5;
     
     /* ========== ТИПОГРАФИКА ========== */
     --font-family-base: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -125,7 +126,7 @@
     --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
     --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
     --shadow-inner: inset 0 1px 2px rgba(0, 0, 0, 0.04);
-    --shadow-outline: 0 0 0 2px rgba(37, 99, 235, 0.2);
+    --shadow-outline: 0 0 0 2px rgba(26, 60, 42, 0.2);
     
     /* ========== АНИМАЦИИ ========== */
     --transition-fast: 100ms;
@@ -173,7 +174,6 @@
 }
 
 /* ========== ПОДДЕРЖКА REDUCED MOTION ========== */
-/* Уважаем настройки пользователя в ОС */
 @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
