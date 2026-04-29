@@ -885,23 +885,20 @@ function bindEvents() {
 }
 
 async function init() {
-    const { user, authError } = await requireAuth();
-    if (authError || !user) {
-        window.location.href = 'pages/login.html';
-        return;
-    }
+    console.log('[Reports] init() started');
 
-    state.user = user;
-
-    // Рендерим шапку через AppHeader
+    // 1. Вставляем навигацию синхронно, до любых асинхронных операций
     const headerHtml = renderAppHeader({
         currentPage: 'reports',
-        userName: user.fullName || user.email?.split('@')[0] || 'Пользователь'
+        userName: 'Пользователь'
     });
 
     const appEl = document.querySelector('.app');
     if (appEl) {
         appEl.insertAdjacentHTML('afterbegin', headerHtml);
+        console.log('[Reports] header inserted into .app');
+    } else {
+        console.error('[Reports] .app element not found in DOM');
     }
 
     bindAppHeaderEvents({
@@ -919,13 +916,30 @@ async function init() {
         onLogout: () => logout()
     });
 
+    // 2. Проверяем авторизацию
+    const { user, authError } = await requireAuth();
+    if (authError || !user) {
+        window.location.href = 'pages/login.html';
+        return;
+    }
+
+    state.user = user;
+    console.log('[Reports] user authenticated:', user.email);
+
+    // 3. Обновляем имя пользователя в уже вставленной шапке
+    updateUserName(user.fullName || user.email?.split('@')[0] || 'Пользователь');
+
+    // 4. Кэшируем DOM и вешаем события
     cacheDom();
     bindEvents();
 
+    // 5. Загружаем данные
     await productStore.loadProducts();
     await expenseStore.loadExpenses();
     await loadData();
     renderContent();
+
+    console.log('[Reports] init() completed');
 }
 
 // ============================================================
