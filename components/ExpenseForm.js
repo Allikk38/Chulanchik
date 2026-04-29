@@ -11,8 +11,9 @@
  * @module components/ExpenseForm
  */
 
-import { supabase } from '../core/supabase-client.js';
 import { formatMoney, escapeHtml } from '../utils/formatters.js';
+import { ExpenseRepository } from '../repositories/ExpenseRepository.js';
+import { ExpenseService } from '../services/ExpenseService.js';
 
 // ============================================================
 // Константы
@@ -53,22 +54,25 @@ function modalHtml({ mode, initialData }) {
                 <button class="btn-close" id="efClose">x</button>
             </div>
             <div class="modal-body">
-                <div class="receipt-upload-section">
-                    <label class="receipt-upload-label">Чек (опционально)</label>
-                    <div class="receipt-upload-container">
-                        <div class="receipt-preview ${hasReceipt ? 'has-image' : ''}" id="efPreview">
-                            <div class="receipt-placeholder-icon" id="efPlaceholder" style="display:${hasReceipt ? 'none' : 'flex'}">
-                                📄 Чек
+                <div class="photo-upload-section">
+                    <label class="photo-upload-label">Чек (опционально)</label>
+                    <div class="photo-upload-container">
+                        <div class="photo-preview ${hasReceipt ? 'has-image' : ''}" id="efPreview">
+                            <div class="photo-placeholder-icon" id="efPlaceholder" style="display:${hasReceipt ? 'none' : 'flex'}">
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.4">
+                                    <rect x="3" y="3" width="18" height="18" rx="2"/>
+                                    <path d="M3 16l5-5 2 2 4-4 7 7"/>
+                                </svg>
                             </div>
                             <img id="efImg" src="${escapeHtml(initialData.receipt_url || '')}" alt=""
                                 style="display:${hasReceipt ? 'block' : 'none'}">
                         </div>
-                        <div class="receipt-upload-controls">
+                        <div class="photo-upload-controls">
                             <input type="file" id="efReceiptInput" accept="image/*" style="display:none">
-                            <button type="button" class="receipt-upload-btn" id="efUploadBtn">Выбрать чек</button>
-                            <button type="button" class="receipt-upload-btn receipt-remove-btn" id="efRemoveBtn"
+                            <button type="button" class="photo-upload-btn" id="efUploadBtn">Выбрать чек</button>
+                            <button type="button" class="photo-upload-btn photo-remove-btn" id="efRemoveBtn"
                                 style="display:${hasReceipt ? 'inline-flex' : 'none'}">Удалить</button>
-                            <span class="receipt-upload-hint">JPG, PNG, WEBP до 5 MB</span>
+                            <span class="photo-upload-hint">JPG, PNG, WEBP до 5 MB</span>
                         </div>
                     </div>
                 </div>
@@ -193,7 +197,7 @@ export function openExpenseFormModal({ mode = 'create', initialData = {}, userId
             reader.readAsDataURL(file);
         };
 
-        $('efRemoveBtn').onclick = async () => {
+        $('efRemoveBtn').onclick = () => {
             receiptFile = null;
             receiptUrl = null;
             $('efPreview').classList.remove('has-image');
@@ -246,7 +250,6 @@ export function openExpenseFormModal({ mode = 'create', initialData = {}, userId
                 let finalReceiptUrl = receiptUrl;
 
                 if (receiptFile && !receiptUrl?.startsWith('http')) {
-                    const { ExpenseRepository } = await import('../repositories/ExpenseRepository.js');
                     finalReceiptUrl = await ExpenseRepository.uploadReceipt(receiptFile);
                 }
 
@@ -259,7 +262,6 @@ export function openExpenseFormModal({ mode = 'create', initialData = {}, userId
                     userId
                 };
 
-                const { ExpenseService } = await import('../services/ExpenseService.js');
                 let result;
 
                 if (mode === 'create') {
