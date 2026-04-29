@@ -52,7 +52,16 @@ const state = {
     },
 
     isLoadingExpenses: false,
-    isRendering: false
+    isRendering: false,
+
+    /** @type {number|null} ID таймаута для графиков */
+    _chartsTimeoutId: null,
+
+    /** @type {number|null} ID таймаута для биндинга расходов */
+    _expensesTimeoutId: null,
+
+    /** @type {boolean} запланирован ли повторный рендер */
+    _pendingRender: false
 };
 
 // ============================================================
@@ -180,24 +189,44 @@ async function loadExpenses() {
 }
 
 // ============================================================
+// Планировщик рендеринга (замена рекурсивных вызовов)
+// ============================================================
+
+/**
+ * Запрашивает рендеринг. Если рендеринг уже идёт — ставит в очередь.
+ * Гарантирует максимум один отложенный рендер.
+ */
+function requestRender() {
+    if (state.isRendering) {
+        state._pendingRender = true;
+        return;
+    }
+    renderContent();
+}
+
+// ============================================================
 // Рендеринг
 // ============================================================
 
 function renderContent() {
     if (!DOM.content) return;
+
     if (state.isRendering) {
-        // Очередь на перерисовку после завершения текущей
-        if (!state._pendingRender) {
-            state._pendingRender = true;
-            Promise.resolve().then(() => {
-                state._pendingRender = false;
-                renderContent();
-            });
-        }
+        state._pendingRender = true;
         return;
     }
 
     state.isRendering = true;
+
+    // Очищаем предыдущие таймауты, чтобы избежать множественных подписок
+    if (state._chartsTimeoutId !== null) {
+        clearTimeout(state._chartsTimeoutId);
+        state._chartsTimeoutId = null;
+    }
+    if (state._expensesTimeoutId !== null) {
+        clearTimeout(state._expensesTimeoutId);
+        state._expensesTimeoutId = null;
+    }
 
     try {
         const tabs = ['dashboard', 'sales', 'products', 'shifts', 'expenses'];
@@ -241,18 +270,20 @@ function renderContent() {
             </div>
             <div class="reports-content-inner">${body}</div>`;
 
-        // Обработчики табов
+        // Обработчики табов — без блокировки, используют requestRender
         DOM.content.querySelectorAll('[data-tab]').forEach(btn => {
             btn.addEventListener('click', () => {
-                if (state.isRendering) return;
-                state.activeTab = btn.dataset.tab;
-                renderContent();
+                const newTab = btn.dataset.tab;
+                if (state.activeTab === newTab) return;
+                state.activeTab = newTab;
+                requestRender();
             });
         });
 
         // Графики после вставки в DOM
         if (state.activeTab === 'dashboard') {
-            setTimeout(() => {
+            state._chartsTimeoutId = setTimeout(() => {
+                state._chartsTimeoutId = null;
                 try {
                     drawCharts(state);
                 } catch (err) {
@@ -263,15 +294,22 @@ function renderContent() {
 
         // Биндинг событий для вкладки расходов
         if (state.activeTab === 'expenses') {
-            setTimeout(() => {
+            state._expensesTimeoutId = setTimeout(() => {
+                state._expensesTimeoutId = null;
                 bindExpensesEvents(state, () => {
-                    if (state.isRendering) return;
-                    loadExpenses().then(() => renderContent());
+                    loadExpenses().then(() => requestRender());
                 });
             }, 100);
         }
+
     } finally {
         state.isRendering = false;
+
+        // Если за время рендеринга был запрошен повторный — выполняем
+        if (state._pendingRender) {
+            state._pendingRender = false;
+            renderContent();
+        }
     }
 }
 
@@ -369,13 +407,13 @@ function bindEvents() {
     DOM.periodSelect?.addEventListener('change', async (e) => {
         state.period = e.target.value;
         await loadData();
-        renderContent();
+        requestRender();
     });
 
     DOM.refreshBtn?.addEventListener('click', async () => {
         await productStore.loadProducts({ force: true });
         await loadData();
-        renderContent();
+        requestRender();
     });
 
     DOM.exportBtn?.addEventListener('click', exportCsv);
@@ -390,7 +428,7 @@ function bindEvents() {
     // Подписка на productStore — с защитой от рекурсии
     productStore.on('change', () => {
         if (!state.isRendering && DOM.content && document.getElementById('reportsContent')) {
-            renderContent();
+            requestRender();
         }
     });
 
@@ -399,7 +437,7 @@ function bindEvents() {
         if (!state.isRendering && DOM.content && document.getElementById('reportsContent')) {
             if (state.activeTab === 'expenses' || state.activeTab === 'dashboard') {
                 loadExpenses().then(() => {
-                    if (!state.isRendering) renderContent();
+                    if (!state.isRendering) requestRender();
                 });
             }
         }
@@ -455,7 +493,7 @@ async function init() {
     await productStore.loadProducts();
     await expenseStore.loadExpenses();
     await loadData();
-    renderContent();
+    requestRender();
 
     console.log('[Reports] init() completed');
 }

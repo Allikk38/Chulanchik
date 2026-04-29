@@ -145,9 +145,23 @@ async function handleExportExpensesPdf(state) {
 // Биндинг событий
 // ============================================================
 
+/**
+ * Привязывает обработчики событий к DOM-элементам вкладки расходов.
+ * Защищён от повторного биндинга через data-атрибут на контейнере.
+ *
+ * @param {Object} state
+ * @param {Function} onDataChanged
+ */
 export function bindExpensesEvents(state, onDataChanged) {
     const expensesContainer = document.getElementById('expensesTableContainer');
+
     if (expensesContainer) {
+        // Предотвращаем повторный биндинг
+        if (expensesContainer.dataset.eventsBound === 'true') {
+            return;
+        }
+        expensesContainer.dataset.eventsBound = 'true';
+
         bindExpenseListEvents(expensesContainer, {
             onEdit: (id) => editExpense(state, id, onDataChanged),
             onDelete: (id) => deleteExpense(id, onDataChanged),
@@ -157,13 +171,15 @@ export function bindExpensesEvents(state, onDataChanged) {
 
     // Кнопка добавления
     const addBtn = document.getElementById('addExpenseBtn');
-    if (addBtn) {
+    if (addBtn && !addBtn.dataset.eventsBound) {
+        addBtn.dataset.eventsBound = 'true';
         addBtn.addEventListener('click', () => addExpense(state, onDataChanged));
     }
 
     // Кнопка экспорта PDF
     const exportPdfBtn = document.getElementById('exportExpensesPdfBtn');
-    if (exportPdfBtn) {
+    if (exportPdfBtn && !exportPdfBtn.dataset.eventsBound) {
+        exportPdfBtn.dataset.eventsBound = 'true';
         exportPdfBtn.addEventListener('click', () => handleExportExpensesPdf(state));
     }
 
@@ -173,28 +189,32 @@ export function bindExpensesEvents(state, onDataChanged) {
     const categorySelect = document.getElementById('expenseCategory');
     const resetBtn = document.getElementById('resetExpenseFilters');
 
-    if (fromDateInput) {
+    if (fromDateInput && !fromDateInput.dataset.eventsBound) {
+        fromDateInput.dataset.eventsBound = 'true';
         fromDateInput.addEventListener('change', () => {
             state.expenseFilters.fromDate = fromDateInput.value;
             onDataChanged();
         });
     }
 
-    if (toDateInput) {
+    if (toDateInput && !toDateInput.dataset.eventsBound) {
+        toDateInput.dataset.eventsBound = 'true';
         toDateInput.addEventListener('change', () => {
             state.expenseFilters.toDate = toDateInput.value;
             onDataChanged();
         });
     }
 
-    if (categorySelect) {
+    if (categorySelect && !categorySelect.dataset.eventsBound) {
+        categorySelect.dataset.eventsBound = 'true';
         categorySelect.addEventListener('change', () => {
             state.expenseFilters.category = categorySelect.value;
             onDataChanged();
         });
     }
 
-    if (resetBtn) {
+    if (resetBtn && !resetBtn.dataset.eventsBound) {
+        resetBtn.dataset.eventsBound = 'true';
         resetBtn.addEventListener('click', () => {
             state.expenseFilters = { fromDate: '', toDate: '', category: '' };
             onDataChanged();
@@ -203,7 +223,8 @@ export function bindExpensesEvents(state, onDataChanged) {
 
     // Кнопка «Все расходы» на дашборде
     const viewAllBtn = document.getElementById('viewAllExpensesBtn');
-    if (viewAllBtn) {
+    if (viewAllBtn && !viewAllBtn.dataset.eventsBound) {
+        viewAllBtn.dataset.eventsBound = 'true';
         viewAllBtn.addEventListener('click', () => {
             state.activeTab = 'expenses';
             onDataChanged();
