@@ -4,12 +4,13 @@
  * Строгие модальные окна для бизнес-приложений.
  * Без анимаций, без эффектов стекла.
  * Тёплая цветовая гамма, единая с переменными приложения.
+ * Футер всегда видим, не уезжает за экран.
  * 
  * @stylesheet modal
- * @version 6.0.0
+ * @version 6.1.0
  * @changes
+ * - v6.1.0: Исправлено: футер модалки всегда видим, даже на мобильных с длинным контентом.
  * - v6.0.0: Тёплая гамма. Замена жёстких цветов на переменные.
- * - v5.1.0: Добавлены стили для .product-form-modal.
  */
 
 /* ========== MODAL OVERLAY ========== */
@@ -92,6 +93,7 @@
     padding: var(--spacing-5);
     overflow-y: auto;
     flex: 1;
+    min-height: 0;
     color: var(--color-text);
     background: var(--color-white);
 }
@@ -110,6 +112,7 @@
     display: flex;
     gap: var(--spacing-3);
     justify-content: flex-end;
+    z-index: 1;
 }
 
 /* ========== CONFIRM DIALOG ========== */
@@ -456,6 +459,10 @@
         max-width: 100%;
         max-height: 95vh;
     }
+
+    .modal-body {
+        -webkit-overflow-scrolling: touch;
+    }
     
     .product-form-modal {
         max-width: 100%;
@@ -501,29 +508,34 @@
     .modal-overlay,
     .modal-backdrop {
         padding: 0;
+        align-items: flex-end;
     }
     
     .modal {
-        max-height: 100vh;
-        border-radius: 0;
-        border: none;
+        max-height: 85vh;
+        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+        border-bottom: none;
     }
     
     .modal-header {
         padding: var(--spacing-3) var(--spacing-4);
+        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
     }
     
     .modal-body {
         padding: var(--spacing-4);
+        -webkit-overflow-scrolling: touch;
     }
     
     .modal-footer {
         padding: var(--spacing-3) var(--spacing-4);
-        flex-direction: column;
+        flex-direction: row;
+        flex-shrink: 0;
     }
     
     .modal-footer .btn {
-        width: 100%;
+        flex: 1;
+        min-width: 0;
     }
     
     .photo-preview {
