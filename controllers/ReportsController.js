@@ -131,7 +131,6 @@ async function loadData() {
         state.sales = sales;
         state.shifts = shifts;
         
-        // Загружаем расходы за тот же период
         await loadExpenses();
         
     } catch (err) {
@@ -141,14 +140,36 @@ async function loadData() {
 }
 
 async function loadExpenses() {
-    const { from, to } = getPeriodDates();
-    
     state.isLoadingExpenses = true;
     
     try {
         await expenseStore.loadExpenses();
         
-        let expenses = expenseStore.getByPeriod(from, to);
+        let expenses = expenseStore.getAll();
+        
+        // Определяем даты для фильтрации
+        let fromDate, toDate;
+        
+        if (state.expenseFilters.fromDate) {
+            fromDate = state.expenseFilters.fromDate;
+        }
+        if (state.expenseFilters.toDate) {
+            toDate = state.expenseFilters.toDate;
+        }
+        
+        // Если фильтры не заданы, используем период из основного селектора
+        if (!fromDate && !toDate) {
+            const { from, to } = getPeriodDates();
+            fromDate = from;
+            toDate = to;
+        }
+        
+        if (fromDate) {
+            expenses = expenses.filter(e => e.expense_date >= fromDate);
+        }
+        if (toDate) {
+            expenses = expenses.filter(e => e.expense_date <= toDate);
+        }
         
         if (state.expenseFilters.category) {
             expenses = expenses.filter(e => e.category === state.expenseFilters.category);
@@ -179,9 +200,7 @@ function computeOverview() {
     const stockValue = productStore.getStats().stockValue;
     const potentialProfit = productStore.getStats().potentialProfit;
     
-    // Расходы за период
-    const expenses = expenseStore.getByPeriod(getPeriodDates().from, getPeriodDates().to);
-    const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+    const totalExpenses = state.expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
     const netProfit = profit - totalExpenses;
 
     return { revenue, profit, margin, count, avgCheck, inStock, stockValue, potentialProfit, totalExpenses, netProfit };
@@ -221,8 +240,10 @@ function computeTopCategories(limit = 5) {
 function computeShiftsBySeller() {
     const bySeller = {};
     state.shifts.forEach(shift => {
-        const name = shift.seller_name || 'Неизвестный';
-        if (!bySeller[name]) bySeller[name] = { shifts: 0, salesCount: 0, revenue: 0, profit: 0 };
+        const name = shift.seller_name || shift.user_name || 'Неизвестный';
+        if (!bySeller[name]) {
+            bySeller[name] = { shifts: 0, salesCount: 0, revenue: 0, profit: 0 };
+        }
         bySeller[name].shifts += 1;
         bySeller[name].salesCount += shift.sales_count || 0;
         bySeller[name].revenue += shift.total_revenue || 0;
@@ -460,7 +481,13 @@ function renderShiftsTab() {
                 <table class="data-table">
                     <thead><tr><th>Продавец</th><th>Смен</th><th>Продаж</th><th>Выручка</th><th>Прибыль</th></tr></thead>
                     <tbody>${Object.entries(bySeller).map(([name, s]) => `
-                        <tr><td>${escapeHtml(name)}</td><td>${s.shifts}</td><td>${s.salesCount}</td><td class="money">${formatMoney(s.revenue)}</td><td class="money">${formatMoney(s.profit)}</td></tr>
+                        <tr>
+                            <td>${escapeHtml(name)}</td>
+                            <td>${s.shifts}</td>
+                            <td>${s.salesCount}</td>
+                            <td class="money">${formatMoney(s.revenue)}</td>
+                            <td class="money">${formatMoney(s.profit)}</td>
+                        </tr>
                     `).join('')}</tbody>
                 </table>
             </div>
@@ -474,7 +501,7 @@ function renderShiftsTab() {
                             <tr>
                                 <td>${formatDateTime(s.opened_at)}</td>
                                 <td>${s.closed_at ? formatDateTime(s.closed_at) : '--'}</td>
-                                <td>${escapeHtml(s.seller_name || '--')}</td>
+                                <td>${escapeHtml(s.seller_name || s.user_name || '--')}</td>
                                 <td>${s.sales_count || 0}</td>
                                 <td class="money">${formatMoney(s.total_revenue || 0)}</td>
                                 <td><span class="status-badge ${s.closed_at ? 'status-sold' : 'status-in_stock'}">${s.closed_at ? 'Закрыта' : 'Активна'}</span></td>
@@ -690,17 +717,6 @@ function renderContent() {
     if (state.activeTab === 'expenses') {
         setTimeout(() => bindExpensesEvents(), 100);
     }
-    
-    // Кнопки PDF на дашборде
-    if (state.activeTab === 'dashboard') {
-        const existingBtn = document.getElementById('exportFinancialPdfBtn');
-        if (!existingBtn) {
-            const headerRight = DOM.content.querySelector('.reports-header .period-selector');
-            if (headerRight && DOM.exportPdfBtn) {
-                // добавим позже через DOM
-            }
-        }
-    }
 }
 
 function bindExpensesEvents() {
@@ -870,11 +886,8 @@ function bindEvents() {
     });
     
     expenseStore.on('change', () => {
-        if (DOM.content && state.activeTab === 'expenses') {
-            renderContent();
-        }
-        if (DOM.content && state.activeTab === 'dashboard') {
-            renderContent();
+        if (DOM.content && (state.activeTab === 'expenses' || state.activeTab === 'dashboard')) {
+            loadExpenses().then(() => renderContent());
         }
     });
 }
