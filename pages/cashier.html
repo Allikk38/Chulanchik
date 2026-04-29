@@ -13,7 +13,7 @@
 
     <!-- PWA -->
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#0f172a">
+    <meta name="theme-color" content="#1a3c2a">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
@@ -22,11 +22,10 @@
     <link rel="stylesheet" href="css/styles.css">
 
     <style>
-        /* ============================================================ */
-        /* Уникальные стили страницы кассы (не переопределяют компоненты) */
-        /* ============================================================ */
+        /* ============================================================
+           Уникальные стили страницы кассы (не переопределяют компоненты)
+           ============================================================ */
 
-        /* Контейнер страницы */
         .cashier-page {
             display: flex;
             flex-direction: column;
@@ -35,7 +34,6 @@
             background: var(--color-bg);
         }
 
-        /* Сетка — десктоп: две колонки */
         .cashier-layout {
             display: grid;
             grid-template-columns: 1fr 380px;
@@ -50,7 +48,6 @@
             justify-content: center;
         }
 
-        /* Левая панель */
         .products-panel {
             display: flex;
             flex-direction: column;
@@ -58,7 +55,6 @@
             overflow: hidden;
         }
 
-        /* Строка смены */
         .shift-bar {
             display: flex;
             align-items: center;
@@ -111,7 +107,6 @@
             display: block;
         }
 
-        /* Тулбар */
         .products-toolbar {
             display: flex;
             align-items: center;
@@ -154,18 +149,26 @@
         }
 
         .search-wrapper::before {
-            content: '>';
+            content: '';
             position: absolute;
             left: 12px;
             top: 50%;
             transform: translateY(-50%);
-            font-size: 14px;
-            font-weight: 600;
-            opacity: 0.4;
+            width: 16px;
+            height: 16px;
+            background: currentColor;
+            opacity: 0.35;
             pointer-events: none;
+            mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'%3E%3C/circle%3E%3Cpath d='M21 21l-4.35-4.35'%3E%3C/path%3E%3C/svg%3E");
+            mask-size: contain;
+            mask-repeat: no-repeat;
+            mask-position: center;
+            -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'%3E%3C/circle%3E%3Cpath d='M21 21l-4.35-4.35'%3E%3C/path%3E%3C/svg%3E");
+            -webkit-mask-size: contain;
+            -webkit-mask-repeat: no-repeat;
+            -webkit-mask-position: center;
         }
 
-        /* Категории */
         .category-bar {
             display: flex;
             gap: var(--spacing-2);
@@ -199,7 +202,6 @@
             border-color: var(--color-gray-800);
         }
 
-        /* Сетка товаров — скроллится */
         .products-grid-container {
             flex: 1;
             overflow-y: auto;
@@ -277,7 +279,6 @@
             margin-top: var(--spacing-1);
         }
 
-        /* Правая панель — корзина (десктоп) */
         .cart-panel {
             display: flex;
             flex-direction: column;
@@ -490,7 +491,6 @@
             font-size: 10px;
         }
 
-        /* Состояние «смена закрыта» */
         .shift-closed-overlay {
             text-align: center;
             padding: var(--spacing-8);
@@ -518,7 +518,6 @@
             margin-bottom: var(--spacing-5);
         }
 
-        /* Пустая корзина */
         .cart-empty {
             display: flex;
             flex-direction: column;
@@ -529,14 +528,12 @@
             font-size: var(--font-size-sm);
         }
 
-        /* Пустая сетка */
         .empty-state {
             padding: 60px 20px;
             text-align: center;
             color: var(--color-text-muted);
         }
 
-        /* Спиннер загрузки */
         .loading-spinner {
             width: 32px;
             height: 32px;
@@ -557,7 +554,6 @@
                 padding: var(--spacing-2);
             }
 
-            /* Переводим лейаут на block — корзина будет fixed поверх */
             .cashier-layout {
                 display: block;
                 height: 100%;
@@ -571,7 +567,6 @@
                 justify-content: center;
             }
 
-            /* Панель товаров на всю высоту */
             .products-panel {
                 height: 100%;
                 display: flex;
@@ -579,7 +574,6 @@
                 overflow: hidden;
             }
 
-            /* Сетка товаров скроллится */
             .products-grid-container {
                 flex: 1;
                 min-height: 0;
@@ -588,7 +582,6 @@
                 touch-action: pan-y;
             }
 
-            /* Строка смены — компактнее */
             .shift-bar {
                 padding: var(--spacing-2) var(--spacing-3);
                 gap: var(--spacing-2);
@@ -607,7 +600,6 @@
                 font-size: var(--font-size-xs);
             }
 
-            /* Тулбар — перенос */
             .products-toolbar {
                 gap: var(--spacing-1);
             }
@@ -622,14 +614,12 @@
                 min-width: 120px;
             }
 
-            /* Категории */
             .category-tab {
                 padding: var(--spacing-1) var(--spacing-2-5);
                 font-size: var(--font-size-xs);
                 min-height: 32px;
             }
 
-            /* Сетка товаров */
             .products-grid {
                 grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
                 gap: var(--spacing-2);
@@ -651,15 +641,10 @@
                 font-size: var(--font-size-sm);
             }
 
-            /* Кнопка «Быстрый товар» в тулбаре скрыта — вместо неё FAB */
             #quickAddBtn {
                 display: none;
             }
 
-            /*
-             * Корзина — fixed, спрятана за правым краем.
-             * Выезжает по классу .open (добавляется в toggleCart()).
-             */
             .cart-panel {
                 position: fixed;
                 top: 0;
@@ -681,7 +666,6 @@
                 transform: translateX(0);
             }
 
-            /* Кнопка-триггер корзины (плавающая снизу) */
             .cart-toggle-btn {
                 display: flex;
                 position: fixed;
@@ -719,7 +703,6 @@
                 font-weight: 700;
             }
 
-            /* Оверлей корзины */
             .cart-overlay {
                 display: none;
                 position: fixed;
@@ -731,13 +714,11 @@
                 z-index: var(--z-modal-backdrop);
             }
 
-            /* Кнопка оформления */
             .btn-checkout {
                 height: 48px;
                 font-size: var(--font-size-base);
             }
 
-            /* Кнопки +/- в корзине */
             .btn-qty {
                 width: 32px;
                 height: 32px;
@@ -750,7 +731,6 @@
                 font-size: 20px;
             }
 
-            /* Подсказки клавиатуры скрыты */
             .keyboard-hints {
                 display: none;
             }
@@ -786,19 +766,6 @@
 </head>
 <body>
     <div class="app">
-        <header class="app-header">
-            <h1>Касса | Чуланчик</h1>
-            <nav class="app-nav">
-                <a href="pages/inventory.html">Склад</a>
-                <a href="pages/cashier.html" class="active" aria-current="page">Касса</a>
-                <a href="pages/reports.html">Отчёты</a>
-            </nav>
-            <div class="header-actions">
-                <span class="user-email" id="userEmail"></span>
-                <button class="btn-ghost btn-sm" id="logoutBtn">Выход</button>
-            </div>
-        </header>
-
         <main class="page-container">
             <div class="cashier-page">
                 <div id="cashierContent"></div>
@@ -817,7 +784,7 @@
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/Chulanchik/sw.js', { scope: '/Chulanchik/' })
-                .catch(() => {});
+                .catch(function() {});
         }
     </script>
 </body>
