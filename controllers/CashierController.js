@@ -1,5 +1,6 @@
 // ============================================================
 // controllers/CashierController.js
+// Исправление: мобильная кнопка корзины всегда создаётся и видна
 // ============================================================
 
 /**
@@ -46,7 +47,6 @@ const state = {
     searchQuery: '',
     selectedCategory: null,
     isScanning: false,
-    /** @type {boolean} идёт первичная загрузка данных */
     isInitialLoading: true
 };
 
@@ -62,13 +62,6 @@ const DOM = {
 // Рендеринг
 // ============================================================
 
-/**
- * Рендерит заглушку на время первичной загрузки.
- * Показывает шапку смены (если открыта) и скелетон сетки товаров,
- * вместо пустого экрана или мигания.
- *
- * @returns {string} HTML
- */
 function renderLoadingSkeleton() {
     const shiftBarHtml = shiftStore.isOpen() ? renderShiftBar() : '';
 
@@ -104,16 +97,15 @@ function renderLoadingSkeleton() {
 function render() {
     if (!DOM.content) return;
 
-    // Первичная загрузка — показываем скелетон, не лезем в сторы за данными
     if (state.isInitialLoading) {
         DOM.content.innerHTML = renderLoadingSkeleton();
+        ensureMobileCartButton();
         return;
     }
 
     if (!shiftStore.isOpen()) {
         document.getElementById('cartToggleBtn')?.remove();
         document.getElementById('cartOverlay')?.remove();
-        document.getElementById('fabQuickAdd')?.remove();
 
         DOM.content.innerHTML = renderClosedShift();
 
@@ -151,11 +143,70 @@ function render() {
 
     bindEvents();
     updateFabVisibility();
-    renderMobileCartTrigger();
+    ensureMobileCartButton();
+    updateMobileCartTrigger();
 }
 
 // ============================================================
-// FAB кнопка (мобильные)
+// Мобильная кнопка корзины
+// ============================================================
+
+/**
+ * Гарантирует что мобильная кнопка корзины существует в DOM.
+ * Вызывается при каждом рендере. Если кнопка не нужна (десктоп) — скрывает.
+ */
+function ensureMobileCartButton() {
+    const isMobile = window.innerWidth <= 768;
+
+    // Оверлей
+    let overlay = document.getElementById('cartOverlay');
+    if (!overlay && isMobile) {
+        overlay = document.createElement('div');
+        overlay.id = 'cartOverlay';
+        overlay.className = 'cart-overlay';
+        overlay.addEventListener('click', closeCart);
+        DOM.content.appendChild(overlay);
+        console.log('[Cashier] cart overlay created');
+    }
+    if (overlay) {
+        overlay.style.display = 'none';
+    }
+
+    // Кнопка-триггер
+    let btn = document.getElementById('cartToggleBtn');
+    if (!btn) {
+        btn = document.createElement('button');
+        btn.id = 'cartToggleBtn';
+        btn.className = 'cart-toggle-btn';
+        btn.addEventListener('click', () => {
+            const panel = document.getElementById('cartPanel');
+            const ov = document.getElementById('cartOverlay');
+            if (!panel) return;
+            const isOpen = panel.classList.toggle('open');
+            if (ov) {
+                ov.style.display = isOpen ? 'block' : 'none';
+            }
+            console.log('[Cashier] cart toggled:', isOpen);
+        });
+        DOM.content.appendChild(btn);
+        console.log('[Cashier] cart toggle button created');
+    }
+
+    const count = cartStore.getCount();
+    const total = cartStore.getTotal();
+    btn.innerHTML = `
+        Корзина
+        <span class="cart-toggle-badge" id="cartToggleBadge">${count}</span>
+        -
+        <span>${formatMoney(total)}</span>
+    `;
+
+    btn.style.display = isMobile ? 'flex' : 'none';
+    console.log('[Cashier] cart button display:', btn.style.display, 'isMobile:', isMobile);
+}
+
+// ============================================================
+// FAB кнопка (быстрый товар)
 // ============================================================
 
 function updateFabVisibility() {
@@ -398,12 +449,11 @@ function bindEvents() {
 // ============================================================
 
 function onStoreChange() {
-    // Игнорируем события сторов во время первичной загрузки —
-    // все данные ещё не собраны, финальный render() будет вызван явно
     if (state.isInitialLoading) return;
 
     render();
     updateFabVisibility();
+    ensureMobileCartButton();
     updateMobileCartTrigger();
 }
 
@@ -433,14 +483,15 @@ function bindGlobalEvents() {
 
     window.addEventListener('resize', () => {
         updateFabVisibility();
-        render();
+        ensureMobileCartButton();
     });
 }
 
 async function init() {
+    console.log('[Cashier] v2 - mobile cart button fix');
     console.log('[Cashier] init() started');
 
-    // 1. Вставляем навигацию синхронно, до любых асинхронных операций
+    // 1. Вставляем навигацию синхронно
     const headerHtml = renderAppHeader({
         currentPage: 'cashier',
         userName: 'Пользователь'
@@ -479,7 +530,7 @@ async function init() {
     state.user = user;
     console.log('[Cashier] user authenticated:', user.email);
 
-    // 3. Обновляем имя пользователя в уже вставленной шапке
+    // 3. Обновляем имя пользователя в шапке
     updateUserName(user.fullName || user.email?.split('@')[0] || 'Пользователь');
 
     // 4. Внедряем зависимости в компоненты
@@ -490,16 +541,14 @@ async function init() {
     cacheDom();
     bindGlobalEvents();
 
-    // 6. Показываем скелетон загрузки немедленно,
-    //    чтобы страница не была пустой во время запросов к серверу
+    // 6. Скелетон загрузки + кнопка корзины
     render();
+    ensureMobileCartButton();
 
-    // 7. Загружаем корзину из кэша (синхронно, мгновенно)
+    // 7. Загружаем корзину из кэша
     cartStore.loadFromCache();
 
-    // 8. Загружаем смену и товары ПАРАЛЛЕЛЬНО
-    //    Раньше было последовательно: сначала смена, потом товары.
-    //    Теперь оба запроса уходят одновременно — загрузка вдвое быстрее.
+    // 8. Параллельная загрузка смены и товаров
     const [shiftOk] = await Promise.all([
         shiftStore.checkOpenShift(user.id),
         productStore.loadProducts()
@@ -507,7 +556,7 @@ async function init() {
 
     console.log('[Cashier] data loaded, shift open:', shiftOk);
 
-    // 9. Финальный рендер с реальными данными
+    // 9. Финальный рендер
     state.isInitialLoading = false;
     render();
 
