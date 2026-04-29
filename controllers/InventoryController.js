@@ -11,12 +11,13 @@
  * @module controllers/InventoryController
  */
 
-import { requireAuth, hasPermission } from '../core/auth.js';
+import { requireAuth, hasPermission, logout } from '../core/auth.js';
 import { productStore } from '../stores/ProductStore.js';
 import ProductService from '../services/ProductService.js';
 import { formatMoney, getCategoryName, getStatusText } from '../utils/formatters.js';
 import { showNotification, showConfirmDialog } from '../utils/ui.js';
 import { openProductFormModal } from '../components/ProductForm.js';
+import { renderAppHeader, bindAppHeaderEvents, updateUserName } from '../components/AppHeader.js';
 
 // ============================================================
 // Локальное состояние страницы
@@ -51,8 +52,6 @@ const DOM = {
     sortSelect: null,
     addBtn: null,
     refreshBtn: null,
-    logoutBtn: null,
-    userEmail: null,
     selectAllCb: null
 };
 
@@ -329,8 +328,6 @@ function cacheDom() {
     DOM.sortSelect = document.getElementById('sortSelect');
     DOM.addBtn = document.getElementById('addProductBtn');
     DOM.refreshBtn = document.getElementById('refreshBtn');
-    DOM.logoutBtn = document.getElementById('logoutBtn');
-    DOM.userEmail = document.getElementById('userEmail');
     DOM.selectAllCb = document.getElementById('selectAllCheckbox');
 }
 
@@ -371,16 +368,9 @@ function bindEvents() {
         });
         updateSelectAll();
     });
-
-    DOM.logoutBtn?.addEventListener('click', async () => {
-        const { logout } = await import('../core/auth.js');
-        logout();
-    });
 }
 
 async function init() {
-    cacheDom();
-
     const { user, authError } = await requireAuth();
     if (authError || !user) {
         window.location.href = 'pages/login.html';
@@ -389,10 +379,33 @@ async function init() {
 
     state.user = user;
 
-    if (DOM.userEmail) {
-        DOM.userEmail.textContent = user.fullName || user.email?.split('@')[0] || 'Пользователь';
+    // Рендерим шапку через AppHeader
+    const headerHtml = renderAppHeader({
+        currentPage: 'inventory',
+        userName: user.fullName || user.email?.split('@')[0] || 'Пользователь'
+    });
+
+    const appEl = document.querySelector('.app');
+    if (appEl) {
+        appEl.insertAdjacentHTML('afterbegin', headerHtml);
     }
 
+    bindAppHeaderEvents({
+        onNavigate: (pageId) => {
+            const pages = {
+                inventory: 'pages/inventory.html',
+                cashier: 'pages/cashier.html',
+                reports: 'pages/reports.html'
+            };
+            const href = pages[pageId];
+            if (href && pageId !== 'inventory') {
+                window.location.href = href;
+            }
+        },
+        onLogout: () => logout()
+    });
+
+    cacheDom();
     bindEvents();
 
     productStore.on('change', () => renderAll());
