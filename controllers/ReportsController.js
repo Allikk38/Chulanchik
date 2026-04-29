@@ -1,10 +1,13 @@
 // ============================================================
 // controllers/ReportsController.js
-// Шаг 5: Убираем таймауты, нормальная загрузка
+// Шаг 6: Контроллер с табами, дашборд вынесен в компонент
 // ============================================================
 
 /**
  * Контроллер страницы отчётов.
+ *
+ * Координирует загрузку данных, переключение табов,
+ * передаёт state в компоненты для рендеринга.
  *
  * @module controllers/ReportsController
  */
@@ -15,6 +18,7 @@ import { expenseStore } from '../stores/ExpenseStore.js';
 import SaleRepository from '../repositories/SaleRepository.js';
 import ShiftRepository from '../repositories/ShiftRepository.js';
 import { renderAppHeader, bindAppHeaderEvents, updateUserName } from '../components/AppHeader.js';
+import { renderDashboard } from '../components/ReportDashboard.js';
 
 // ============================================================
 // Состояние
@@ -23,6 +27,7 @@ import { renderAppHeader, bindAppHeaderEvents, updateUserName } from '../compone
 const state = {
     user: null,
     period: 'week',
+    activeTab: 'dashboard',
     sales: [],
     shifts: [],
     expenses: [],
@@ -151,98 +156,127 @@ async function loadData() {
 // Рендеринг
 // ============================================================
 
-function renderContent() {
-    if (!DOM.content) return;
+/**
+ * Рендерит табы навигации.
+ * @returns {string} HTML
+ */
+function renderTabs() {
+    const tabs = ['dashboard', 'sales', 'products', 'shifts', 'expenses'];
+    const labels = {
+        dashboard: 'Дашборд',
+        sales: 'Продажи',
+        products: 'Товары',
+        shifts: 'Смены',
+        expenses: 'Расходы'
+    };
 
+    return `
+        <div class="reports-tabs" role="tablist">
+            ${tabs.map(t => `
+                <button class="tab-btn ${state.activeTab === t ? 'active' : ''}"
+                    data-tab="${t}" role="tab"
+                    aria-selected="${state.activeTab === t}">
+                    ${labels[t]}
+                </button>
+            `).join('')}
+        </div>`;
+}
+
+/**
+ * Рендерит тело активной вкладки.
+ * @returns {string} HTML
+ */
+function renderTabContent() {
     if (state.isLoading) {
-        DOM.content.innerHTML = `
-            <div class="reports-tabs" role="tablist">
-                <button class="tab-btn active" data-tab="dashboard" role="tab" aria-selected="true">Дашборд</button>
-                <button class="tab-btn" data-tab="sales" role="tab">Продажи</button>
-                <button class="tab-btn" data-tab="products" role="tab">Товары</button>
-                <button class="tab-btn" data-tab="shifts" role="tab">Смены</button>
-                <button class="tab-btn" data-tab="expenses" role="tab">Расходы</button>
-            </div>
-            <div class="reports-content-inner">
-                <div class="loading-overlay">
-                    <div class="loading-spinner"></div>
-                    <span class="loading-text">Загрузка данных...</span>
-                </div>
+        return `
+            <div class="loading-overlay">
+                <div class="loading-spinner"></div>
+                <span class="loading-text">Загрузка данных...</span>
             </div>`;
-        return;
     }
 
     if (state.loadError) {
-        DOM.content.innerHTML = `
-            <div class="reports-tabs" role="tablist">
-                <button class="tab-btn active" data-tab="dashboard" role="tab" aria-selected="true">Дашборд</button>
-                <button class="tab-btn" data-tab="sales" role="tab">Продажи</button>
-                <button class="tab-btn" data-tab="products" role="tab">Товары</button>
-                <button class="tab-btn" data-tab="shifts" role="tab">Смены</button>
-                <button class="tab-btn" data-tab="expenses" role="tab">Расходы</button>
-            </div>
-            <div class="reports-content-inner">
-                <div class="error-state">
-                    <div class="error-state-icon">!</div>
-                    <p>Ошибка загрузки данных</p>
-                    <small>${state.loadError}</small>
-                </div>
+        return `
+            <div class="error-state">
+                <div class="error-state-icon">!</div>
+                <p>Ошибка загрузки данных</p>
+                <small>${state.loadError}</small>
             </div>`;
-        return;
     }
 
-    const totalSales = state.sales.length;
-    const totalRevenue = state.sales.reduce((s, r) => s + (Number(r.total) || 0), 0);
-    const totalProfit = state.sales.reduce((s, r) => s + (Number(r.profit) || 0), 0);
-    const totalExpenses = state.expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0);
-    const totalShifts = state.shifts.length;
-    const netProfit = totalProfit - totalExpenses;
+    switch (state.activeTab) {
+        case 'dashboard':
+            return renderDashboard(state);
+
+        case 'sales':
+            return renderSalesStub();
+
+        case 'products':
+            return renderProductsStub();
+
+        case 'shifts':
+            return renderShiftsStub();
+
+        case 'expenses':
+            return renderExpensesStub();
+
+        default:
+            return renderDashboard(state);
+    }
+}
+
+// ============================================================
+// Заглушки для табов (будут вынесены в отдельные компоненты)
+// ============================================================
+
+function renderSalesStub() {
+    return `
+        <div class="card">
+            <h4>Продажи</h4>
+            <p>Компонент в разработке</p>
+        </div>`;
+}
+
+function renderProductsStub() {
+    return `
+        <div class="card">
+            <h4>Товары</h4>
+            <p>Компонент в разработке</p>
+        </div>`;
+}
+
+function renderShiftsStub() {
+    return `
+        <div class="card">
+            <h4>Смены</h4>
+            <p>Компонент в разработке</p>
+        </div>`;
+}
+
+function renderExpensesStub() {
+    return `
+        <div class="card">
+            <h4>Расходы</h4>
+            <p>Компонент в разработке</p>
+        </div>`;
+}
+
+function renderContent() {
+    if (!DOM.content) return;
 
     DOM.content.innerHTML = `
-        <div class="reports-tabs" role="tablist">
-            <button class="tab-btn active" data-tab="dashboard" role="tab" aria-selected="true">Дашборд</button>
-            <button class="tab-btn" data-tab="sales" role="tab">Продажи</button>
-            <button class="tab-btn" data-tab="products" role="tab">Товары</button>
-            <button class="tab-btn" data-tab="shifts" role="tab">Смены</button>
-            <button class="tab-btn" data-tab="expenses" role="tab">Расходы</button>
-        </div>
+        ${renderTabs()}
         <div class="reports-content-inner">
-            <div class="summary-cards">
-                <div class="summary-card">
-                    <span class="label">Продаж</span>
-                    <span class="value">${totalSales}</span>
-                </div>
-                <div class="summary-card">
-                    <span class="label">Выручка</span>
-                    <span class="value">${totalRevenue.toLocaleString('ru-RU')} RUB</span>
-                </div>
-                <div class="summary-card">
-                    <span class="label">Прибыль</span>
-                    <span class="value">${totalProfit.toLocaleString('ru-RU')} RUB</span>
-                </div>
-                <div class="summary-card">
-                    <span class="label">Расходы</span>
-                    <span class="value">${totalExpenses.toLocaleString('ru-RU')} RUB</span>
-                </div>
-                <div class="summary-card">
-                    <span class="label">Чистая прибыль</span>
-                    <span class="value" style="color: ${netProfit >= 0 ? '#2e7d32' : '#c62828'}">${netProfit.toLocaleString('ru-RU')} RUB</span>
-                </div>
-                <div class="summary-card">
-                    <span class="label">Смен</span>
-                    <span class="value">${totalShifts}</span>
-                </div>
-            </div>
-            <div class="card">
-                <h4>Данные загружены успешно</h4>
-                <p>Продаж: ${totalSales}, Смен: ${totalShifts}, Расходов: ${state.expenses.length}</p>
-            </div>
+            ${renderTabContent()}
         </div>`;
 
+    // Обработчики табов
     DOM.content.querySelectorAll('[data-tab]').forEach(btn => {
         btn.addEventListener('click', () => {
-            const tab = btn.dataset.tab;
-            console.log('[Reports] tab clicked:', tab);
+            const newTab = btn.dataset.tab;
+            if (state.activeTab === newTab) return;
+            state.activeTab = newTab;
+            renderContent();
         });
     });
 }
@@ -275,7 +309,7 @@ function bindEvents() {
 }
 
 async function init() {
-    console.log('[Reports] v5 - no timeouts');
+    console.log('[Reports] v6 - separate components');
     console.log('[Reports] init() started');
 
     // 1. Вставляем навигацию синхронно
