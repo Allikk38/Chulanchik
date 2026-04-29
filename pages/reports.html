@@ -27,34 +27,12 @@
            Только то, что отсутствует в общих компонентах и макетах.
            ============================================================ */
 
-        html {
-            height: 100%;
-            overflow: hidden;
-            overscroll-behavior: none;
-        }
-
-        body {
-            height: 100%;
-            overflow: hidden;
-            overscroll-behavior: none;
-            touch-action: manipulation;
-        }
-
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
 
-        /* ========== ЦВЕТОВЫЕ БЕЙДЖИ КАТЕГОРИЙ РАСХОДОВ ========== */
-        .category-badge.rent { background: #e0e7ff; color: #4338ca; }
-        .category-badge.advertising { background: #fce7f3; color: #be185d; }
-        .category-badge.supplies { background: #d1fae5; color: #065f46; }
-        .category-badge.utilities { background: #fed7aa; color: #9a3412; }
-        .category-badge.salary { background: #e0e7ff; color: #3730a3; }
-        .category-badge.taxes { background: #fecaca; color: #991b1b; }
-        .category-badge.repair { background: #fef3c7; color: #92400e; }
-        .category-badge.other { background: #f3f4f6; color: #374151; }
-
-        /* ========== АДАПТИВНОСТЬ ========== */
+        /* На десктопе скролл управляется через layouts/reports.css */
+        /* На мобильных дополнительно разрешаем скролл body */
         @media (max-width: 768px) {
             html {
                 overflow: auto;
@@ -62,55 +40,6 @@
 
             body {
                 overflow: auto;
-            }
-
-            .reports-page {
-                padding: var(--spacing-3);
-            }
-
-            .kpi-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-
-            .reports-header {
-                flex-direction: column;
-                align-items: stretch;
-            }
-
-            .period-selector {
-                flex-wrap: wrap;
-            }
-
-            .expense-filters {
-                flex-direction: column;
-                align-items: stretch;
-            }
-
-            .filter-group {
-                width: 100%;
-            }
-
-            .expenses-actions {
-                flex-direction: column;
-            }
-
-            .expenses-actions button {
-                width: 100%;
-            }
-
-            .expenses-summary {
-                flex-direction: column;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .kpi-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .reports-tabs {
-                width: 100%;
-                overflow-x: auto;
             }
         }
     </style>
