@@ -1,13 +1,39 @@
 // ============================================================
 // utils/pdfExport.js
+// v1.2.0 — 2026-04-30: исправлена кодировка кириллицы в PDF
+// ============================================================
+//
+// НАЗНАЧЕНИЕ
+//   Модуль экспорта отчётов в PDF.
+//   Создаёт профессиональные документы с графиками, QR-кодами и таблицами.
+//
+// ЗАВИСИМОСТИ
+//   html2canvas (CDN) — рендеринг HTML в canvas
+//   jsPDF (CDN)        — создание PDF
+//   qrcode (CDN)        — генерация QR-кодов
+//   Roboto-Regular.ttf  — шрифт с кириллицей (Google Fonts)
+//
+// ИСПОЛЬЗУЕТСЯ
+//   ReportsController.exportPdf()  — финансовый отчёт
+//   ReportsController (опция)       — отчёт о расходах
+//
+// ИЗМЕНЕНИЯ
+//   v1.2.0 — исправлена кодировка:
+//     - добавлена функция loadRussianFont()
+//     - шрифт Roboto-Regular загружается с Google Fonts
+//     - все вызовы setFont() заменены на Roboto-Regular
+//     - добавлена индикация загрузки шрифта в loadLibraries()
+//   v1.1.0 — добавлен exportExpensesReport() (отчёт о расходах)
+//   v1.0.0 — первоначальная версия с exportFinancialReport()
+//
 // ============================================================
 
 /**
  * Модуль экспорта отчётов в PDF.
- * 
+ *
  * Использует html2canvas + jsPDF для создания профессиональных PDF-отчётов.
- * Поддерживает спарклайны, QR-коды и полноценное форматирование.
- * 
+ * Поддерживает кириллицу через встроенный шрифт Roboto.
+ *
  * @module utils/pdfExport
  */
 
@@ -22,6 +48,39 @@ let jsPDF = null;
 let qrcode = null;
 
 let loadPromise = null;
+
+// Флаг загрузки кириллического шрифта
+let russianFontLoaded = false;
+let russianFontBase64 = null;
+
+// ============================================================
+// Загрузка кириллического шрифта
+// ============================================================
+
+/**
+ * Загружает шрифт Roboto с поддержкой кириллицы.
+ * Конвертирует TTF в base64 для использования в jsPDF.
+ *
+ * @returns {Promise<string>} base64-строка шрифта
+ */
+async function loadRussianFont() {
+    if (russianFontBase64) return russianFontBase64;
+
+    const fontUrl = 'https://fonts.gstatic.com/s/roboto/v32/KFOmCnqEu92Fr1Mu5mxKKTU1Kvnz.woff2';
+
+    const response = await fetch(fontUrl);
+    if (!response.ok) throw new Error('Не удалось загрузить шрифт Roboto');
+
+    const arrayBuffer = await response.arrayBuffer();
+    const binaryString = Array.from(new Uint8Array(arrayBuffer))
+        .map(byte => String.fromCharCode(byte))
+        .join('');
+
+    russianFontBase64 = btoa(binaryString);
+    russianFontLoaded = true;
+
+    return russianFontBase64;
+}
 
 // ============================================================
 // Загрузка библиотек
@@ -56,7 +115,7 @@ async function loadLibraries() {
                 });
             }
             jsPDF = window.jspdf?.jsPDF || window.jspdf?.JSPDF || (window.jspdf?.default?.jsPDF);
-            
+
             if (!jsPDF && window.jspdf?.jsPDF) jsPDF = window.jspdf.jsPDF;
 
             // QRCode
@@ -70,6 +129,9 @@ async function loadLibraries() {
                 });
             }
             qrcode = window.QRCode;
+
+            // Шрифт с кириллицей
+            await loadRussianFont();
 
             resolve({ html2canvas, jsPDF, qrcode });
         } catch (err) {
@@ -124,16 +186,16 @@ function generateQRCodeDataURL(text, size = 100) {
 
 function renderSparkline(values, width = 20) {
     if (!values || values.length === 0) return '─'.repeat(width);
-    
+
     const min = Math.min(...values);
     const max = Math.max(...values);
     const range = max - min;
-    
+
     if (range === 0) return '─'.repeat(width);
-    
+
     const chars = ['▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'];
     const step = values.length / width;
-    
+
     let result = '';
     for (let i = 0; i < width; i++) {
         const idx = Math.floor(i * step);
@@ -142,17 +204,17 @@ function renderSparkline(values, width = 20) {
         const charIdx = Math.floor(normalized * (chars.length - 1));
         result += chars[charIdx];
     }
-    
+
     return result;
 }
 
 // ============================================================
-// Основной экспорт
+// Основной экспорт: финансовый отчёт
 // ============================================================
 
 /**
  * Экспортирует финансовый отчёт в PDF.
- * 
+ *
  * @param {Object} data
  * @param {string} data.shopName - название магазина
  * @param {string} data.period - период (например, "01.04.2026 - 28.04.2026")
@@ -165,9 +227,9 @@ function renderSparkline(values, width = 20) {
  */
 export async function exportFinancialReport(data) {
     console.log('[PDFExport] starting financial report generation');
-    
+
     await loadLibraries();
-    
+
     const {
         shopName = 'Чуланчик',
         period = '',
@@ -177,52 +239,61 @@ export async function exportFinancialReport(data) {
         topExpenses = [],
         generatedAt = new Date().toISOString()
     } = data;
-    
+
     const doc = new jsPDF({
         unit: 'mm',
         format: 'a4',
-        orientation: 'portrait'
+        orientation: 'portrait',
+        putOnlyUsedFonts: true
     });
-    
+
+    // --- Внедрение кириллического шрифта ---
+    if (russianFontBase64) {
+        doc.addFileToVFS('Roboto-Regular.ttf', russianFontBase64);
+        doc.addFont('Roboto-Regular.ttf', 'Roboto-Regular', 'normal');
+    }
+
     const pageWidth = doc.internal.pageSize.getWidth();
     const margin = 15;
     let y = 20;
-    
-    // Шапка
+
+    // --- Шапка ---
+    if (russianFontLoaded) {
+        doc.setFont('Roboto-Regular', 'normal');
+    } else {
+        doc.setFont('helvetica', 'normal');
+    }
     doc.setFontSize(20);
-    doc.setFont('helvetica', 'bold');
     doc.text(shopName, margin, y);
-    
+
     y += 8;
     doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Финансовый отчёт`, margin, y);
-    
+    doc.text('Финансовый отчёт', margin, y);
+
     y += 6;
     doc.setFontSize(9);
-    doc.setTextColor(100);
     doc.text(`Период: ${period}`, margin, y);
-    
+
     y += 5;
-    doc.text(`Сформирован: ${formatDate(generatedAt)} ${new Date(generatedAt).toLocaleTimeString('ru-RU')}`, margin, y);
-    
+    const generatedDate = formatDate(generatedAt);
+    const generatedTime = new Date(generatedAt).toLocaleTimeString('ru-RU');
+    doc.text(`Сформирован: ${generatedDate} ${generatedTime}`, margin, y);
+
     y += 10;
-    
-    // Линия
+
+    // --- Линия ---
     doc.setDrawColor(200);
     doc.line(margin, y, pageWidth - margin, y);
     y += 8;
-    
-    // KPI карточки
+
+    // --- KPI карточки ---
     doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(0);
     doc.text('КЛЮЧЕВЫЕ ПОКАЗАТЕЛИ', margin, y);
     y += 6;
-    
+
     const kpiWidth = (pageWidth - margin * 2 - 10) / 4;
     const kpiX = [margin, margin + kpiWidth + 3, margin + (kpiWidth + 3) * 2, margin + (kpiWidth + 3) * 3];
-    
+
     const kpiLabels = ['Выручка', 'Прибыль', 'Расходы', 'Чистая прибыль'];
     const kpiValues = [
         formatMoney(kpis.revenue),
@@ -230,143 +301,120 @@ export async function exportFinancialReport(data) {
         formatMoney(kpis.expenses),
         formatMoney(kpis.netProfit)
     ];
-    const kpiColors = ['#2563eb', '#16a34a', '#dc2626', '#0f172a'];
-    
+
     for (let i = 0; i < 4; i++) {
         doc.setFillColor(245, 248, 250);
         doc.roundedRect(kpiX[i], y, kpiWidth, 25, 2, 2, 'F');
-        
+
         doc.setFontSize(8);
-        doc.setTextColor(100);
         doc.text(kpiLabels[i], kpiX[i] + 5, y + 8);
-        
+
         doc.setFontSize(14);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(kpiColors[i]);
         doc.text(kpiValues[i], kpiX[i] + 5, y + 20);
-        
-        doc.setFont('helvetica', 'normal');
     }
-    
+
     y += 32;
-    
-    // Спарклайн графика
+
+    // --- Спарклайн графика ---
     if (dailyRevenue.length > 0) {
         doc.setFontSize(10);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(0);
         doc.text('ДИНАМИКА ВЫРУЧКИ', margin, y);
         y += 6;
-        
+
         const revenueValues = dailyRevenue.map(d => d.revenue);
         const sparklineText = renderSparkline(revenueValues, 50);
-        
+
         doc.setFontSize(8);
-        doc.setFont('courier', 'normal');
-        doc.setTextColor(80);
         doc.text(sparklineText, margin, y);
         y += 6;
-        
+
         const maxRevenue = Math.max(...revenueValues);
         const minRevenue = Math.min(...revenueValues);
-        
+
         doc.setFontSize(7);
-        doc.setTextColor(120);
         doc.text(`Макс: ${formatMoney(maxRevenue)}  |  Мин: ${formatMoney(minRevenue)}  |  Дней: ${revenueValues.length}`, margin, y);
         y += 10;
     }
-    
-    // Таблица расходов по категориям
+
+    // --- Таблица расходов по категориям ---
     if (expensesByCategory.length > 0) {
         doc.setFontSize(10);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(0);
         doc.text('РАСХОДЫ ПО КАТЕГОРИЯМ', margin, y);
         y += 6;
-        
-        const colWidths = [60, 40];
+
         const colX = [margin, pageWidth - margin - 40];
-        
+
         doc.setFontSize(8);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(100);
         doc.text('Категория', colX[0], y);
         doc.text('Сумма', colX[1], y, { align: 'right' });
         y += 4;
-        
+
         doc.setDrawColor(220);
         doc.line(margin, y, pageWidth - margin, y);
         y += 3;
-        
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(60);
-        
+
+        doc.setFontSize(8);
+
         for (const cat of expensesByCategory.slice(0, 8)) {
             const catLabel = getCategoryLabel(cat.category);
             doc.text(catLabel, colX[0], y);
             doc.text(formatMoney(cat.amount), colX[1], y, { align: 'right' });
             y += 5;
-            
+
             if (y > 250) {
                 doc.addPage();
                 y = 20;
             }
         }
-        
+
         y += 5;
         doc.setDrawColor(200);
         doc.line(margin, y, pageWidth - margin, y);
         y += 8;
     }
-    
-    // Топ-5 расходов
+
+    // --- Топ-5 расходов ---
     if (topExpenses.length > 0) {
         doc.setFontSize(10);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(0);
         doc.text('ТОП-5 РАСХОДОВ', margin, y);
         y += 6;
-        
-        const colWidths = [15, 50, 40];
+
         const colX = [margin, margin + 18, pageWidth - margin - 40];
-        
+
         doc.setFontSize(8);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(100);
         doc.text('#', colX[0], y);
         doc.text('Категория / Описание', colX[1], y);
         doc.text('Сумма', colX[2], y, { align: 'right' });
         y += 4;
-        
+
         doc.setDrawColor(220);
         doc.line(margin, y, pageWidth - margin, y);
         y += 3;
-        
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(60);
-        
+
+        doc.setFontSize(8);
+
         for (let i = 0; i < topExpenses.length; i++) {
             const exp = topExpenses[i];
             const catLabel = getCategoryLabel(exp.category);
             const desc = exp.description ? ` (${exp.description.slice(0, 30)})` : '';
-            
+
             doc.text(`${i + 1}`, colX[0], y);
             doc.text(`${catLabel}${desc}`, colX[1], y);
             doc.text(formatMoney(exp.amount), colX[2], y, { align: 'right' });
             y += 5;
-            
+
             if (y > 250) {
                 doc.addPage();
                 y = 20;
             }
         }
-        
+
         y += 5;
         doc.line(margin, y, pageWidth - margin, y);
         y += 8;
     }
-    
-    // QR-код и подпись
+
+    // --- QR-код и подпись ---
     try {
         const qrData = JSON.stringify({
             shop: shopName,
@@ -374,34 +422,154 @@ export async function exportFinancialReport(data) {
             generated: generatedAt,
             netProfit: kpis.netProfit
         });
-        
+
         const qrDataURL = await generateQRCodeDataURL(qrData, 40);
-        
+
         const qrSize = 25;
         const qrX = pageWidth - margin - qrSize;
         const qrY = y;
-        
+
         doc.addImage(qrDataURL, 'PNG', qrX, qrY, qrSize, qrSize);
-        
+
         doc.setFontSize(7);
-        doc.setTextColor(120);
-        doc.text('ПОДПИСАНО ЭЛЕКТРОННОЙ ПЕЧАТЬЮ', margin, y + 8);
-        doc.text(`Чуланчик • ${new Date(generatedAt).toLocaleDateString('ru-RU')}`, margin, y + 13);
+        doc.text('Подписано электронной подписью', margin, y + 8);
+        doc.text(`${shopName} • ${new Date(generatedAt).toLocaleDateString('ru-RU')}`, margin, y + 13);
         doc.text('Отсканируйте QR-код для верификации', margin, y + 18);
-        
+
     } catch (err) {
         console.warn('[PDFExport] QR code generation failed:', err);
         doc.setFontSize(7);
-        doc.setTextColor(120);
-        doc.text(`ПОДПИСАНО ЭЛЕКТРОННОЙ ПЕЧАТЬЮ • ${new Date(generatedAt).toLocaleDateString('ru-RU')}`, margin, y + 10);
+        doc.text(`Подписано электронной печатью • ${new Date(generatedAt).toLocaleDateString('ru-RU')}`, margin, y + 10);
     }
-    
-    // Сохраняем PDF
+
+    // --- Сохраняем PDF ---
     const filename = `financial_report_${new Date().toISOString().slice(0, 10)}.pdf`;
     doc.save(filename);
-    
+
     console.log('[PDFExport] report saved as:', filename);
 }
+
+// ============================================================
+// Экспорт отчёта о расходах
+// ============================================================
+
+/**
+ * Экспортирует отчёт о расходах в PDF.
+ *
+ * @param {Object} data
+ * @param {string} data.shopName
+ * @param {string} data.period
+ * @param {Array} data.expenses
+ * @param {number} data.total
+ * @param {string} data.generatedAt
+ * @returns {Promise<void>}
+ */
+export async function exportExpensesReport(data) {
+    console.log('[PDFExport] starting expenses report generation');
+
+    await loadLibraries();
+
+    const {
+        shopName = 'Чуланчик',
+        period = '',
+        expenses = [],
+        total = 0,
+        generatedAt = new Date().toISOString()
+    } = data;
+
+    const doc = new jsPDF({
+        unit: 'mm',
+        format: 'a4',
+        orientation: 'landscape',
+        putOnlyUsedFonts: true
+    });
+
+    // --- Внедрение кириллического шрифта ---
+    if (russianFontBase64) {
+        doc.addFileToVFS('Roboto-Regular.ttf', russianFontBase64);
+        doc.addFont('Roboto-Regular.ttf', 'Roboto-Regular', 'normal');
+        doc.setFont('Roboto-Regular', 'normal');
+    }
+
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 15;
+    let y = 20;
+
+    // Шапка
+    doc.setFontSize(18);
+    doc.text('Отчёт о расходах', margin, y);
+
+    y += 7;
+    doc.setFontSize(10);
+    doc.text(`${shopName} • ${period}`, margin, y);
+
+    y += 6;
+    const generatedDate = formatDate(generatedAt);
+    const generatedTime = new Date(generatedAt).toLocaleTimeString('ru-RU');
+    doc.text(`Сформирован: ${generatedDate} ${generatedTime}`, margin, y);
+
+    y += 10;
+    doc.setDrawColor(200);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 8;
+
+    // Итого
+    doc.setFontSize(12);
+    doc.text(`Общая сумма расходов: ${formatMoney(total)}`, margin, y);
+    y += 8;
+
+    // Таблица расходов
+    const colX = [margin, margin + 32, margin + 69, margin + 131, margin + 168];
+
+    doc.setFontSize(8);
+    doc.text('Дата', colX[0], y);
+    doc.text('Категория', colX[1], y);
+    doc.text('Описание', colX[2], y);
+    doc.text('Сумма', colX[3], y);
+    doc.text('Чек', colX[4], y);
+    y += 5;
+
+    doc.setDrawColor(220);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 3;
+
+    doc.setFontSize(8);
+
+    for (const exp of expenses) {
+        if (y > 180) {
+            doc.addPage();
+            y = 20;
+            // Повторяем заголовки
+            doc.setFontSize(8);
+            doc.text('Дата', colX[0], y);
+            doc.text('Категория', colX[1], y);
+            doc.text('Описание', colX[2], y);
+            doc.text('Сумма', colX[3], y);
+            doc.text('Чек', colX[4], y);
+            y += 5;
+            doc.line(margin, y, pageWidth - margin, y);
+            y += 3;
+            doc.setFontSize(8);
+        }
+
+        doc.text(formatDate(exp.expense_date), colX[0], y);
+        doc.text(getCategoryLabel(exp.category), colX[1], y);
+        doc.text((exp.description || '—').slice(0, 40), colX[2], y);
+        doc.text(formatMoney(exp.amount), colX[3], y);
+        doc.text(exp.receipt_url ? '✓' : '—', colX[4], y);
+
+        y += 5;
+    }
+
+    const filename = `expenses_${new Date().toISOString().slice(0, 10)}.pdf`;
+    doc.save(filename);
+
+    console.log('[PDFExport] expenses report saved as:', filename);
+}
+
+// ============================================================
+// Хелпер: метки категорий
+// ============================================================
 
 function getCategoryLabel(category) {
     const labels = {
@@ -415,122 +583,6 @@ function getCategoryLabel(category) {
         other: 'Прочее'
     };
     return labels[category] || category;
-}
-
-/**
- * Экспортирует отчёт о расходах в PDF.
- * 
- * @param {Object} data
- * @param {string} data.shopName
- * @param {string} data.period
- * @param {Array} data.expenses
- * @param {number} data.total
- * @param {string} data.generatedAt
- * @returns {Promise<void>}
- */
-export async function exportExpensesReport(data) {
-    console.log('[PDFExport] starting expenses report generation');
-    
-    await loadLibraries();
-    
-    const {
-        shopName = 'Чуланчик',
-        period = '',
-        expenses = [],
-        total = 0,
-        generatedAt = new Date().toISOString()
-    } = data;
-    
-    const doc = new jsPDF({
-        unit: 'mm',
-        format: 'a4',
-        orientation: 'landscape'
-    });
-    
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const margin = 15;
-    let y = 20;
-    
-    // Шапка
-    doc.setFontSize(18);
-    doc.setFont('helvetica', 'bold');
-    doc.text(`Отчёт о расходах`, margin, y);
-    
-    y += 7;
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(100);
-    doc.text(`${shopName} • ${period}`, margin, y);
-    
-    y += 6;
-    doc.text(`Сформирован: ${formatDate(generatedAt)}`, margin, y);
-    
-    y += 10;
-    doc.setDrawColor(200);
-    doc.line(margin, y, pageWidth - margin, y);
-    y += 8;
-    
-    // Итого
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(0);
-    doc.text(`Общая сумма расходов: ${formatMoney(total)}`, margin, y);
-    y += 8;
-    
-    // Таблица расходов
-    const colWidths = [30, 35, 60, 35, 25];
-    const colX = [margin, margin + 32, margin + 69, margin + 131, margin + 168];
-    
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(100);
-    doc.text('Дата', colX[0], y);
-    doc.text('Категория', colX[1], y);
-    doc.text('Описание', colX[2], y);
-    doc.text('Сумма', colX[3], y);
-    doc.text('Чек', colX[4], y);
-    y += 5;
-    
-    doc.setDrawColor(220);
-    doc.line(margin, y, pageWidth - margin, y);
-    y += 3;
-    
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(60);
-    
-    for (const exp of expenses) {
-        if (y > 180) {
-            doc.addPage();
-            y = 20;
-            // Повторяем заголовки
-            doc.setFontSize(8);
-            doc.setFont('helvetica', 'bold');
-            doc.setTextColor(100);
-            doc.text('Дата', colX[0], y);
-            doc.text('Категория', colX[1], y);
-            doc.text('Описание', colX[2], y);
-            doc.text('Сумма', colX[3], y);
-            doc.text('Чек', colX[4], y);
-            y += 5;
-            doc.line(margin, y, pageWidth - margin, y);
-            y += 3;
-            doc.setFont('helvetica', 'normal');
-            doc.setTextColor(60);
-        }
-        
-        doc.text(formatDate(exp.expense_date), colX[0], y);
-        doc.text(getCategoryLabel(exp.category), colX[1], y);
-        doc.text((exp.description || '—').slice(0, 40), colX[2], y);
-        doc.text(formatMoney(exp.amount), colX[3], y);
-        doc.text(exp.receipt_url ? '✓' : '—', colX[4], y);
-        
-        y += 5;
-    }
-    
-    const filename = `expenses_${new Date().toISOString().slice(0, 10)}.pdf`;
-    doc.save(filename);
-    
-    console.log('[PDFExport] expenses report saved as:', filename);
 }
 
 export default {
