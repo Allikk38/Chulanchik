@@ -74,8 +74,6 @@ import {
     renderToolbar,
     renderProductGrid
 } from '../components/CashierProducts.js';
-import SaleService from '../services/SaleService.js';
-console.log('[Cashier] SaleService loaded:', SaleService, typeof SaleService, SaleService?.checkout);
 // ============================================================
 // Константы
 // ============================================================
