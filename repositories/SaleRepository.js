@@ -1,6 +1,6 @@
 // ============================================================
 // repositories/SaleRepository.js
-// Шаг 2: Нормализация items + исправление передачи параметров в RPC
+// v2.4.0 — 2026-04-30: прямой вызов RPC с форматированными параметрами
 // ============================================================
 
 /**
@@ -23,8 +23,12 @@
  *   ReportsController → SaleRepository.getAll(options) → supabase.from('sales').select('*')
  *
  * ИЗМЕНЕНИЯ
- *   v2.0 — исправление: p_items передаётся как JSON-строка через JSON.stringify()
- *   v1.0 — первоначальная версия
+ *   v2.4.0 — передача p_items как массив объектов без сериализации
+ *   v2.3.0 — попытка исправить двойную сериализацию (неудачно)
+ *   v2.2.0 — убран JSON.stringify() для p_items
+ *   v2.1.0 — улучшенное логирование
+ *   v2.0   — JSON.stringify() для p_items
+ *   v1.0   — первоначальная версия
  *
  * @module repositories/SaleRepository
  */
@@ -42,7 +46,6 @@ const CACHE_TTL_MS = 2 * 60 * 1000;
 // Кэш
 // ============================================================
 
-/** @type {Object|null} */
 let cacheEntry = null;
 
 function loadCache() {
@@ -74,9 +77,7 @@ function saveCache(data) {
     cacheEntry = { data, timestamp: Date.now() };
     try {
         sessionStorage.setItem(CACHE_KEY, JSON.stringify(cacheEntry));
-    } catch (e) {
-        // sessionStorage переполнен — не критично
-    }
+    } catch (e) {}
 }
 
 // ============================================================
@@ -113,43 +114,46 @@ function normalizeSale(sale) {
 export const SaleRepository = {
     /**
      * Создаёт продажу через RPC.
-     * p_items передаётся как JSON-строка (PostgreSQL ожидает jsonb).
+     * Передаёт p_items как массив объектов — Supabase сам преобразует в jsonb.
      *
      * @param {Object} saleData
-     * @param {string} saleData.shift_id
-     * @param {Object[]} saleData.items
-     * @param {number} saleData.total
-     * @param {number} saleData.profit
-     * @param {string} saleData.payment_method
-     * @param {string} saleData.user_id
      * @returns {Promise<Object>}
      */
     async create(saleData) {
+        console.log('[SaleRepository] Creating sale with data:', {
+            shift_id: saleData.shift_id,
+            items_count: saleData.items.length,
+            total: saleData.total,
+            profit: saleData.profit,
+            payment_method: saleData.payment_method,
+            user_id: saleData.user_id
+        });
+
+        // Отправляем массив объектов напрямую, без JSON.stringify
+        // Supabase сам преобразует JavaScript-массив в jsonb
         const { data, error } = await supabase.rpc('checkout_sale', {
             p_shift_id: saleData.shift_id,
-            p_items: JSON.stringify(saleData.items),
+            p_items: saleData.items,
             p_total: saleData.total,
             p_profit: saleData.profit,
             p_payment_method: saleData.payment_method,
             p_user_id: saleData.user_id
         });
 
-        if (error) throw error;
+        if (error) {
+            console.error('[SaleRepository] RPC error:', {
+                message: error.message,
+                code: error.code,
+                details: error.details,
+                hint: error.hint
+            });
+            throw error;
+        }
+
+        console.log('[SaleRepository] Sale created, id:', data);
         return { id: data };
     },
 
-    /**
-     * Загружает продажи с фильтрацией.
-     * Нормализует items и числовые поля.
-     *
-     * @param {Object} [options]
-     * @param {string} [options.shiftId]
-     * @param {string} [options.from]
-     * @param {string} [options.to]
-     * @param {number} [options.limit=100]
-     * @param {boolean} [options.force=false]
-     * @returns {Promise<Object[]>}
-     */
     async getAll({ shiftId, from, to, limit = 100, force = false } = {}) {
         if (!force) {
             const cached = loadCache();
@@ -168,7 +172,6 @@ export const SaleRepository = {
             if (to) query = query.lte('created_at', to);
 
             const { data, error } = await query;
-
             if (error) throw error;
 
             const sales = (data || []).map(normalizeSale);
@@ -177,23 +180,12 @@ export const SaleRepository = {
 
         } catch (err) {
             console.error('[SaleRepository] getAll error:', err);
-
             const staleCache = loadCache();
-            if (staleCache) {
-                console.warn('[SaleRepository] returning stale cache due to network error');
-                return staleCache;
-            }
-
+            if (staleCache) return staleCache;
             return [];
         }
     },
 
-    /**
-     * Получает продажу по ID.
-     *
-     * @param {string} id
-     * @returns {Promise<Object|null>}
-     */
     async getById(id) {
         try {
             const { data, error } = await supabase
@@ -204,7 +196,6 @@ export const SaleRepository = {
 
             if (error && error.code !== 'PGRST116') throw error;
             return data ? normalizeSale(data) : null;
-
         } catch (err) {
             console.error('[SaleRepository] getById error:', err);
             return null;
