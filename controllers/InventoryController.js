@@ -4,17 +4,42 @@
 
 /**
  * Контроллер страницы склада.
- * 
- * Подписан на productStore. Управляет фильтрами,
- * рендерингом таблицы и действиями с товарами.
- * 
+ *
+ * НАЗНАЧЕНИЕ
+ *   Управляет фильтрами, рендерингом таблицы/карточек товаров
+ *   и действиями с товарами (создание, редактирование, удаление).
+ *
+ * ЗАВИСИМОСТИ
+ *   productStore              — стор товаров (ProductStore)
+ *   ProductService            — бизнес-логика товаров
+ *   productStore              — стор товаров (синглтон)
+ *   AppHeader                 — рендеринг навигации
+ *   ProductForm               — модальная форма товара
+ *   showNotification          — уведомления
+ *   showConfirmDialog         — диалог подтверждения
+ *   formatters                — форматирование (formatMoney, getCategoryName, getStatusText, escapeHtml)
+ *
+ * ПОТОК ДАННЫХ
+ *   1. init() при DOMContentLoaded
+ *   2. Вставка AppHeader
+ *   3. Проверка авторизации через requireAuth()
+ *   4. Подписка на productStore.on('change')
+ *   5. Загрузка товаров через productStore.loadProducts()
+ *   6. renderAll() отрисовывает статистику, таблицу, карточки
+ *   7. Действия пользователя → addProduct(), editProduct(), deleteProduct()
+ *   8. Фильтры обновляют renderTable() и renderMobileCards()
+ *
+ * ИЗМЕНЕНИЯ
+ *   v6.0.1 — рефакторинг: escapeHtml импортируется из utils/formatters.js
+ *   v6.0.0 — добавлен просмотр карточек на мобильных
+ *
  * @module controllers/InventoryController
  */
 
 import { requireAuth, hasPermission, logout } from '../core/auth.js';
 import { productStore } from '../stores/ProductStore.js';
 import ProductService from '../services/ProductService.js';
-import { formatMoney, getCategoryName, getStatusText } from '../utils/formatters.js';
+import { formatMoney, getCategoryName, getStatusText, escapeHtml } from '../utils/formatters.js';
 import { showNotification, showConfirmDialog } from '../utils/ui.js';
 import { openProductFormModal } from '../components/ProductForm.js';
 import { renderAppHeader, bindAppHeaderEvents, updateUserName } from '../components/AppHeader.js';
@@ -58,6 +83,14 @@ const DOM = {
     mobileCardsContainer: null,
     viewToggleBtn: null
 };
+
+// ============================================================
+// Приватные хелперы
+// ============================================================
+
+function escapeAttr(str) {
+    return String(str).replace(/"/g, '&quot;');
+}
 
 // ============================================================
 // Рендеринг
@@ -605,23 +638,6 @@ async function init() {
     renderAll();
 
     console.log('[Inventory] init() completed');
-}
-
-// ============================================================
-// Приватные хелперы HTML
-// ============================================================
-
-function escapeHtml(str) {
-    if (!str && str !== 0) return '';
-    return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-}
-
-function escapeAttr(str) {
-    return String(str).replace(/"/g, '&quot;');
 }
 
 // ============================================================
