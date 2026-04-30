@@ -139,14 +139,13 @@ export const SaleRepository = {
 
         const { data, error } = await supabase.rpc('checkout_sale', {
             p_shift_id: saleData.shift_id,
-            p_items: saleData.items,        // ← Убран JSON.stringify!
+            p_items: saleData.items,
             p_total: saleData.total,
             p_profit: saleData.profit,
             p_payment_method: saleData.payment_method,
             p_user_id: saleData.user_id
         });
 
-        // --- Улучшенное логирование ошибки ---
         if (error) {
             console.error('[SaleRepository] RPC error details:', {
                 message: error.message,
