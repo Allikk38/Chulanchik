@@ -1,38 +1,34 @@
 // ============================================================
 // utils/pdfExport.js
-// v1.5.0 — 2026-04-30: встроенный кириллический шрифт (PT Sans)
+// v1.6.0 — 2026-04-30: загрузка шрифта из локального файла
 // ============================================================
 //
 // НАЗНАЧЕНИЕ
 //   Модуль экспорта отчётов в PDF с поддержкой кириллицы.
 //
-// ОСОБЕННОСТИ
-//   Шрифт PT Sans Regular встроен в код (base64).
-//   Это гарантирует корректное отображение кириллицы
-//   без внешних зависимостей и CORS-ошибок.
+// ШРИФТ
+//   Roboto-Regular.ttf должен находиться в папке fonts/
+//   Скачать: https://fonts.google.com/specimen/Roboto
 //
 // ЗАВИСИМОСТИ
-//   jsPDF (CDN) — создание PDF
-//   qrcode (CDN) — генерация QR-кодов
+//   jsPDF (CDN)         — создание PDF
+//   qrcode (CDN)        — генерация QR-кодов
+//   fonts/Roboto-Regular.ttf — локальный шрифт с кириллицей
+//
+// ИСПОЛЬЗУЕТСЯ
+//   ReportsController.exportPdf() — финансовый отчёт
 //
 // ИЗМЕНЕНИЯ
-//   v1.5.0 — встроенный шрифт:
-//     - PT Sans Regular в base64 (85 КБ)
-//     - шрифт регистрируется при создании документа
-//     - не требует интернета после загрузки jsPDF
-//   v1.4.0 — попытка загрузки PTSans через jsDelivr (CORS-проблемы)
-//   v1.3.0 — детальные логи
+//   v1.6.0 — локальный файл шрифта:
+//     - Roboto-Regular.ttf загружается из fonts/
+//     - регистрируется в jsPDF через addFont
+//     - работает без интернета после первой загрузки
+//   v1.5.0 — встроенный base64 (отменено — слишком большой)
+//   v1.4.0 — загрузка через jsDelivr (CORS)
 //
 // ============================================================
 
 import { formatMoney, formatDate } from './formatters.js';
-
-// ============================================================
-// ВСТРОЕННЫЙ ШРИФТ: PT Sans Regular (кириллица + латиница)
-// Сконвертирован из TTF в base64 для прямого использования
-// ============================================================
-
-const PT_SANS_BASE64 = 'AAEAAAAOAIAAAwBg...';  // Здесь будет полный base64 шрифта
 
 // ============================================================
 // Состояние
@@ -41,9 +37,10 @@ const PT_SANS_BASE64 = 'AAEAAAAOAIAAAwBg...';  // Здесь будет полн
 let jsPDF = null;
 let qrcode = null;
 let loadPromise = null;
+let fontBase64 = null;
 
 // ============================================================
-// Загрузка jsPDF
+// Загрузка jsPDF с CDN
 // ============================================================
 
 function loadJsPDF() {
@@ -59,16 +56,16 @@ function loadJsPDF() {
             if (window.jspdf?.jsPDF) {
                 resolve();
             } else {
-                reject(new Error('jsPDF constructor not found'));
+                reject(new Error('jsPDF не загрузился'));
             }
         };
-        script.onerror = () => reject(new Error('Failed to load jsPDF'));
+        script.onerror = () => reject(new Error('Нет интернета для загрузки jsPDF'));
         document.head.appendChild(script);
     });
 }
 
 // ============================================================
-// Загрузка QRCode
+// Загрузка QRCode с CDN
 // ============================================================
 
 function loadQRCode() {
@@ -81,13 +78,44 @@ function loadQRCode() {
         const script = document.createElement('script');
         script.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
         script.onload = () => resolve();
-        script.onerror = () => reject(new Error('Failed to load QRCode'));
+        script.onerror = () => reject(new Error('Нет интернета для загрузки QRCode'));
         document.head.appendChild(script);
     });
 }
 
 // ============================================================
-// Инициализация
+// Загрузка шрифта из локальной папки fonts/
+// ============================================================
+
+async function loadFont() {
+    // Уже загружен
+    if (fontBase64) return fontBase64;
+
+    console.log('[PDFExport] Loading font from fonts/Roboto-Regular.ttf...');
+
+    const response = await fetch('fonts/Roboto-Regular.ttf');
+
+    if (!response.ok) {
+        throw new Error(`Файл шрифта не найден: fonts/Roboto-Regular.ttf (HTTP ${response.status})`);
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const uint8Array = new Uint8Array(arrayBuffer);
+
+    // Конвертация в base64
+    let binary = '';
+    uint8Array.forEach(byte => {
+        binary += String.fromCharCode(byte);
+    });
+
+    fontBase64 = btoa(binary);
+    console.log('[PDFExport] Font loaded and converted to base64');
+
+    return fontBase64;
+}
+
+// ============================================================
+// Инициализация всего
 // ============================================================
 
 async function loadLibraries() {
@@ -95,27 +123,33 @@ async function loadLibraries() {
     if (loadPromise) return loadPromise;
 
     loadPromise = (async () => {
-        await loadJsPDF();
-        await loadQRCode();
+        console.log('[PDFExport] Loading CDN libraries...');
+        await Promise.all([loadJsPDF(), loadQRCode()]);
         jsPDF = window.jspdf.jsPDF;
         qrcode = window.QRCode;
+        console.log('[PDFExport] Libraries ready');
     })();
 
     return loadPromise;
 }
 
 // ============================================================
-// Регистрация встроенного шрифта в документе
+// Регистрация шрифта в документе
 // ============================================================
 
 function registerFont(doc) {
-    doc.addFileToVFS('PTSans-Regular.ttf', PT_SANS_BASE64);
-    doc.addFont('PTSans-Regular.ttf', 'PTSans', 'normal');
-    doc.setFont('PTSans', 'normal');
+    if (fontBase64) {
+        doc.addFileToVFS('Roboto-Regular.ttf', fontBase64);
+        doc.addFont('Roboto-Regular.ttf', 'Roboto', 'normal');
+        doc.setFont('Roboto', 'normal');
+    } else {
+        // Фолбэк — стандартный шрифт без кириллицы
+        doc.setFont('courier', 'normal');
+    }
 }
 
 // ============================================================
-// Генерация QR-кода
+// QR-код
 // ============================================================
 
 function generateQRCodeDataURL(text, size = 80) {
@@ -184,11 +218,27 @@ function getCategoryLabel(cat) {
 }
 
 // ============================================================
-// Экспорт финансового отчёта
+// Экспорт финансового отчёта в PDF
 // ============================================================
 
 export async function exportFinancialReport(data) {
+    console.log('[PDFExport] === Starting PDF generation ===');
+
+    // 1. Загружаем библиотеки
     await loadLibraries();
+
+    // 2. Загружаем шрифт
+    try {
+        await loadFont();
+        console.log('[PDFExport] Font ready');
+    } catch (err) {
+        console.warn('[PDFExport] Font not loaded:', err.message);
+        console.warn('[PDFExport] Cyrillic text will not display correctly');
+    }
+
+    // 3. Создаём документ
+    const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+    registerFont(doc);
 
     const {
         shopName = 'Чуланчик',
@@ -200,16 +250,11 @@ export async function exportFinancialReport(data) {
         generatedAt = new Date().toISOString()
     } = data;
 
-    const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
-
-    // Регистрируем встроенный кириллический шрифт
-    registerFont(doc);
-
     const pw = doc.internal.pageSize.getWidth();
     const m = 15;
     let y = 20;
 
-    // Заголовок
+    // --- Заголовок ---
     doc.setFontSize(20);
     doc.text(shopName, m, y);
     y += 8;
@@ -225,7 +270,7 @@ export async function exportFinancialReport(data) {
     doc.line(m, y, pw - m, y);
     y += 8;
 
-    // KPI
+    // --- KPI ---
     if (kpis.revenue !== undefined) {
         doc.setFontSize(10);
         doc.text('КЛЮЧЕВЫЕ ПОКАЗАТЕЛИ', m, y);
@@ -249,7 +294,7 @@ export async function exportFinancialReport(data) {
         y += 32;
     }
 
-    // Спарклайн
+    // --- Спарклайн ---
     if (dailyRevenue.length > 0) {
         doc.setFontSize(10);
         doc.text('ДИНАМИКА ВЫРУЧКИ', m, y);
@@ -263,7 +308,7 @@ export async function exportFinancialReport(data) {
         y += 10;
     }
 
-    // Расходы по категориям
+    // --- Расходы по категориям ---
     if (expensesByCategory.length > 0) {
         doc.setFontSize(10);
         doc.text('РАСХОДЫ ПО КАТЕГОРИЯМ', m, y);
@@ -287,7 +332,7 @@ export async function exportFinancialReport(data) {
         y += 8;
     }
 
-    // Топ-5
+    // --- Топ-5 ---
     if (topExpenses.length > 0) {
         doc.setFontSize(10);
         doc.text('ТОП-5 РАСХОДОВ', m, y);
@@ -314,8 +359,13 @@ export async function exportFinancialReport(data) {
         y += 8;
     }
 
-    // QR-код
-    const qrUrl = await generateQRCodeDataURL(JSON.stringify({ shop: shopName, period, generated: generatedAt }));
+    // --- QR-код ---
+    const qrUrl = await generateQRCodeDataURL(JSON.stringify({
+        shop: shopName,
+        period,
+        generated: generatedAt
+    }));
+
     if (qrUrl) {
         doc.addImage(qrUrl, 'PNG', pw - m - 20, y, 20, 20);
     }
@@ -323,13 +373,16 @@ export async function exportFinancialReport(data) {
     doc.setFontSize(7);
     doc.text(`Подписано электронной печатью • ${formatDate(generatedAt)}`, m, y + 8);
 
-    doc.save(`financial_report_${new Date().toISOString().slice(0, 10)}.pdf`);
+    // --- Сохранение ---
+    const filename = `financial_report_${new Date().toISOString().slice(0, 10)}.pdf`;
+    doc.save(filename);
+    console.log('[PDFExport] === Saved:', filename, '===');
 }
 
 // ============================================================
 
 export async function exportExpensesReport(data) {
-    // Будет позже
+    // Будет реализовано позже
 }
 
 export default { exportFinancialReport, exportExpensesReport };
