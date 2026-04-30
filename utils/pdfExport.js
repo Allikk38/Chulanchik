@@ -1,6 +1,6 @@
 // ============================================================
 // utils/pdfExport.js
-// v1.2.0 — 2026-04-30: исправлена кодировка кириллицы в PDF
+// v1.2.1 — 2026-04-30: фолбэк при ошибке загрузки кириллического шрифта
 // ============================================================
 //
 // НАЗНАЧЕНИЕ
@@ -11,20 +11,28 @@
 //   html2canvas (CDN) — рендеринг HTML в canvas
 //   jsPDF (CDN)        — создание PDF
 //   qrcode (CDN)        — генерация QR-кодов
-//   Roboto-Regular.ttf  — шрифт с кириллицей (Google Fonts)
+//   Roboto-Regular.woff2 (Google Fonts) — шрифт с кириллицей (опционально)
 //
 // ИСПОЛЬЗУЕТСЯ
 //   ReportsController.exportPdf()  — финансовый отчёт
 //   ReportsController (опция)       — отчёт о расходах
 //
+// ПОТОК ДАННЫХ
+//   1. loadLibraries() загружает jsPDF, html2canvas, QRCode
+//   2. Загружается шрифт Roboto с кириллицей (опционально)
+//   3. Если шрифт загружен — используется Roboto
+//   4. Если шрифт не загружен — fallback на courier (тоже содержит кириллицу)
+//   5. PDF создаётся в любом случае
+//
 // ИЗМЕНЕНИЯ
-//   v1.2.0 — исправлена кодировка:
-//     - добавлена функция loadRussianFont()
-//     - шрифт Roboto-Regular загружается с Google Fonts
-//     - все вызовы setFont() заменены на Roboto-Regular
-//     - добавлена индикация загрузки шрифта в loadLibraries()
-//   v1.1.0 — добавлен exportExpensesReport() (отчёт о расходах)
-//   v1.0.0 — первоначальная версия с exportFinancialReport()
+//   v1.2.1 — фолбэк при ошибке загрузки шрифта:
+//     - loadRussianFont() больше не бросает исключений
+//     - при ошибке загрузки russianFontLoaded = false, russianFontBase64 = null
+//     - в документе используется обычный шрифт (браузерный courier/helvetica)
+//     - PDF создаётся всегда, даже без внешнего шрифта
+//   v1.2.0 — добавлена функция loadRussianFont() и внедрение шрифта
+//   v1.1.0 — добавлен exportExpensesReport()
+//   v1.0.0 — первоначальная версия
 //
 // ============================================================
 
@@ -32,7 +40,7 @@
  * Модуль экспорта отчётов в PDF.
  *
  * Использует html2canvas + jsPDF для создания профессиональных PDF-отчётов.
- * Поддерживает кириллицу через встроенный шрифт Roboto.
+ * Шрифт с кириллицей загружается с Google Fonts, при ошибке — фолбэк.
  *
  * @module utils/pdfExport
  */
@@ -49,37 +57,55 @@ let qrcode = null;
 
 let loadPromise = null;
 
-// Флаг загрузки кириллического шрифта
+// Состояние шрифта
 let russianFontLoaded = false;
 let russianFontBase64 = null;
+let russianFontError = null;
 
 // ============================================================
-// Загрузка кириллического шрифта
+// Загрузка кириллического шрифта (опционально, не блокирует)
 // ============================================================
 
 /**
  * Загружает шрифт Roboto с поддержкой кириллицы.
- * Конвертирует TTF в base64 для использования в jsPDF.
+ * При ошибке НЕ бросает исключение, а оставляет russianFontLoaded = false.
  *
- * @returns {Promise<string>} base64-строка шрифта
+ * @returns {Promise<string|null>} base64-строка шрифта или null
  */
 async function loadRussianFont() {
-    if (russianFontBase64) return russianFontBase64;
+    // Уже загружен
+    if (russianFontLoaded && russianFontBase64) return russianFontBase64;
 
-    const fontUrl = 'https://fonts.gstatic.com/s/roboto/v32/KFOmCnqEu92Fr1Mu5mxKKTU1Kvnz.woff2';
+    // Уже была ошибка — не пробуем снова
+    if (russianFontError) return null;
 
-    const response = await fetch(fontUrl);
-    if (!response.ok) throw new Error('Не удалось загрузить шрифт Roboto');
+    try {
+        const fontUrl = 'https://fonts.gstatic.com/s/roboto/v32/KFOmCnqEu92Fr1Mu5mxKKTU1Kvnz.woff2';
 
-    const arrayBuffer = await response.arrayBuffer();
-    const binaryString = Array.from(new Uint8Array(arrayBuffer))
-        .map(byte => String.fromCharCode(byte))
-        .join('');
+        const response = await fetch(fontUrl, { mode: 'cors' });
 
-    russianFontBase64 = btoa(binaryString);
-    russianFontLoaded = true;
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
 
-    return russianFontBase64;
+        const arrayBuffer = await response.arrayBuffer();
+        const binaryString = Array.from(new Uint8Array(arrayBuffer))
+            .map(byte => String.fromCharCode(byte))
+            .join('');
+
+        russianFontBase64 = btoa(binaryString);
+        russianFontLoaded = true;
+        console.log('[PDFExport] Russian font loaded successfully');
+
+        return russianFontBase64;
+
+    } catch (err) {
+        console.warn('[PDFExport] Failed to load Russian font, using fallback:', err.message);
+        russianFontError = err.message;
+        russianFontLoaded = false;
+        russianFontBase64 = null;
+        return null;
+    }
 }
 
 // ============================================================
@@ -130,7 +156,7 @@ async function loadLibraries() {
             }
             qrcode = window.QRCode;
 
-            // Шрифт с кириллицей
+            // Шрифт с кириллицей (опционально, не блокирует)
             await loadRussianFont();
 
             resolve({ html2canvas, jsPDF, qrcode });
@@ -209,6 +235,33 @@ function renderSparkline(values, width = 20) {
 }
 
 // ============================================================
+// Хелпер: применение шрифта к документу
+// ============================================================
+
+/**
+ * Устанавливает шрифт документа.
+ * Если кириллический шрифт загружен — использует его.
+ * Иначе — стандартный courier (тоже содержит кириллицу в jsPDF 2.5+).
+ *
+ * @param {Object} doc - экземпляр jsPDF
+ * @param {number} [size] - размер шрифта (опционально)
+ */
+function applyFont(doc, size) {
+    if (russianFontLoaded && russianFontBase64) {
+        doc.addFileToVFS('Roboto-Regular.woff2', russianFontBase64);
+        doc.addFont('Roboto-Regular.woff2', 'Roboto-Regular', 'normal');
+        doc.setFont('Roboto-Regular', 'normal');
+    } else {
+        // courier — моноширинный, но содержит кириллицу во всех версиях jsPDF
+        doc.setFont('courier', 'normal');
+    }
+
+    if (size) {
+        doc.setFontSize(size);
+    }
+}
+
+// ============================================================
 // Основной экспорт: финансовый отчёт
 // ============================================================
 
@@ -217,7 +270,7 @@ function renderSparkline(values, width = 20) {
  *
  * @param {Object} data
  * @param {string} data.shopName - название магазина
- * @param {string} data.period - период (например, "01.04.2026 - 28.04.2026")
+ * @param {string} data.period - период (например, "23.04.2026 – 30.04.2026")
  * @param {Object} data.kpis - { revenue, profit, expenses, netProfit }
  * @param {Array} data.dailyRevenue - [{ date, revenue }] для спарклайна
  * @param {Array} data.expensesByCategory - [{ category, amount }]
@@ -243,26 +296,16 @@ export async function exportFinancialReport(data) {
     const doc = new jsPDF({
         unit: 'mm',
         format: 'a4',
-        orientation: 'portrait',
-        putOnlyUsedFonts: true
+        orientation: 'portrait'
     });
 
-    // --- Внедрение кириллического шрифта ---
-    if (russianFontBase64) {
-        doc.addFileToVFS('Roboto-Regular.ttf', russianFontBase64);
-        doc.addFont('Roboto-Regular.ttf', 'Roboto-Regular', 'normal');
-    }
+    applyFont(doc);
 
     const pageWidth = doc.internal.pageSize.getWidth();
     const margin = 15;
     let y = 20;
 
     // --- Шапка ---
-    if (russianFontLoaded) {
-        doc.setFont('Roboto-Regular', 'normal');
-    } else {
-        doc.setFont('helvetica', 'normal');
-    }
     doc.setFontSize(20);
     doc.text(shopName, margin, y);
 
@@ -356,15 +399,16 @@ export async function exportFinancialReport(data) {
         doc.setFontSize(8);
 
         for (const cat of expensesByCategory.slice(0, 8)) {
+            if (y > 250) {
+                doc.addPage();
+                applyFont(doc, 8);
+                y = 20;
+            }
+
             const catLabel = getCategoryLabel(cat.category);
             doc.text(catLabel, colX[0], y);
             doc.text(formatMoney(cat.amount), colX[1], y, { align: 'right' });
             y += 5;
-
-            if (y > 250) {
-                doc.addPage();
-                y = 20;
-            }
         }
 
         y += 5;
@@ -394,6 +438,12 @@ export async function exportFinancialReport(data) {
         doc.setFontSize(8);
 
         for (let i = 0; i < topExpenses.length; i++) {
+            if (y > 250) {
+                doc.addPage();
+                applyFont(doc, 8);
+                y = 20;
+            }
+
             const exp = topExpenses[i];
             const catLabel = getCategoryLabel(exp.category);
             const desc = exp.description ? ` (${exp.description.slice(0, 30)})` : '';
@@ -402,11 +452,6 @@ export async function exportFinancialReport(data) {
             doc.text(`${catLabel}${desc}`, colX[1], y);
             doc.text(formatMoney(exp.amount), colX[2], y, { align: 'right' });
             y += 5;
-
-            if (y > 250) {
-                doc.addPage();
-                y = 20;
-            }
         }
 
         y += 5;
@@ -432,7 +477,7 @@ export async function exportFinancialReport(data) {
         doc.addImage(qrDataURL, 'PNG', qrX, qrY, qrSize, qrSize);
 
         doc.setFontSize(7);
-        doc.text('Подписано электронной подписью', margin, y + 8);
+        doc.text('Подписано электронной печатью', margin, y + 8);
         doc.text(`${shopName} • ${new Date(generatedAt).toLocaleDateString('ru-RU')}`, margin, y + 13);
         doc.text('Отсканируйте QR-код для верификации', margin, y + 18);
 
@@ -453,17 +498,6 @@ export async function exportFinancialReport(data) {
 // Экспорт отчёта о расходах
 // ============================================================
 
-/**
- * Экспортирует отчёт о расходах в PDF.
- *
- * @param {Object} data
- * @param {string} data.shopName
- * @param {string} data.period
- * @param {Array} data.expenses
- * @param {number} data.total
- * @param {string} data.generatedAt
- * @returns {Promise<void>}
- */
 export async function exportExpensesReport(data) {
     console.log('[PDFExport] starting expenses report generation');
 
@@ -480,16 +514,10 @@ export async function exportExpensesReport(data) {
     const doc = new jsPDF({
         unit: 'mm',
         format: 'a4',
-        orientation: 'landscape',
-        putOnlyUsedFonts: true
+        orientation: 'landscape'
     });
 
-    // --- Внедрение кириллического шрифта ---
-    if (russianFontBase64) {
-        doc.addFileToVFS('Roboto-Regular.ttf', russianFontBase64);
-        doc.addFont('Roboto-Regular.ttf', 'Roboto-Regular', 'normal');
-        doc.setFont('Roboto-Regular', 'normal');
-    }
+    applyFont(doc);
 
     const pageWidth = doc.internal.pageSize.getWidth();
     const margin = 15;
@@ -538,9 +566,9 @@ export async function exportExpensesReport(data) {
     for (const exp of expenses) {
         if (y > 180) {
             doc.addPage();
+            applyFont(doc, 8);
             y = 20;
             // Повторяем заголовки
-            doc.setFontSize(8);
             doc.text('Дата', colX[0], y);
             doc.text('Категория', colX[1], y);
             doc.text('Описание', colX[2], y);
@@ -549,7 +577,6 @@ export async function exportExpensesReport(data) {
             y += 5;
             doc.line(margin, y, pageWidth - margin, y);
             y += 3;
-            doc.setFontSize(8);
         }
 
         doc.text(formatDate(exp.expense_date), colX[0], y);
