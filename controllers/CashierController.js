@@ -1,6 +1,6 @@
 // ============================================================
 // controllers/CashierController.js
-// v2.2.0 — 2026-04-30: валидация корзины при загрузке, таймаут загрузки
+// v2.3.0 — 2026-04-30: исправление бесконечной загрузки на мобильных
 // ============================================================
 //
 // НАЗНАЧЕНИЕ
@@ -17,21 +17,26 @@
 //   CashierProducts      — рендеринг панели товаров
 //   AppHeader            — рендеринг навигации
 //
-// ПОТОК ДАННЫХ (изменён в v2.2.0)
+// ПОТОК ДАННЫХ (изменён в v2.3.0)
 //   1. init() вызывается при DOMContentLoaded
 //   2. Вставляется AppHeader с навигацией
 //   3. Проверяется авторизация через requireAuth()
-//   4. Внедряются зависимости в CashierCart и CashierProducts
-//   5. Загружаются товары (productStore.loadProducts)
-//   6. Загружается корзина из кэша И СРАЗУ проверяется по статусам товаров
-//   7. Загружается смена (shiftStore.checkOpenShift)
-//   8. render() перестраивает интерфейс
+//   4. Кэшируется DOM
+//   5. Внедряются зависимости в CashierCart и CashierProducts
+//   6. Рендерится скелетон загрузки
+//   7. Загружаются товары (productStore.loadProducts) с таймаутом
+//   8. Восстанавливается корзина с проверкой статусов
+//   9. Загружается смена (shiftStore.checkOpenShift)
+//  10. render() перестраивает интерфейс
 //
 // ИЗМЕНЕНИЯ
-//   v2.2.0 — валидация корзины и таймаут загрузки:
-//     - cartStore.loadFromCache(productStore) — проверка статусов
-//     - добавлен таймаут 15 секунд для загрузки данных
-//     - при таймауте показывается ошибка, но интерфейс остаётся рабочим
+//   v2.3.0 — исправление бесконечной загрузки на мобильных:
+//     - изменён порядок инициализации: DOM кэшируется до рендера скелетона
+//     - renderLoadingSkeleton() не вызывает renderMobileCartTrigger()
+//     - renderMobileCartTrigger() не падает при отсутствии contentRef
+//     - добавлен фидбэк при медленной загрузке (> 5 секунд)
+//     - добавлена обработка onError для изображений
+//   v2.2.0 — валидация корзины и таймаут загрузки
 //   v2.1.0 — удалена дублирующаяся ensureMobileCartButton()
 //   v2.0.0 — мобильная кнопка корзины
 //   v1.0.0 — первоначальная версия
@@ -77,7 +82,8 @@ import {
 // Константы
 // ============================================================
 
-const DATA_LOAD_TIMEOUT_MS = 15000; // 15 секунд на загрузку товаров и смены
+const DATA_LOAD_TIMEOUT_MS = 15000;
+const SLOW_LOAD_THRESHOLD_MS = 5000;
 
 // ============================================================
 // Локальное состояние
@@ -88,7 +94,8 @@ const state = {
     searchQuery: '',
     selectedCategory: null,
     isScanning: false,
-    isInitialLoading: true
+    isInitialLoading: true,
+    isSlowLoad: false
 };
 
 // ============================================================
@@ -106,6 +113,20 @@ const DOM = {
 function renderLoadingSkeleton() {
     const shiftBarHtml = shiftStore.isOpen() ? renderShiftBar() : '';
 
+    const slowLoadNotice = state.isSlowLoad ? `
+        <div style="
+            text-align: center;
+            padding: 12px 16px;
+            margin: 12px 16px;
+            background: #fff7ed;
+            border-radius: 8px;
+            color: #9a3412;
+            font-size: 14px;
+            border-left: 3px solid #ea580c;
+        ">
+            Медленное соединение. Пожалуйста, подождите...
+        </div>` : '';
+
     return `
         <div class="cashier-layout">
             <div class="products-panel">
@@ -117,6 +138,7 @@ function renderLoadingSkeleton() {
                         </div>
                     </div>
                 </div>
+                ${slowLoadNotice}
                 <div class="products-grid-container" id="productsGridContainer">
                     <div class="loading-overlay">
                         <div class="loading-spinner"></div>
@@ -140,7 +162,7 @@ function render() {
 
     if (state.isInitialLoading) {
         DOM.content.innerHTML = renderLoadingSkeleton();
-        renderMobileCartTrigger();
+        // Не вызываем renderMobileCartTrigger() во время загрузки
         return;
     }
 
@@ -425,9 +447,18 @@ function onStoreChange() {
 
 /**
  * Загружает товары и смену с таймаутом.
- * При таймауте показывает уведомление, но не ломает интерфейс.
+ * При медленной загрузке (> 5 сек) показывает уведомление.
+ * При таймауте (> 15 сек) показывает ошибку, но не ломает интерфейс.
  */
 async function loadDataWithTimeout() {
+    let slowLoadTimer = null;
+
+    // Таймер медленной загрузки
+    slowLoadTimer = setTimeout(() => {
+        state.isSlowLoad = true;
+        DOM.content.innerHTML = renderLoadingSkeleton();
+    }, SLOW_LOAD_THRESHOLD_MS);
+
     try {
         // Таймаут-промис
         const timeoutPromise = new Promise((_, reject) => {
@@ -443,10 +474,15 @@ async function loadDataWithTimeout() {
             timeoutPromise
         ]);
 
+        clearTimeout(slowLoadTimer);
+        state.isSlowLoad = false;
         console.log('[Cashier] Data loaded successfully');
         return true;
 
     } catch (err) {
+        clearTimeout(slowLoadTimer);
+        state.isSlowLoad = false;
+
         if (err.message === 'TIMEOUT') {
             console.warn('[Cashier] Data loading timed out after', DATA_LOAD_TIMEOUT_MS, 'ms');
             showNotification(
@@ -499,7 +535,7 @@ function bindGlobalEvents() {
 }
 
 async function init() {
-    console.log('[Cashier] v2.2 - cart validation + timeout');
+    console.log('[Cashier] v2.3 - mobile loading fix');
 
     // 1. Вставляем навигацию синхронно
     const headerHtml = renderAppHeader({
@@ -542,27 +578,31 @@ async function init() {
     // 3. Обновляем имя пользователя в шапке
     updateUserName(user.fullName || user.email?.split('@')[0] || 'Пользователь');
 
-    // 4. Внедряем зависимости в компоненты
+    // 4. Кэшируем DOM ДО внедрения зависимостей
+    cacheDom();
+
+    // 5. Внедряем зависимости в компоненты
     initCart({ cartStore, content: DOM.content });
     initProducts({ productStore, cartStore, shiftStore, state });
 
-    // 5. Кэшируем DOM и вешаем глобальные события
-    cacheDom();
+    // 6. Вешаем глобальные события
     bindGlobalEvents();
 
-    // 6. Скелетон загрузки
+    // 7. Скелетон загрузки
+    state.isInitialLoading = true;
     render();
-    renderMobileCartTrigger();
 
-    // 7. Загружаем товары и смену с таймаутом
+    // 8. Загружаем товары и смену с таймаутом
     await loadDataWithTimeout();
 
-    // 8. Теперь, когда товары загружены — восстанавливаем корзину с проверкой статусов
+    // 9. Теперь, когда товары загружены — восстанавливаем корзину с проверкой статусов
     cartStore.loadFromCache(productStore);
 
-    // 9. Финальный рендер
+    // 10. Финальный рендер
     state.isInitialLoading = false;
     render();
+    renderMobileCartTrigger();
+    updateMobileCartTrigger();
 
     console.log('[Cashier] init() completed');
 }
