@@ -6,9 +6,25 @@
 /**
  * Репозиторий продаж.
  *
- * Единственный модуль, который обращается к таблице sales в Supabase.
- * Владеет кэшем в sessionStorage (TTL 2 минуты).
- * Нормализует поле items и числовые поля.
+ * НАЗНАЧЕНИЕ
+ *   Единственный модуль, который обращается к таблице sales в Supabase.
+ *   Владеет кэшем в sessionStorage (TTL 2 минуты).
+ *   Нормализует поле items и числовые поля.
+ *
+ * ЗАВИСИМОСТИ
+ *   supabase — клиент из core/supabase-client.js
+ *
+ * ИСПОЛЬЗУЕТСЯ
+ *   SaleService — бизнес-логика продаж
+ *   ReportsController — загрузка продаж для отчётов
+ *
+ * ПОТОК ДАННЫХ
+ *   SaleService → SaleRepository.create(saleData) → supabase.rpc('checkout_sale', ...)
+ *   ReportsController → SaleRepository.getAll(options) → supabase.from('sales').select('*')
+ *
+ * ИЗМЕНЕНИЯ
+ *   v2.0 — исправление: p_items передаётся как JSON-строка через JSON.stringify()
+ *   v1.0 — первоначальная версия
  *
  * @module repositories/SaleRepository
  */
@@ -97,15 +113,21 @@ function normalizeSale(sale) {
 export const SaleRepository = {
     /**
      * Создаёт продажу через RPC.
-     * p_items передаётся как массив (Supabase JS-клиент сам преобразует в JSONB).
+     * p_items передаётся как JSON-строка (PostgreSQL ожидает jsonb).
      *
      * @param {Object} saleData
+     * @param {string} saleData.shift_id
+     * @param {Object[]} saleData.items
+     * @param {number} saleData.total
+     * @param {number} saleData.profit
+     * @param {string} saleData.payment_method
+     * @param {string} saleData.user_id
      * @returns {Promise<Object>}
      */
     async create(saleData) {
         const { data, error } = await supabase.rpc('checkout_sale', {
             p_shift_id: saleData.shift_id,
-            p_items: saleData.items,
+            p_items: JSON.stringify(saleData.items),
             p_total: saleData.total,
             p_profit: saleData.profit,
             p_payment_method: saleData.payment_method,
@@ -121,6 +143,11 @@ export const SaleRepository = {
      * Нормализует items и числовые поля.
      *
      * @param {Object} [options]
+     * @param {string} [options.shiftId]
+     * @param {string} [options.from]
+     * @param {string} [options.to]
+     * @param {number} [options.limit=100]
+     * @param {boolean} [options.force=false]
      * @returns {Promise<Object[]>}
      */
     async getAll({ shiftId, from, to, limit = 100, force = false } = {}) {
