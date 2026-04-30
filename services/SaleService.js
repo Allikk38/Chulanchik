@@ -1,15 +1,52 @@
 // ============================================================
 // services/SaleService.js
-// Исправление: проверка статуса товаров перед продажей
+// v1.1.0 — 2026-04-30: защита от двойной продажи
+// ============================================================
+//
+// НАЗНАЧЕНИЕ
+//   Сервисный слой для оформления продаж.
+//   Содержит бизнес-логику, валидацию и координацию между сторы.
+//
+// ЗАВИСИМОСТИ
+//   SaleRepository  — сохранение продажи в БД (репозиторий)
+//   cartStore       — стор корзины (CartStore)
+//   shiftStore      — стор текущей смены (ShiftStore)
+//   productStore    — стор товаров (ProductStore)
+//
+// ИСПОЛЬЗУЕТСЯ
+//   CashierController — оформление продажи через checkout()
+//
+// ПОТОК ДАННЫХ
+//   checkout(paymentMethod, userId)
+//     -> проверка: корзина не пуста
+//     -> проверка: смена открыта
+//     -> проверка: userId передан
+//     -> проверка: shiftId получен из стора
+//     -> проверка: все товары в корзине имеют статус 'in_stock'
+//        (если нет — товар удаляется из корзины, продажа прерывается)
+//     -> SaleRepository.create(...)
+//     -> обновление productStore (статус 'sold')
+//     -> обновление shiftStore (статистика)
+//     -> очистка корзины
+//     -> возврат { success: true, sale }
+//
+// ИЗМЕНЕНИЯ
+//   v1.1.0 — защита от двойной продажи:
+//     - добавлена проверка статуса товаров перед оформлением
+//     - если товар продан другим кассиром, он удаляется из корзины
+//     - пользователь получает уведомление (возвращается error с описанием)
+//     - после удаления недоступных товаров нужно повторить checkout
+//   v1.0.0 — первоначальная версия
+//
 // ============================================================
 
 /**
  * Сервис продаж.
- * 
+ *
  * Бизнес-логика оформления продажи.
  * Не зависит от UI. Контроллеры вызывают методы сервиса
  * и сами решают что показать пользователю.
- * 
+ *
  * @module services/SaleService
  */
 
@@ -25,17 +62,23 @@ import { productStore } from '../stores/ProductStore.js';
 export const SaleService = {
     /**
      * Оформляет продажу.
-     * Проверяет что все товары в корзине ещё в наличии.
-     * Если товар продан другим кассиром — удаляет его из корзины
-     * и уведомляет пользователя.
-     * 
+     *
+     * Алгоритм:
+     * 1. Валидация входных данных (корзина, смена, пользователь)
+     * 2. Проверка статуса всех товаров в корзине
+     *    — если товар уже продан, удаляет его из корзины и прерывает операцию
+     * 3. Расчёт итогов и прибыли
+     * 4. Сохранение продажи через SaleRepository
+     * 5. Обновление сторов (productStore, shiftStore, cartStore)
+     *
      * @param {Object} params
      * @param {string} params.paymentMethod — 'cash', 'card', 'transfer'
      * @param {string} params.userId — ID пользователя
      * @returns {Promise<{success: boolean, error?: string, sale?: Object}>}
      */
     async checkout({ paymentMethod, userId }) {
-        // Валидация
+        // --- Валидация входных данных ---
+
         if (cartStore.isEmpty()) {
             return { success: false, error: 'Корзина пуста' };
         }
@@ -53,43 +96,62 @@ export const SaleService = {
             return { success: false, error: 'Не удалось определить смену' };
         }
 
-        // Проверяем что все товары в корзине ещё в наличии.
-        // Между добавлением в корзину и оформлением продажи
-        // товар мог быть продан другим кассиром.
+        // --- Проверка статуса товаров (защита от двойной продажи) ---
+
         const items = cartStore.getItems();
         const unavailableItems = [];
 
-        for (const item of items) {
-            const current = productStore.getById(item.id);
-            if (!current || current.status !== 'in_stock') {
-                unavailableItems.push(item);
+        for (const cartItem of items) {
+            const currentProduct = productStore.getById(cartItem.id);
+
+            // Товар не найден в сторе — значит был удалён
+            if (!currentProduct) {
+                unavailableItems.push({
+                    id: cartItem.id,
+                    name: cartItem.name,
+                    reason: 'товар удалён из системы'
+                });
+                continue;
+            }
+
+            // Товар уже продан (этим или другим кассиром)
+            if (currentProduct.status === 'sold') {
+                unavailableItems.push({
+                    id: cartItem.id,
+                    name: cartItem.name,
+                    reason: 'товар только что продан'
+                });
+                continue;
+            }
+
+            // Товар зарезервирован
+            if (currentProduct.status === 'reserved') {
+                unavailableItems.push({
+                    id: cartItem.id,
+                    name: cartItem.name,
+                    reason: 'товар зарезервирован'
+                });
+                continue;
             }
         }
 
-        // Удаляем недоступные товары из корзины
+        // Если есть недоступные товары — удаляем их из корзины и прерываем операцию
         if (unavailableItems.length > 0) {
-            for (const item of unavailableItems) {
-                cartStore.removeItem(item.id);
+            for (const unavailable of unavailableItems) {
+                cartStore.removeItem(unavailable.id);
             }
 
-            const names = unavailableItems.map(i => `«${i.name}»`).join(', ');
-            
-            // Если все товары недоступны — прерываем
-            if (cartStore.isEmpty()) {
-                return { 
-                    success: false, 
-                    error: `Все товары в корзине уже проданы: ${names}. Корзина очищена.` 
-                };
-            }
-
-            // Часть товаров недоступна — прерываем, корзина обновлена
-            return { 
-                success: false, 
-                error: `Товары ${names} только что проданы другим пользователем и удалены из корзины. Проверьте остатки и попробуйте снова.` 
+            const names = unavailableItems.map(item => `«${item.name}»`).join(', ');
+            return {
+                success: false,
+                error: `Некоторые товары больше недоступны и удалены из корзины: ${names}. Проверьте корзину и попробуйте снова.`
             };
         }
 
-        // Собираем данные
+        // --- Сбор данных для продажи ---
+
+        const total = cartStore.getTotal();
+
         const itemsForDb = items.map(item => ({
             id: item.id,
             name: item.name,
@@ -99,8 +161,6 @@ export const SaleService = {
             discount: item.discount
         }));
 
-        const total = cartStore.getTotal();
-
         const profit = items.reduce((sum, item) => {
             const discounted = (item.price || 0) * (1 - (item.discount || 0) / 100);
             return sum + ((discounted - (item.cost_price || 0)) * item.quantity);
@@ -108,7 +168,8 @@ export const SaleService = {
 
         const itemsCount = items.reduce((sum, i) => sum + i.quantity, 0);
 
-        // Сохраняем через репозиторий
+        // --- Сохранение продажи ---
+
         try {
             const sale = await SaleRepository.create({
                 shift_id: shiftId,
