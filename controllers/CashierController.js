@@ -1,6 +1,6 @@
 // ============================================================
 // controllers/CashierController.js
-// v2.3.0 — 2026-04-30: исправление бесконечной загрузки на мобильных
+// v2.3.1 — 2026-04-30: исправлен импорт SaleService
 // ============================================================
 //
 // НАЗНАЧЕНИЕ
@@ -30,6 +30,7 @@
 //  10. render() перестраивает интерфейс
 //
 // ИЗМЕНЕНИЯ
+//   v2.3.1 — исправлен импорт SaleService (использовать default)
 //   v2.3.0 — исправление бесконечной загрузки на мобильных:
 //     - изменён порядок инициализации: DOM кэшируется до рендера скелетона
 //     - renderLoadingSkeleton() не вызывает renderMobileCartTrigger()
@@ -95,7 +96,8 @@ const state = {
     selectedCategory: null,
     isScanning: false,
     isInitialLoading: true,
-    isSlowLoad: false
+    isSlowLoad: false,
+    isCheckingOut: false
 };
 
 // ============================================================
@@ -162,7 +164,6 @@ function render() {
 
     if (state.isInitialLoading) {
         DOM.content.innerHTML = renderLoadingSkeleton();
-        // Не вызываем renderMobileCartTrigger() во время загрузки
         return;
     }
 
@@ -284,21 +285,35 @@ async function startScan() {
 
 async function checkout() {
     if (cartStore.isEmpty()) return;
+    if (state.isCheckingOut) return;
 
+    const checkoutBtn = document.getElementById('checkoutBtn');
     const total = cartStore.getTotal();
     const method = await showPaymentModal(total);
     if (!method) return;
 
-    const { success, error } = await SaleService.checkout({
+    state.isCheckingOut = true;
+    if (checkoutBtn) {
+        checkoutBtn.disabled = true;
+        checkoutBtn.textContent = 'Оформление...';
+    }
+
+    const result = await SaleService.checkout({
         paymentMethod: method,
         userId: state.user?.id
     });
 
-    if (success) {
+    state.isCheckingOut = false;
+    if (checkoutBtn) {
+        checkoutBtn.disabled = false;
+        checkoutBtn.textContent = 'Оформить продажу (F9)';
+    }
+
+    if (result.success) {
         closeCart();
         showNotification(`Продажа на ${formatMoney(total)} оформлена`, 'success');
     } else {
-        showNotification(error || 'Ошибка оформления', 'error');
+        showNotification(result.error || 'Ошибка оформления', 'error');
     }
 }
 
@@ -445,28 +460,20 @@ function onStoreChange() {
 // Загрузка данных с таймаутом
 // ============================================================
 
-/**
- * Загружает товары и смену с таймаутом.
- * При медленной загрузке (> 5 сек) показывает уведомление.
- * При таймауте (> 15 сек) показывает ошибку, но не ломает интерфейс.
- */
 async function loadDataWithTimeout() {
     let slowLoadTimer = null;
 
-    // Таймер медленной загрузки
     slowLoadTimer = setTimeout(() => {
         state.isSlowLoad = true;
         DOM.content.innerHTML = renderLoadingSkeleton();
     }, SLOW_LOAD_THRESHOLD_MS);
 
     try {
-        // Таймаут-промис
         const timeoutPromise = new Promise((_, reject) => {
             setTimeout(() => reject(new Error('TIMEOUT')), DATA_LOAD_TIMEOUT_MS);
         });
 
-        // Гонка: данные или таймаут
-        const result = await Promise.race([
+        await Promise.race([
             Promise.all([
                 productStore.loadProducts(),
                 shiftStore.checkOpenShift(state.user.id)
@@ -499,7 +506,6 @@ async function loadDataWithTimeout() {
             );
         }
 
-        // Даже при ошибке продолжаем — интерфейс будет частично рабочим
         return false;
     }
 }
@@ -535,9 +541,8 @@ function bindGlobalEvents() {
 }
 
 async function init() {
-    console.log('[Cashier] v2.3 - mobile loading fix');
+    console.log('[Cashier] v2.3.1 - fixed SaleService import');
 
-    // 1. Вставляем навигацию синхронно
     const headerHtml = renderAppHeader({
         currentPage: 'cashier',
         userName: 'Пользователь'
@@ -565,7 +570,6 @@ async function init() {
         onLogout: () => logout()
     });
 
-    // 2. Проверяем авторизацию
     const { user, authError } = await requireAuth();
     if (authError || !user) {
         window.location.href = 'pages/login.html';
@@ -575,30 +579,22 @@ async function init() {
     state.user = user;
     console.log('[Cashier] user authenticated:', user.email);
 
-    // 3. Обновляем имя пользователя в шапке
     updateUserName(user.fullName || user.email?.split('@')[0] || 'Пользователь');
 
-    // 4. Кэшируем DOM ДО внедрения зависимостей
     cacheDom();
 
-    // 5. Внедряем зависимости в компоненты
     initCart({ cartStore, content: DOM.content });
     initProducts({ productStore, cartStore, shiftStore, state });
 
-    // 6. Вешаем глобальные события
     bindGlobalEvents();
 
-    // 7. Скелетон загрузки
     state.isInitialLoading = true;
     render();
 
-    // 8. Загружаем товары и смену с таймаутом
     await loadDataWithTimeout();
 
-    // 9. Теперь, когда товары загружены — восстанавливаем корзину с проверкой статусов
     cartStore.loadFromCache(productStore);
 
-    // 10. Финальный рендер
     state.isInitialLoading = false;
     render();
     renderMobileCartTrigger();
