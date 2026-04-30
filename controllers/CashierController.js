@@ -1,6 +1,6 @@
 // ============================================================
 // controllers/CashierController.js
-// v2.1.0 — 2026-04-30: удалена дублирующаяся ensureMobileCartButton()
+// v2.2.0 — 2026-04-30: валидация корзины при загрузке, таймаут загрузки
 // ============================================================
 //
 // НАЗНАЧЕНИЕ
@@ -17,21 +17,24 @@
 //   CashierProducts      — рендеринг панели товаров
 //   AppHeader            — рендеринг навигации
 //
-// ПОТОК ДАННЫХ
+// ПОТОК ДАННЫХ (изменён в v2.2.0)
 //   1. init() вызывается при DOMContentLoaded
 //   2. Вставляется AppHeader с навигацией
 //   3. Проверяется авторизация через requireAuth()
 //   4. Внедряются зависимости в CashierCart и CashierProducts
-//   5. Загружаются данные: shiftStore.checkOpenShift(), productStore.loadProducts()
-//   6. render() перестраивает интерфейс при каждом изменении сторов
-//   7. Мобильная корзина управляется через CashierCart (renderMobileCartTrigger, toggleCart, closeCart)
+//   5. Загружаются товары (productStore.loadProducts)
+//   6. Загружается корзина из кэша И СРАЗУ проверяется по статусам товаров
+//   7. Загружается смена (shiftStore.checkOpenShift)
+//   8. render() перестраивает интерфейс
 //
 // ИЗМЕНЕНИЯ
-//   v2.1.0 — удалена ensureMobileCartButton():
-//     - все вызовы заменены на renderMobileCartTrigger() / updateMobileCartTrigger()
-//     - устранено дублирование DOM-элементов корзины на мобильных
-//   v2.0.0 — первоначальная версия (исправление мобильной кнопки корзины)
-//   v1.0.0 — базовый контроллер кассы
+//   v2.2.0 — валидация корзины и таймаут загрузки:
+//     - cartStore.loadFromCache(productStore) — проверка статусов
+//     - добавлен таймаут 15 секунд для загрузки данных
+//     - при таймауте показывается ошибка, но интерфейс остаётся рабочим
+//   v2.1.0 — удалена дублирующаяся ensureMobileCartButton()
+//   v2.0.0 — мобильная кнопка корзины
+//   v1.0.0 — первоначальная версия
 //
 // ============================================================
 
@@ -69,6 +72,12 @@ import {
     renderToolbar,
     renderProductGrid
 } from '../components/CashierProducts.js';
+
+// ============================================================
+// Константы
+// ============================================================
+
+const DATA_LOAD_TIMEOUT_MS = 15000; // 15 секунд на загрузку товаров и смены
 
 // ============================================================
 // Локальное состояние
@@ -136,20 +145,16 @@ function render() {
     }
 
     if (!shiftStore.isOpen()) {
-        // Удаляем мобильные элементы корзины при закрытой смене
         document.getElementById('cartToggleBtn')?.remove();
         document.getElementById('cartOverlay')?.remove();
 
         DOM.content.innerHTML = renderClosedShift();
 
         document.getElementById('openShiftBtn')?.addEventListener('click', async () => {
-            console.log('[Cashier] openShift button clicked');
             const { success, error } = await ShiftService.openShift(state.user?.id);
             if (success) {
                 showNotification('Смена открыта', 'success');
-                console.log('[Cashier] shift opened successfully');
             } else {
-                console.error('[Cashier] shift open failed:', error);
                 showNotification(error || 'Ошибка открытия смены', 'error');
             }
             render();
@@ -176,8 +181,6 @@ function render() {
 
     bindEvents();
     updateFabVisibility();
-
-    // Мобильная корзина — создаём/обновляем через CashierCart
     renderMobileCartTrigger();
     updateMobileCartTrigger();
 }
@@ -295,13 +298,9 @@ async function quickAdd() {
 }
 
 async function closeShift() {
-    console.log('[Cashier] closeShift() called');
-
     const stats = shiftStore.getStats();
-    console.log('[Cashier] current shift stats:', stats);
 
     if (!shiftStore.isOpen()) {
-        console.log('[Cashier] no open shift found');
         showNotification('Нет открытой смены', 'warning');
         return;
     }
@@ -320,16 +319,9 @@ async function closeShift() {
         confirmClass: 'btn-danger'
     });
 
-    if (!confirmed) {
-        console.log('[Cashier] user cancelled shift close');
-        return;
-    }
-
-    console.log('[Cashier] calling ShiftService.closeShift()...');
+    if (!confirmed) return;
 
     const result = await ShiftService.closeShift();
-
-    console.log('[Cashier] ShiftService.closeShift() result:', result);
 
     if (result.success) {
         cartStore.reset();
@@ -340,15 +332,8 @@ async function closeShift() {
             `Прибыль: ${formatMoney(result.stats.profit)}`
         ].join(' | ');
 
-        console.log('[Cashier] shift closed successfully:', successMsg);
-
-        showNotification(
-            successMsg,
-            'success',
-            { title: 'Смена закрыта', duration: 6000 }
-        );
+        showNotification(successMsg, 'success', { title: 'Смена закрыта', duration: 6000 });
     } else {
-        console.error('[Cashier] shift close failed:', result.error);
         showNotification(result.error || 'Не удалось закрыть смену', 'error');
     }
 
@@ -435,6 +420,55 @@ function onStoreChange() {
 }
 
 // ============================================================
+// Загрузка данных с таймаутом
+// ============================================================
+
+/**
+ * Загружает товары и смену с таймаутом.
+ * При таймауте показывает уведомление, но не ломает интерфейс.
+ */
+async function loadDataWithTimeout() {
+    try {
+        // Таймаут-промис
+        const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('TIMEOUT')), DATA_LOAD_TIMEOUT_MS);
+        });
+
+        // Гонка: данные или таймаут
+        const result = await Promise.race([
+            Promise.all([
+                productStore.loadProducts(),
+                shiftStore.checkOpenShift(state.user.id)
+            ]),
+            timeoutPromise
+        ]);
+
+        console.log('[Cashier] Data loaded successfully');
+        return true;
+
+    } catch (err) {
+        if (err.message === 'TIMEOUT') {
+            console.warn('[Cashier] Data loading timed out after', DATA_LOAD_TIMEOUT_MS, 'ms');
+            showNotification(
+                'Загрузка данных занимает больше обычного. Проверьте подключение к интернету. Некоторые функции могут быть недоступны.',
+                'warning',
+                { duration: 8000 }
+            );
+        } else {
+            console.error('[Cashier] Data loading error:', err);
+            showNotification(
+                'Ошибка загрузки данных. Проверьте подключение к интернету.',
+                'error',
+                { duration: 6000 }
+            );
+        }
+
+        // Даже при ошибке продолжаем — интерфейс будет частично рабочим
+        return false;
+    }
+}
+
+// ============================================================
 // Инициализация
 // ============================================================
 
@@ -465,8 +499,7 @@ function bindGlobalEvents() {
 }
 
 async function init() {
-    console.log('[Cashier] v2.1 - removed duplicate ensureMobileCartButton');
-    console.log('[Cashier] init() started');
+    console.log('[Cashier] v2.2 - cart validation + timeout');
 
     // 1. Вставляем навигацию синхронно
     const headerHtml = renderAppHeader({
@@ -477,7 +510,6 @@ async function init() {
     const appEl = document.querySelector('.app');
     if (appEl) {
         appEl.insertAdjacentHTML('afterbegin', headerHtml);
-        console.log('[Cashier] header inserted into .app');
     } else {
         console.error('[Cashier] .app element not found in DOM');
     }
@@ -518,25 +550,15 @@ async function init() {
     cacheDom();
     bindGlobalEvents();
 
-    // 6. Скелетон загрузки + кнопка корзины
+    // 6. Скелетон загрузки
     render();
     renderMobileCartTrigger();
 
-    // 7. Загружаем корзину из кэша
-    cartStore.loadFromCache();
+    // 7. Загружаем товары и смену с таймаутом
+    await loadDataWithTimeout();
 
-    // 8. Параллельная загрузка смены и товаров
-    try {
-        const [shiftOk] = await Promise.all([
-            shiftStore.checkOpenShift(user.id),
-            productStore.loadProducts()
-        ]);
-
-        console.log('[Cashier] data loaded, shift open:', shiftOk);
-    } catch (err) {
-        console.error('[Cashier] data loading error:', err);
-        showNotification('Ошибка загрузки данных. Проверьте подключение к интернету.', 'error', { duration: 6000 });
-    }
+    // 8. Теперь, когда товары загружены — восстанавливаем корзину с проверкой статусов
+    cartStore.loadFromCache(productStore);
 
     // 9. Финальный рендер
     state.isInitialLoading = false;
