@@ -1,5 +1,6 @@
 // ============================================================
 // services/SaleService.js
+// Исправление: проверка статуса товаров перед продажей
 // ============================================================
 
 /**
@@ -24,6 +25,9 @@ import { productStore } from '../stores/ProductStore.js';
 export const SaleService = {
     /**
      * Оформляет продажу.
+     * Проверяет что все товары в корзине ещё в наличии.
+     * Если товар продан другим кассиром — удаляет его из корзины
+     * и уведомляет пользователя.
      * 
      * @param {Object} params
      * @param {string} params.paymentMethod — 'cash', 'card', 'transfer'
@@ -49,10 +53,43 @@ export const SaleService = {
             return { success: false, error: 'Не удалось определить смену' };
         }
 
-        // Собираем данные
+        // Проверяем что все товары в корзине ещё в наличии.
+        // Между добавлением в корзину и оформлением продажи
+        // товар мог быть продан другим кассиром.
         const items = cartStore.getItems();
-        const total = cartStore.getTotal();
+        const unavailableItems = [];
 
+        for (const item of items) {
+            const current = productStore.getById(item.id);
+            if (!current || current.status !== 'in_stock') {
+                unavailableItems.push(item);
+            }
+        }
+
+        // Удаляем недоступные товары из корзины
+        if (unavailableItems.length > 0) {
+            for (const item of unavailableItems) {
+                cartStore.removeItem(item.id);
+            }
+
+            const names = unavailableItems.map(i => `«${i.name}»`).join(', ');
+            
+            // Если все товары недоступны — прерываем
+            if (cartStore.isEmpty()) {
+                return { 
+                    success: false, 
+                    error: `Все товары в корзине уже проданы: ${names}. Корзина очищена.` 
+                };
+            }
+
+            // Часть товаров недоступна — прерываем, корзина обновлена
+            return { 
+                success: false, 
+                error: `Товары ${names} только что проданы другим пользователем и удалены из корзины. Проверьте остатки и попробуйте снова.` 
+            };
+        }
+
+        // Собираем данные
         const itemsForDb = items.map(item => ({
             id: item.id,
             name: item.name,
@@ -61,6 +98,8 @@ export const SaleService = {
             quantity: item.quantity,
             discount: item.discount
         }));
+
+        const total = cartStore.getTotal();
 
         const profit = items.reduce((sum, item) => {
             const discounted = (item.price || 0) * (1 - (item.discount || 0) / 100);
