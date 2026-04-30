@@ -1,6 +1,38 @@
 // ============================================================
 // controllers/CashierController.js
-// Исправление: мобильная кнопка корзины всегда создаётся и видна
+// v2.1.0 — 2026-04-30: удалена дублирующаяся ensureMobileCartButton()
+// ============================================================
+//
+// НАЗНАЧЕНИЕ
+//   Контроллер страницы кассы.
+//   Управляет рендерингом, событиями пользователя и координацией сторов.
+//
+// ЗАВИСИМОСТИ
+//   productStore         — стор товаров (ProductStore)
+//   cartStore            — стор корзины (CartStore)
+//   shiftStore           — стор смены (ShiftStore)
+//   SaleService          — оформление продажи
+//   ShiftService         — открытие/закрытие смены
+//   CashierCart          — рендеринг корзины и мобильной кнопки
+//   CashierProducts      — рендеринг панели товаров
+//   AppHeader            — рендеринг навигации
+//
+// ПОТОК ДАННЫХ
+//   1. init() вызывается при DOMContentLoaded
+//   2. Вставляется AppHeader с навигацией
+//   3. Проверяется авторизация через requireAuth()
+//   4. Внедряются зависимости в CashierCart и CashierProducts
+//   5. Загружаются данные: shiftStore.checkOpenShift(), productStore.loadProducts()
+//   6. render() перестраивает интерфейс при каждом изменении сторов
+//   7. Мобильная корзина управляется через CashierCart (renderMobileCartTrigger, toggleCart, closeCart)
+//
+// ИЗМЕНЕНИЯ
+//   v2.1.0 — удалена ensureMobileCartButton():
+//     - все вызовы заменены на renderMobileCartTrigger() / updateMobileCartTrigger()
+//     - устранено дублирование DOM-элементов корзины на мобильных
+//   v2.0.0 — первоначальная версия (исправление мобильной кнопки корзины)
+//   v1.0.0 — базовый контроллер кассы
+//
 // ============================================================
 
 /**
@@ -99,11 +131,12 @@ function render() {
 
     if (state.isInitialLoading) {
         DOM.content.innerHTML = renderLoadingSkeleton();
-        ensureMobileCartButton();
+        renderMobileCartTrigger();
         return;
     }
 
     if (!shiftStore.isOpen()) {
+        // Удаляем мобильные элементы корзины при закрытой смене
         document.getElementById('cartToggleBtn')?.remove();
         document.getElementById('cartOverlay')?.remove();
 
@@ -143,66 +176,10 @@ function render() {
 
     bindEvents();
     updateFabVisibility();
-    ensureMobileCartButton();
+
+    // Мобильная корзина — создаём/обновляем через CashierCart
+    renderMobileCartTrigger();
     updateMobileCartTrigger();
-}
-
-// ============================================================
-// Мобильная кнопка корзины
-// ============================================================
-
-/**
- * Гарантирует что мобильная кнопка корзины существует в DOM.
- * Вызывается при каждом рендере. Если кнопка не нужна (десктоп) — скрывает.
- */
-function ensureMobileCartButton() {
-    const isMobile = window.innerWidth <= 768;
-
-    // Оверлей
-    let overlay = document.getElementById('cartOverlay');
-    if (!overlay && isMobile) {
-        overlay = document.createElement('div');
-        overlay.id = 'cartOverlay';
-        overlay.className = 'cart-overlay';
-        overlay.addEventListener('click', closeCart);
-        DOM.content.appendChild(overlay);
-        console.log('[Cashier] cart overlay created');
-    }
-    if (overlay) {
-        overlay.style.display = 'none';
-    }
-
-    // Кнопка-триггер
-    let btn = document.getElementById('cartToggleBtn');
-    if (!btn) {
-        btn = document.createElement('button');
-        btn.id = 'cartToggleBtn';
-        btn.className = 'cart-toggle-btn';
-        btn.addEventListener('click', () => {
-            const panel = document.getElementById('cartPanel');
-            const ov = document.getElementById('cartOverlay');
-            if (!panel) return;
-            const isOpen = panel.classList.toggle('open');
-            if (ov) {
-                ov.style.display = isOpen ? 'block' : 'none';
-            }
-            console.log('[Cashier] cart toggled:', isOpen);
-        });
-        DOM.content.appendChild(btn);
-        console.log('[Cashier] cart toggle button created');
-    }
-
-    const count = cartStore.getCount();
-    const total = cartStore.getTotal();
-    btn.innerHTML = `
-        Корзина
-        <span class="cart-toggle-badge" id="cartToggleBadge">${count}</span>
-        -
-        <span>${formatMoney(total)}</span>
-    `;
-
-    btn.style.display = isMobile ? 'flex' : 'none';
-    console.log('[Cashier] cart button display:', btn.style.display, 'isMobile:', isMobile);
 }
 
 // ============================================================
@@ -453,7 +430,7 @@ function onStoreChange() {
 
     render();
     updateFabVisibility();
-    ensureMobileCartButton();
+    renderMobileCartTrigger();
     updateMobileCartTrigger();
 }
 
@@ -483,12 +460,12 @@ function bindGlobalEvents() {
 
     window.addEventListener('resize', () => {
         updateFabVisibility();
-        ensureMobileCartButton();
+        renderMobileCartTrigger();
     });
 }
 
 async function init() {
-    console.log('[Cashier] v2 - mobile cart button fix');
+    console.log('[Cashier] v2.1 - removed duplicate ensureMobileCartButton');
     console.log('[Cashier] init() started');
 
     // 1. Вставляем навигацию синхронно
@@ -543,18 +520,23 @@ async function init() {
 
     // 6. Скелетон загрузки + кнопка корзины
     render();
-    ensureMobileCartButton();
+    renderMobileCartTrigger();
 
     // 7. Загружаем корзину из кэша
     cartStore.loadFromCache();
 
     // 8. Параллельная загрузка смены и товаров
-    const [shiftOk] = await Promise.all([
-        shiftStore.checkOpenShift(user.id),
-        productStore.loadProducts()
-    ]);
+    try {
+        const [shiftOk] = await Promise.all([
+            shiftStore.checkOpenShift(user.id),
+            productStore.loadProducts()
+        ]);
 
-    console.log('[Cashier] data loaded, shift open:', shiftOk);
+        console.log('[Cashier] data loaded, shift open:', shiftOk);
+    } catch (err) {
+        console.error('[Cashier] data loading error:', err);
+        showNotification('Ошибка загрузки данных. Проверьте подключение к интернету.', 'error', { duration: 6000 });
+    }
 
     // 9. Финальный рендер
     state.isInitialLoading = false;
