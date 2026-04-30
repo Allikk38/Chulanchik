@@ -1,241 +1,241 @@
 // ============================================================
-// services/SaleService.js
-// v1.2.0 — 2026-04-30: улучшена обработка ошибок от сервера
-// ============================================================
-//
-// НАЗНАЧЕНИЕ
-//   Сервисный слой для оформления продаж.
-//   Содержит бизнес-логику, валидацию и координацию между сторы.
-//
-// ЗАВИСИМОСТИ
-//   SaleRepository  — сохранение продажи в БД (репозиторий)
-//   cartStore       — стор корзины (CartStore)
-//   shiftStore      — стор текущей смены (ShiftStore)
-//   productStore    — стор товаров (ProductStore)
-//
-// ИСПОЛЬЗУЕТСЯ
-//   CashierController — оформление продажи через checkout()
-//
-// ПОТОК ДАННЫХ
-//   checkout(paymentMethod, userId)
-//     -> проверка: корзина не пуста
-//     -> проверка: смена открыта
-//     -> проверка: userId передан
-//     -> проверка: shiftId получен из стора
-//     -> проверка: все товары в корзине имеют статус 'in_stock'
-//        (если нет — товар удаляется из корзины, продажа прерывается)
-//     -> SaleRepository.create(...)
-//     -> обновление productStore (статус 'sold')
-//     -> обновление shiftStore (статистика)
-//     -> очистка корзины
-//     -> возврат { success: true, sale }
-//
-// ИЗМЕНЕНИЯ
-//   v1.2.0 — улучшена обработка ошибок:
-//     - разбор ошибки сервера о недоступных товарах
-//     - автоматическое удаление недоступных товаров из корзины
-//     - понятные сообщения пользователю
-//   v1.1.0 — защита от двойной продажи:
-//     - добавлена проверка статуса товаров перед оформлением
-//     - если товар продан другим кассиром, он удаляется из корзины
-//     - пользователь получает уведомление (возвращается error с описанием)
-//     - после удаления недоступных товаров нужно повторить checkout
-//   v1.0.0 — первоначальная версия
-//
+// repositories/SaleRepository.js
+// v2.1.0 — 2026-04-30: улучшенное логирование ошибок RPC
 // ============================================================
 
 /**
- * Сервис продаж.
+ * Репозиторий продаж.
  *
- * Бизнес-логика оформления продажи.
- * Не зависит от UI. Контроллеры вызывают методы сервиса
- * и сами решают что показать пользователю.
+ * НАЗНАЧЕНИЕ
+ *   Единственный модуль, который обращается к таблице sales в Supabase.
+ *   Владеет кэшем в sessionStorage (TTL 2 минуты).
+ *   Нормализует поле items и числовые поля.
  *
- * @module services/SaleService
+ * ЗАВИСИМОСТИ
+ *   supabase — клиент из core/supabase-client.js
+ *
+ * ИСПОЛЬЗУЕТСЯ
+ *   SaleService — бизнес-логика продаж
+ *   ReportsController — загрузка продаж для отчётов
+ *
+ * ПОТОК ДАННЫХ
+ *   SaleService → SaleRepository.create(saleData) → supabase.rpc('checkout_sale', ...)
+ *   ReportsController → SaleRepository.getAll(options) → supabase.from('sales').select('*')
+ *
+ * ИЗМЕНЕНИЯ
+ *   v2.1.0 — улучшенное логирование: вывод полного тела ответа при ошибке RPC
+ *   v2.0   — исправление: p_items передаётся как JSON-строка через JSON.stringify()
+ *   v1.0   — первоначальная версия
+ *
+ * @module repositories/SaleRepository
  */
 
-import SaleRepository from '../repositories/SaleRepository.js';
-import { cartStore } from '../stores/CartStore.js';
-import { shiftStore } from '../stores/ShiftStore.js';
-import { productStore } from '../stores/ProductStore.js';
+import { supabase } from '../core/supabase-client.js';
 
 // ============================================================
-// Сервис
+// Константы
 // ============================================================
 
-export const SaleService = {
+const CACHE_KEY = 'sales_cache';
+const CACHE_TTL_MS = 2 * 60 * 1000;
+
+// ============================================================
+// Кэш
+// ============================================================
+
+/** @type {Object|null} */
+let cacheEntry = null;
+
+function loadCache() {
+    if (cacheEntry) {
+        if (Date.now() - cacheEntry.timestamp < CACHE_TTL_MS) {
+            return cacheEntry.data;
+        }
+        cacheEntry = null;
+    }
+
+    try {
+        const raw = sessionStorage.getItem(CACHE_KEY);
+        if (raw) {
+            const parsed = JSON.parse(raw);
+            if (Date.now() - parsed.timestamp < CACHE_TTL_MS) {
+                cacheEntry = parsed;
+                return parsed.data;
+            }
+            sessionStorage.removeItem(CACHE_KEY);
+        }
+    } catch (e) {
+        sessionStorage.removeItem(CACHE_KEY);
+    }
+
+    return null;
+}
+
+function saveCache(data) {
+    cacheEntry = { data, timestamp: Date.now() };
+    try {
+        sessionStorage.setItem(CACHE_KEY, JSON.stringify(cacheEntry));
+    } catch (e) {
+        // sessionStorage переполнен — не критично
+    }
+}
+
+// ============================================================
+// Нормализация
+// ============================================================
+
+function normalizeItems(items) {
+    if (!items) return [];
+    if (Array.isArray(items)) return items;
+    if (typeof items === 'string') {
+        try {
+            const parsed = JSON.parse(items);
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (e) {
+            return [];
+        }
+    }
+    return [];
+}
+
+function normalizeSale(sale) {
+    return {
+        ...sale,
+        items: normalizeItems(sale.items),
+        total: Number(sale.total) || 0,
+        profit: Number(sale.profit) || 0
+    };
+}
+
+// ============================================================
+// Репозиторий
+// ============================================================
+
+export const SaleRepository = {
     /**
-     * Оформляет продажу.
+     * Создаёт продажу через RPC.
+     * p_items передаётся как JSON-строка (PostgreSQL ожидает jsonb).
      *
-     * Алгоритм:
-     * 1. Валидация входных данных (корзина, смена, пользователь)
-     * 2. Проверка статуса всех товаров в корзине
-     *    — если товар уже продан, удаляет его из корзины и прерывает операцию
-     * 3. Расчёт итогов и прибыли
-     * 4. Сохранение продажи через SaleRepository
-     * 5. Обновление сторов (productStore, shiftStore, cartStore)
-     *
-     * @param {Object} params
-     * @param {string} params.paymentMethod — 'cash', 'card', 'transfer'
-     * @param {string} params.userId — ID пользователя
-     * @returns {Promise<{success: boolean, error?: string, sale?: Object}>}
+     * @param {Object} saleData
+     * @param {string} saleData.shift_id
+     * @param {Object[]} saleData.items
+     * @param {number} saleData.total
+     * @param {number} saleData.profit
+     * @param {string} saleData.payment_method
+     * @param {string} saleData.user_id
+     * @returns {Promise<Object>}
      */
-    async checkout({ paymentMethod, userId }) {
-        // --- Валидация входных данных ---
+    async create(saleData) {
+        console.log('[SaleRepository] Creating sale with data:', {
+            shift_id: saleData.shift_id,
+            items_count: saleData.items.length,
+            total: saleData.total,
+            profit: saleData.profit,
+            payment_method: saleData.payment_method,
+            user_id: saleData.user_id,
+            items_sample: JSON.stringify(saleData.items).slice(0, 200) + '...'
+        });
 
-        if (cartStore.isEmpty()) {
-            return { success: false, error: 'Корзина пуста' };
+        const { data, error } = await supabase.rpc('checkout_sale', {
+            p_shift_id: saleData.shift_id,
+            p_items: JSON.stringify(saleData.items),
+            p_total: saleData.total,
+            p_profit: saleData.profit,
+            p_payment_method: saleData.payment_method,
+            p_user_id: saleData.user_id
+        });
+
+        // --- Улучшенное логирование ошибки ---
+        if (error) {
+            console.error('[SaleRepository] RPC error details:', {
+                message: error.message,
+                code: error.code,
+                details: error.details,
+                hint: error.hint
+            });
+            throw new Error(
+                error.message || 
+                error.details || 
+                'Неизвестная ошибка при создании продажи'
+            );
         }
 
-        if (!shiftStore.isOpen()) {
-            return { success: false, error: 'Смена не открыта' };
+        console.log('[SaleRepository] Sale created successfully, id:', data);
+        return { id: data };
+    },
+
+    /**
+     * Загружает продажи с фильтрацией.
+     * Нормализует items и числовые поля.
+     *
+     * @param {Object} [options]
+     * @param {string} [options.shiftId]
+     * @param {string} [options.from]
+     * @param {string} [options.to]
+     * @param {number} [options.limit=100]
+     * @param {boolean} [options.force=false]
+     * @returns {Promise<Object[]>}
+     */
+    async getAll({ shiftId, from, to, limit = 100, force = false } = {}) {
+        if (!force) {
+            const cached = loadCache();
+            if (cached) return cached;
         }
-
-        if (!userId) {
-            return { success: false, error: 'Пользователь не определён' };
-        }
-
-        const shiftId = shiftStore.getCurrentShiftId();
-        if (!shiftId) {
-            return { success: false, error: 'Не удалось определить смену' };
-        }
-
-        // --- Проверка статуса товаров (защита от двойной продажи) ---
-
-        const items = cartStore.getItems();
-        const unavailableItems = [];
-
-        for (const cartItem of items) {
-            const currentProduct = productStore.getById(cartItem.id);
-
-            // Товар не найден в сторе — значит был удалён
-            if (!currentProduct) {
-                unavailableItems.push({
-                    id: cartItem.id,
-                    name: cartItem.name,
-                    reason: 'товар удалён из системы'
-                });
-                continue;
-            }
-
-            // Товар уже продан (этим или другим кассиром)
-            if (currentProduct.status === 'sold') {
-                unavailableItems.push({
-                    id: cartItem.id,
-                    name: cartItem.name,
-                    reason: 'товар только что продан'
-                });
-                continue;
-            }
-
-            // Товар зарезервирован
-            if (currentProduct.status === 'reserved') {
-                unavailableItems.push({
-                    id: cartItem.id,
-                    name: cartItem.name,
-                    reason: 'товар зарезервирован'
-                });
-                continue;
-            }
-        }
-
-        // Если есть недоступные товары — удаляем их из корзины и прерываем операцию
-        if (unavailableItems.length > 0) {
-            for (const unavailable of unavailableItems) {
-                cartStore.removeItem(unavailable.id);
-            }
-
-            const names = unavailableItems.map(item => `«${item.name}»`).join(', ');
-            return {
-                success: false,
-                error: `Некоторые товары больше недоступны и удалены из корзины: ${names}. Проверьте корзину и попробуйте снова.`
-            };
-        }
-
-        // --- Сбор данных для продажи ---
-
-        const total = cartStore.getTotal();
-
-        const itemsForDb = items.map(item => ({
-            id: item.id,
-            name: item.name,
-            price: item.price,
-            cost_price: item.cost_price,
-            quantity: item.quantity,
-            discount: item.discount
-        }));
-
-        const profit = items.reduce((sum, item) => {
-            const discounted = (item.price || 0) * (1 - (item.discount || 0) / 100);
-            return sum + ((discounted - (item.cost_price || 0)) * item.quantity);
-        }, 0);
-
-        const itemsCount = items.reduce((sum, i) => sum + i.quantity, 0);
-
-        // --- Сохранение продажи ---
 
         try {
-            const sale = await SaleRepository.create({
-                shift_id: shiftId,
-                items: itemsForDb,
-                total,
-                profit: Math.round(profit),
-                payment_method: paymentMethod,
-                user_id: userId
-            });
+            let query = supabase
+                .from('sales')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .limit(limit);
 
-            // Обновляем сторы
-            for (const item of items) {
-                productStore.updateLocally(item.id, { status: 'sold' });
-            }
+            if (shiftId) query = query.eq('shift_id', shiftId);
+            if (from) query = query.gte('created_at', from);
+            if (to) query = query.lte('created_at', to);
 
-            shiftStore.addToStats({
-                revenue: total,
-                profit: Math.round(profit),
-                salesCount: 1,
-                itemsCount
-            });
+            const { data, error } = await query;
 
-            cartStore.reset();
+            if (error) throw error;
 
-            return { success: true, sale };
+            const sales = (data || []).map(normalizeSale);
+            saveCache(sales);
+            return sales;
 
         } catch (err) {
-            console.error('[SaleService] checkout error:', err);
+            console.error('[SaleRepository] getAll error:', err);
 
-            // --- Улучшенная обработка ошибок от сервера ---
-            const errorMessage = err.message || '';
-
-            // Проверяем, содержит ли ошибка информацию о недоступных товарах
-            // (эту ошибку генерирует наша новая версия checkout_sale в БД)
-            if (errorMessage.includes('Товары недоступны для продажи')) {
-                // Извлекаем UUID недоступных товаров из сообщения об ошибке
-                const uuidPattern = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
-                const unavailableIds = errorMessage.match(uuidPattern);
-
-                if (unavailableIds && unavailableIds.length > 0) {
-                    // Удаляем недоступные товары из корзины
-                    for (const id of unavailableIds) {
-                        const removed = cartStore.removeItem(id);
-                        if (removed) {
-                            console.log('[SaleService] Removed unavailable item from cart:', id);
-                        }
-                    }
-
-                    return {
-                        success: false,
-                        error: 'Некоторые товары уже проданы другим пользователем и удалены из корзины. Пожалуйста, проверьте корзину и попробуйте снова.'
-                    };
-                }
+            const staleCache = loadCache();
+            if (staleCache) {
+                console.warn('[SaleRepository] returning stale cache due to network error');
+                return staleCache;
             }
 
-            // Общая ошибка сети или сервера
-            return {
-                success: false,
-                error: 'Не удалось оформить продажу. Проверьте подключение к интернету и попробуйте снова.'
-            };
+            return [];
+        }
+    },
+
+    /**
+     * Получает продажу по ID.
+     *
+     * @param {string} id
+     * @returns {Promise<Object|null>}
+     */
+    async getById(id) {
+        try {
+            const { data, error } = await supabase
+                .from('sales')
+                .select('*')
+                .eq('id', id)
+                .single();
+
+            if (error && error.code !== 'PGRST116') throw error;
+            return data ? normalizeSale(data) : null;
+
+        } catch (err) {
+            console.error('[SaleRepository] getById error:', err);
+            return null;
         }
     }
 };
 
-export default SaleService;
+export default SaleRepository;
