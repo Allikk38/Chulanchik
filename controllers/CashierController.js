@@ -1,6 +1,6 @@
 // ============================================================
 // controllers/CashierController.js
-// v2.3.1 — 2026-04-30: исправлен импорт SaleService
+// v2.3.2 — 2026-04-30: исправлен импорт SaleService на именованный
 // ============================================================
 //
 // НАЗНАЧЕНИЕ
@@ -30,13 +30,9 @@
 //  10. render() перестраивает интерфейс
 //
 // ИЗМЕНЕНИЯ
+//   v2.3.2 — исправлен импорт SaleService на именованный, добавлена защита от двойного оформления
 //   v2.3.1 — исправлен импорт SaleService (использовать default)
-//   v2.3.0 — исправление бесконечной загрузки на мобильных:
-//     - изменён порядок инициализации: DOM кэшируется до рендера скелетона
-//     - renderLoadingSkeleton() не вызывает renderMobileCartTrigger()
-//     - renderMobileCartTrigger() не падает при отсутствии contentRef
-//     - добавлен фидбэк при медленной загрузке (> 5 секунд)
-//     - добавлена обработка onError для изображений
+//   v2.3.0 — исправление бесконечной загрузки на мобильных
 //   v2.2.0 — валидация корзины и таймаут загрузки
 //   v2.1.0 — удалена дублирующаяся ensureMobileCartButton()
 //   v2.0.0 — мобильная кнопка корзины
@@ -57,7 +53,7 @@ import { requireAuth, hasPermission, logout } from '../core/auth.js';
 import { productStore } from '../stores/ProductStore.js';
 import { cartStore } from '../stores/CartStore.js';
 import { shiftStore } from '../stores/ShiftStore.js';
-import SaleService from '../services/SaleService.js';
+import { SaleService } from '../services/SaleService.js';
 import ShiftService from '../services/ShiftService.js';
 import { formatMoney, debounce } from '../utils/formatters.js';
 import { showNotification, showPaymentModal, showConfirmDialog } from '../utils/ui.js';
@@ -541,7 +537,7 @@ function bindGlobalEvents() {
 }
 
 async function init() {
-    console.log('[Cashier] v2.3.1 - fixed SaleService import');
+    console.log('[Cashier] v2.3.2 - fixed SaleService import to named');
 
     const headerHtml = renderAppHeader({
         currentPage: 'cashier',
