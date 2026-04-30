@@ -1,6 +1,43 @@
 // ============================================================
 // controllers/ReportsController.js
-// v11: Добавлена поддержка кнопки «Отчёт сдатчику»
+// v12.0 — 2026-04-30: добавлена кнопка PDF-экспорта
+// ============================================================
+//
+// НАЗНАЧЕНИЕ
+//   Контроллер страницы отчётов.
+//   Управляет вкладками (дашборд, продажи, товары, смены, расходы),
+//   загрузкой данных за период и экспортом отчётов.
+//
+// ЗАВИСИМОСТИ
+//   productStore         — стор товаров (ProductStore)
+//   expenseStore         — стор расходов (ExpenseStore)
+//   SaleRepository       — загрузка продаж из БД
+//   ShiftRepository      — загрузка смен из БД
+//   AppHeader            — рендеринг навигации
+//   ReportDashboard      — вкладка дашборда + графики
+//   ReportSales          — вкладка продаж
+//   ReportProducts       — вкладка товаров + кнопка отчёта сдатчику
+//   ReportShifts         — вкладка смен
+//   ReportExpenses       — вкладка расходов
+//   pdfExport            — экспорт финансового отчёта в PDF
+//
+// ПОТОК ДАННЫХ
+//   1. init() при DOMContentLoaded
+//   2. Проверка кэшированной сессии (без редиректа на логин)
+//   3. Вставка AppHeader с навигацией
+//   4. Загрузка данных за выбранный период (loadData)
+//   5. renderContent() отрисовывает активную вкладку
+//   6. Период можно менять через periodSelect — перезагружает данные
+//   7. Кнопки: refreshBtn (перезагрузка), exportBtn (CSV), exportPdfBtn (PDF)
+//
+// ИЗМЕНЕНИЯ
+//   v12.0 — добавлен обработчик exportPdfBtn:
+//     - собирает KPI, dailyRevenue, expensesByCategory, topExpenses
+//     - вызывает exportFinancialReport() из utils/pdfExport.js
+//   v11.0 — добавлена поддержка кнопки «Отчёт сдатчику»
+//   v10.0 — добавлена вкладка расходов с CRUD
+//   v9.0  — добавлены графики (Chart.js)
+//
 // ============================================================
 
 /**
@@ -14,6 +51,7 @@ import { productStore } from '../stores/ProductStore.js';
 import { expenseStore } from '../stores/ExpenseStore.js';
 import SaleRepository from '../repositories/SaleRepository.js';
 import ShiftRepository from '../repositories/ShiftRepository.js';
+import { formatMoney, formatDate } from '../utils/formatters.js';
 import { renderAppHeader, bindAppHeaderEvents, updateUserName } from '../components/AppHeader.js';
 import { renderDashboard, drawCharts } from '../components/ReportDashboard.js';
 import { renderSalesTab } from '../components/ReportSales.js';
@@ -46,7 +84,8 @@ const DOM = {
     content: null,
     periodSelect: null,
     refreshBtn: null,
-    exportBtn: null
+    exportBtn: null,
+    exportPdfBtn: null
 };
 
 // ============================================================
@@ -143,6 +182,29 @@ function getPeriodDates() {
     return { from, to };
 }
 
+function getPeriodLabel() {
+    const { from, to } = getPeriodDates();
+    return `${formatDate(from)} – ${formatDate(to)}`;
+}
+
+// ============================================================
+// Нормализация items (разбор JSON-строки или массива)
+// ============================================================
+
+function normalizeItems(items) {
+    if (!items) return [];
+    if (Array.isArray(items)) return items;
+    if (typeof items === 'string') {
+        try {
+            const parsed = JSON.parse(items);
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (e) {
+            return [];
+        }
+    }
+    return [];
+}
+
 // ============================================================
 // Загрузка данных
 // ============================================================
@@ -207,6 +269,71 @@ function exportCsv() {
     URL.revokeObjectURL(url);
 
     console.log('[Reports] CSV exported');
+}
+
+// ============================================================
+// Экспорт PDF
+// ============================================================
+
+async function exportPdf() {
+    console.log('[Reports] PDF export started');
+
+    // --- Вычисление KPI ---
+    const revenue = state.sales.reduce((s, r) => s + (Number(r.total) || 0), 0);
+    const profit = state.sales.reduce((s, r) => s + (Number(r.profit) || 0), 0);
+    const totalExpenses = state.expenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+    const netProfit = profit - totalExpenses;
+
+    // --- Дневная выручка (для спарклайна) ---
+    const dailyMap = new Map();
+    state.sales.forEach(sale => {
+        const day = sale.created_at?.slice(0, 10);
+        if (!day) return;
+        dailyMap.set(day, (dailyMap.get(day) || 0) + (Number(sale.total) || 0));
+    });
+    const dailyRevenue = [...dailyMap.entries()]
+        .map(([date, rev]) => ({ date, revenue: rev }))
+        .sort((a, b) => a.date.localeCompare(b.date));
+
+    // --- Расходы по категориям ---
+    const catMap = new Map();
+    state.expenses.forEach(exp => {
+        const cat = exp.category || 'other';
+        catMap.set(cat, (catMap.get(cat) || 0) + (Number(exp.amount) || 0));
+    });
+    const expensesByCategory = [...catMap.entries()]
+        .map(([category, amount]) => ({ category, amount }))
+        .sort((a, b) => b.amount - a.amount);
+
+    // --- Топ-5 расходов ---
+    const topExpenses = [...state.expenses]
+        .sort((a, b) => (Number(b.amount) || 0) - (Number(a.amount) || 0))
+        .slice(0, 5)
+        .map(e => ({
+            category: e.category || 'other',
+            amount: Number(e.amount) || 0,
+            description: e.description || ''
+        }));
+
+    // --- Вызов экспорта ---
+    try {
+        const { exportFinancialReport } = await import('../utils/pdfExport.js');
+        await exportFinancialReport({
+            shopName: 'Чуланчик',
+            period: getPeriodLabel(),
+            kpis: { revenue, profit, expenses: totalExpenses, netProfit },
+            dailyRevenue,
+            expensesByCategory,
+            topExpenses,
+            generatedAt: new Date().toISOString()
+        });
+        console.log('[Reports] PDF exported successfully');
+    } catch (err) {
+        console.error('[Reports] PDF export error:', err);
+        // Импортируем showNotification динамически чтобы не плодить циклические зависимости
+        const { showNotification } = await import('../utils/ui.js');
+        showNotification('Не удалось создать PDF. Проверьте подключение к интернету.', 'error');
+    }
 }
 
 // ============================================================
@@ -337,6 +464,7 @@ function cacheDom() {
     DOM.periodSelect = document.getElementById('periodSelect');
     DOM.refreshBtn = document.getElementById('refreshBtn');
     DOM.exportBtn = document.getElementById('exportBtn');
+    DOM.exportPdfBtn = document.getElementById('exportPdfBtn');
 }
 
 function bindEvents() {
@@ -358,10 +486,14 @@ function bindEvents() {
     DOM.exportBtn?.addEventListener('click', () => {
         exportCsv();
     });
+
+    DOM.exportPdfBtn?.addEventListener('click', () => {
+        exportPdf();
+    });
 }
 
 async function init() {
-    console.log('[Reports] v11 - consignor report button');
+    console.log('[Reports] v12 - PDF export button handler added');
     console.log('[Reports] init() started');
 
     // 1. Навигация
