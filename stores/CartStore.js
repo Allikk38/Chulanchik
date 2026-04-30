@@ -1,13 +1,46 @@
 // ============================================================
 // stores/CartStore.js
+// v1.1.0 — 2026-04-30: валидация товаров при загрузке из кэша
+// ============================================================
+//
+// НАЗНАЧЕНИЕ
+//   Стор корзины кассового модуля.
+//   Владеет массивом товаров, их количеством и скидками.
+//
+// ЗАВИСИМОСТИ
+//   EventEmitter — базовый класс (из ./EventEmitter.js)
+//
+// ИСПОЛЬЗУЕТСЯ
+//   CashierController — добавление/удаление товаров
+//   SaleService        — получение списка товаров для продажи
+//   CashierCart        — рендеринг панели корзины
+//
+// ПОТОК ДАННЫХ
+//   addItem(product) — добавляет товар или увеличивает количество
+//   updateQuantity(id, delta) — меняет количество ±1
+//   removeItem(id) — удаляет товар
+//   reset() — очищает корзину (после продажи)
+//   loadFromCache() — восстанавливает корзину из localStorage
+//
+// КЭШ
+//   localStorage: 'cart_cache' (TTL 60 минут)
+//   Формат: { items: [...], totalDiscount: number, cachedAt: timestamp }
+//
+// ИЗМЕНЕНИЯ
+//   v1.1.0 — валидация при загрузке из кэша:
+//     - loadFromCache() теперь принимает productStore
+//     - товары с status !== 'in_stock' автоматически удаляются
+//     - удалённые товары логируются в консоль
+//   v1.0.0 — первоначальная версия
+//
 // ============================================================
 
 /**
  * Стор корзины.
- * 
+ *
  * Чистое состояние корзины, без UI-зависимостей.
  * Используется только кассовым модулем.
- * 
+ *
  * @module stores/CartStore
  */
 
@@ -76,21 +109,65 @@ function clearCache() {
 
 class CartStore extends EventEmitter {
     /**
-     * Загружает корзину из кэша.
-     * Вызывается один раз при старте кассы.
-     * 
-     * @returns {boolean} true если корзина восстановлена
+     * Загружает корзину из кэша и проверяет товары на актуальность.
+     *
+     * Алгоритм:
+     * 1. Загружает данные из localStorage
+     * 2. Если передан productStore — проверяет статус каждого товара
+     * 3. Товары с status !== 'in_stock' удаляются из корзины
+     * 4. Если были удаления — эмитит 'change'
+     *
+     * @param {Object} [productStore] — стор товаров для проверки статуса
+     * @returns {boolean} true если корзина восстановлена (даже частично)
      */
-    loadFromCache() {
+    loadFromCache(productStore) {
         const loaded = loadCache();
-        if (loaded) this.emit('change');
-        return loaded;
+
+        if (!loaded) return false;
+
+        // Если передан productStore — проверяем статус товаров
+        if (productStore) {
+            const beforeCount = state.items.length;
+            const removedItems = [];
+
+            state.items = state.items.filter(item => {
+                const product = productStore.getById(item.id);
+
+                // Товар не найден в сторе — удаляем
+                if (!product) {
+                    removedItems.push(item);
+                    return false;
+                }
+
+                // Товар продан или зарезервирован — удаляем
+                if (product.status !== 'in_stock') {
+                    removedItems.push(item);
+                    return false;
+                }
+
+                return true;
+            });
+
+            if (removedItems.length > 0) {
+                console.warn('[CartStore] Removed unavailable items from cache:',
+                    removedItems.map(i => `${i.name} (status: ${productStore.getById(i.id)?.status || 'deleted'})`));
+                saveCache();
+                this.emit('change');
+            }
+
+            if (state.items.length === 0 && beforeCount > 0) {
+                console.log('[CartStore] All cached items were unavailable, cart is empty');
+            }
+        }
+
+        this.emit('change');
+        return state.items.length > 0 || loaded;
     }
 
     /**
      * Добавляет товар в корзину.
      * Если товар уже есть — увеличивает количество на 1.
-     * 
+     *
      * @param {Object} product — {id, name, price, cost_price, ...}
      * @returns {boolean}
      */
@@ -120,7 +197,7 @@ class CartStore extends EventEmitter {
     /**
      * Изменяет количество товара.
      * Если количество <= 0 — удаляет товар.
-     * 
+     *
      * @param {string} productId
      * @param {number} delta — +1 или -1
      * @returns {boolean}
@@ -143,7 +220,7 @@ class CartStore extends EventEmitter {
 
     /**
      * Удаляет товар из корзины.
-     * 
+     *
      * @param {string} productId
      * @returns {boolean}
      */
@@ -162,7 +239,7 @@ class CartStore extends EventEmitter {
 
     /**
      * Устанавливает скидку на конкретный товар.
-     * 
+     *
      * @param {string} productId
      * @param {number} percent — 0..100
      * @returns {boolean}
@@ -179,7 +256,7 @@ class CartStore extends EventEmitter {
 
     /**
      * Устанавливает общую скидку на корзину.
-     * 
+     *
      * @param {number} percent — 0..100
      */
     setTotalDiscount(percent) {
@@ -205,7 +282,7 @@ class CartStore extends EventEmitter {
 
     /**
      * Возвращает копию массива товаров.
-     * 
+     *
      * @returns {Object[]}
      */
     getItems() {
@@ -214,7 +291,7 @@ class CartStore extends EventEmitter {
 
     /**
      * Количество позиций в корзине.
-     * 
+     *
      * @returns {number}
      */
     getCount() {
@@ -223,7 +300,7 @@ class CartStore extends EventEmitter {
 
     /**
      * Итоговая сумма корзины с учётом всех скидок.
-     * 
+     *
      * @returns {number}
      */
     getTotal() {
@@ -240,7 +317,7 @@ class CartStore extends EventEmitter {
 
     /**
      * Итоговая сумма конкретного товара с учётом его скидки.
-     * 
+     *
      * @param {string} productId
      * @returns {number}
      */
@@ -256,7 +333,7 @@ class CartStore extends EventEmitter {
 
     /**
      * Пуста ли корзина?
-     * 
+     *
      * @returns {boolean}
      */
     isEmpty() {
