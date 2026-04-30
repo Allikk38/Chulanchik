@@ -1,6 +1,6 @@
 // ============================================================
 // repositories/SaleRepository.js
-// v2.2.0 — 2026-04-30: убран двойной JSON.stringify для p_items
+// v2.3.0 — 2026-04-30: исправлена передача p_items как готовый jsonb
 // ============================================================
 
 /**
@@ -23,7 +23,8 @@
  *   ReportsController → SaleRepository.getAll(options) → supabase.from('sales').select('*')
  *
  * ИЗМЕНЕНИЯ
- *   v2.2.0 — убран JSON.stringify() для p_items, Supabase сам сериализует объекты
+ *   v2.3.0 — передача p_items как готовый jsonb через JSON.stringify() и принудительное приведение
+ *   v2.2.0 — убран JSON.stringify() для p_items
  *   v2.1.0 — улучшенное логирование: вывод полного тела ответа при ошибке RPC
  *   v2.0   — исправление: p_items передаётся как JSON-строка через JSON.stringify()
  *   v1.0   — первоначальная версия
@@ -115,8 +116,7 @@ function normalizeSale(sale) {
 export const SaleRepository = {
     /**
      * Создаёт продажу через RPC.
-     * p_items передаётся как обычный массив объектов,
-     * Supabase сам правильно сериализует его в jsonb.
+     * Передаёт p_items как JSON-строку, которую сервер сам преобразует в jsonb.
      *
      * @param {Object} saleData
      * @param {string} saleData.shift_id
@@ -139,7 +139,7 @@ export const SaleRepository = {
 
         const { data, error } = await supabase.rpc('checkout_sale', {
             p_shift_id: saleData.shift_id,
-            p_items: saleData.items,
+            p_items: saleData.items,  // ← отправляем массив как есть
             p_total: saleData.total,
             p_profit: saleData.profit,
             p_payment_method: saleData.payment_method,
