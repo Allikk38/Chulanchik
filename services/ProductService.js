@@ -1,19 +1,26 @@
 // ============================================================
 // services/ProductService.js
+// v1.1.0 — 2026-09-18: добавлено логирование в audit_log
 // ============================================================
 
 /**
  * Сервис товаров.
- * 
+ *
  * Бизнес-логика: валидация, проверки прав (на уровне данных),
  * координация между репозиторием и стором.
- * 
+ *
+ * Все успешные мутации (create/update/remove) пишутся в audit_log
+ * через AuditRepository.log(). Логирование — best-effort:
+ * ошибка аудита не ломает основную операцию.
+ *
  * @module services/ProductService
  */
 
 import ProductRepository from '../repositories/ProductRepository.js';
+import AuditRepository, { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../repositories/AuditRepository.js';
 import { productStore } from '../stores/ProductStore.js';
 import { validateAttributes } from '../utils/categorySchema.js';
+import { formatMoney } from '../utils/formatters.js';
 
 // ============================================================
 // Валидация
@@ -21,7 +28,7 @@ import { validateAttributes } from '../utils/categorySchema.js';
 
 /**
  * Валидирует основные поля товара.
- * 
+ *
  * @param {Object} data
  * @returns {{valid: boolean, errors: string[]}}
  */
@@ -50,7 +57,7 @@ function validateProductBase(data) {
 export const ProductService = {
     /**
      * Создаёт товар.
-     * 
+     *
      * @param {Object} data
      * @param {string} data.name
      * @param {number} data.price
@@ -89,6 +96,17 @@ export const ProductService = {
 
             productStore.addLocally(product);
 
+            // Аудит: успешное создание
+            void AuditRepository.log({
+                userId: data.created_by,
+                action: AUDIT_ACTIONS.CREATE,
+                entityType: AUDIT_ENTITY_TYPES.PRODUCT,
+                entityId: product.id,
+                oldData: null,
+                newData: product,
+                description: `Создан товар: «${product.name}» за ${formatMoney(product.price)}`
+            });
+
             return { success: true, product };
 
         } catch (err) {
@@ -99,7 +117,7 @@ export const ProductService = {
 
     /**
      * Обновляет товар.
-     * 
+     *
      * @param {string} id
      * @param {Object} data — поля для обновления
      * @returns {Promise<{success: boolean, error?: string, product?: Object}>}
@@ -137,6 +155,21 @@ export const ProductService = {
             const updated = await ProductRepository.update(id, data);
             productStore.updateLocally(id, updated);
 
+            // Аудит: успешное обновление
+            // userId определяем из updated.created_by (кого меняли) —
+            // это не идеально, но в текущей схеме у ProductService нет
+            // явного userId в аргументах. Для полной корректности
+            // нужно прокинуть userId из вызывающего кода.
+            void AuditRepository.log({
+                userId: data.userId || existing.created_by || null,
+                action: AUDIT_ACTIONS.UPDATE,
+                entityType: AUDIT_ENTITY_TYPES.PRODUCT,
+                entityId: id,
+                oldData: existing,
+                newData: updated,
+                description: `Изменён товар: «${updated.name}»`
+            });
+
             return { success: true, product: updated };
 
         } catch (err) {
@@ -147,7 +180,7 @@ export const ProductService = {
 
     /**
      * Удаляет товар.
-     * 
+     *
      * @param {string} id
      * @returns {Promise<{success: boolean, error?: string}>}
      */
@@ -165,6 +198,17 @@ export const ProductService = {
         try {
             await ProductRepository.remove(id);
             productStore.removeLocally(id);
+
+            // Аудит: успешное удаление
+            void AuditRepository.log({
+                userId: existing.created_by || null,
+                action: AUDIT_ACTIONS.DELETE,
+                entityType: AUDIT_ENTITY_TYPES.PRODUCT,
+                entityId: id,
+                oldData: existing,
+                newData: null,
+                description: `Удалён товар: «${existing.name}»`
+            });
 
             return { success: true };
 
