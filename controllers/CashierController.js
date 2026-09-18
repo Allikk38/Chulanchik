@@ -293,9 +293,14 @@ async function checkout() {
         checkoutBtn.textContent = 'Оформление...';
     }
 
+    // Имя продавца для снимка в sales.seller_name и в аудите.
+    // resolveUserName делает fallback: fullName → email → id.
+    const sellerName = resolveUserName(state.user);
+
     const result = await SaleService.checkout({
         paymentMethod: method,
-        userId: state.user?.id
+        userId: state.user?.id,
+        sellerName
     });
 
     state.isCheckingOut = false;
@@ -311,7 +316,6 @@ async function checkout() {
         showNotification(result.error || 'Ошибка оформления', 'error');
     }
 }
-
 async function quickAdd() {
     if (!hasPermission('products:create')) {
         showNotification('Недостаточно прав', 'error');
