@@ -1,15 +1,16 @@
 // ========================================
 // ФАЙЛ: utils/formatters.js
+// v2.2.0 — 2026-09-18: добавлена resolveUserName
 // ========================================
 
 /**
  * Formatters — централизованное форматирование данных
- * 
+ *
  * Все функции чистые, без побочных эффектов.
  * Используют Intl API для локализации (ru-RU).
- * 
+ *
  * @module utils/formatters
- * @version 2.1.0
+ * @version 2.2.0
  */
 
 import { getCategoryName as getCategoryNameFromSchema } from './categorySchema.js';
@@ -81,7 +82,7 @@ export function formatNumber(num, decimals = 0) {
  * Форматирует процент
  * @param {number} value
  * @param {Object} [options]
- * @param {boolean} [options.isFraction=false] — true если значение от 0 до 1
+ * @param {boolean} [options.isFraction=false]
  * @param {number} [options.decimals=1]
  * @returns {string}
  */
@@ -142,9 +143,9 @@ export function formatDateTime(datetime) {
 /**
  * Склоняет существительное
  * @param {number} count
- * @param {string} one — форма для 1
- * @param {string} two — форма для 2-4
- * @param {string} five — форма для 5+
+ * @param {string} one
+ * @param {string} two
+ * @param {string} five
  * @returns {string}
  */
 export function pluralize(count, one, two, five) {
@@ -197,6 +198,41 @@ export function getPaymentMethodName(method) {
     return map[method] || method || 'Не указано';
 }
 
+// ========== ПОЛЬЗОВАТЕЛИ ==========
+
+/**
+ * Возвращает человекочитаемое имя пользователя.
+ *
+ * Приоритет:
+ *   1. user.fullName (из profiles.full_name)
+ *   2. user.email без домена
+ *   3. 'Пользователь <8 chars userId>'
+ *   4. 'Неизвестный'
+ *
+ * Функция чистая: не делает сетевых запросов,
+ * использует только переданный объект.
+ *
+ * @param {Object|null} user — объект пользователя { id, email, fullName }
+ * @returns {string}
+ */
+export function resolveUserName(user) {
+    if (!user) return 'Неизвестный';
+
+    const fullName = user.fullName?.trim();
+    if (fullName) return fullName;
+
+    const email = user.email?.trim();
+    if (email) {
+        const atIndex = email.indexOf('@');
+        return atIndex > 0 ? email.slice(0, atIndex) : email;
+    }
+
+    const id = user.id;
+    if (id) return `Пользователь ${String(id).slice(0, 8)}`;
+
+    return 'Неизвестный';
+}
+
 // ========== ВАЛИДАЦИЯ ==========
 
 /**
@@ -236,6 +272,7 @@ export default {
     getStatusText,
     getCategoryName,
     getPaymentMethodName,
+    resolveUserName,
     isValidEmail,
     debounce
 };
