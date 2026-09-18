@@ -1,6 +1,6 @@
 // ============================================================
 // components/ReportSales.js
-// Шаг 7: Вкладка «Продажи» — сводка и таблица
+// v1.1.0 — 2026-09-18: колонка «Продавец»
 // ============================================================
 
 /**
@@ -11,7 +11,7 @@
  * @module components/ReportSales
  */
 
-import { formatMoney, formatNumber, formatDateTime, getPaymentMethodName } from '../utils/formatters.js';
+import { formatMoney, formatNumber, formatDateTime, getPaymentMethodName, escapeHtml } from '../utils/formatters.js';
 
 // ============================================================
 // Вычисления
@@ -58,6 +58,7 @@ function renderSalesTable(sales) {
                 <thead>
                     <tr>
                         <th>Дата</th>
+                        <th>Продавец</th>
                         <th>Товаров</th>
                         <th>Сумма</th>
                         <th>Прибыль</th>
@@ -68,10 +69,12 @@ function renderSalesTable(sales) {
                     ${sales.map(sale => {
                         const items = normalizeItems(sale.items);
                         const itemCount = items.length;
+                        const seller = sale.seller_name?.trim() || '—';
 
                         return `
                             <tr>
                                 <td>${formatDateTime(sale.created_at)}</td>
+                                <td class="seller-cell">${escapeHtml(seller)}</td>
                                 <td>${itemCount} поз.</td>
                                 <td class="money">${formatMoney(sale.total)}</td>
                                 <td class="money">${formatMoney(sale.profit)}</td>
@@ -118,10 +121,6 @@ export function renderSalesTab(state) {
         </div>
         ${renderSalesTable(sales)}`;
 }
-
-// ============================================================
-// Экспорт по умолчанию
-// ============================================================
 
 export default {
     renderSalesTab
