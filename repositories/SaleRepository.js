@@ -1,34 +1,14 @@
 // ============================================================
 // repositories/SaleRepository.js
-// v2.4.0 — 2026-04-30: прямой вызов RPC с форматированными параметрами
+// v2.5.0 — 2026-09-18: передача seller_name в checkout_sale
 // ============================================================
 
 /**
  * Репозиторий продаж.
  *
- * НАЗНАЧЕНИЕ
- *   Единственный модуль, который обращается к таблице sales в Supabase.
- *   Владеет кэшем в sessionStorage (TTL 2 минуты).
- *   Нормализует поле items и числовые поля.
- *
- * ЗАВИСИМОСТИ
- *   supabase — клиент из core/supabase-client.js
- *
- * ИСПОЛЬЗУЕТСЯ
- *   SaleService — бизнес-логика продаж
- *   ReportsController — загрузка продаж для отчётов
- *
- * ПОТОК ДАННЫХ
- *   SaleService → SaleRepository.create(saleData) → supabase.rpc('checkout_sale', ...)
- *   ReportsController → SaleRepository.getAll(options) → supabase.from('sales').select('*')
- *
- * ИЗМЕНЕНИЯ
- *   v2.4.0 — передача p_items как массив объектов без сериализации
- *   v2.3.0 — попытка исправить двойную сериализацию (неудачно)
- *   v2.2.0 — убран JSON.stringify() для p_items
- *   v2.1.0 — улучшенное логирование
- *   v2.0   — JSON.stringify() для p_items
- *   v1.0   — первоначальная версия
+ * Единственный модуль, который обращается к таблице sales в Supabase.
+ * Владеет кэшем в sessionStorage (TTL 2 минуты).
+ * Нормализует поле items и числовые поля.
  *
  * @module repositories/SaleRepository
  */
@@ -114,10 +94,16 @@ function normalizeSale(sale) {
 export const SaleRepository = {
     /**
      * Создаёт продажу через RPC.
-     * Передаёт p_items как массив объектов — Supabase сам преобразует в jsonb.
      *
      * @param {Object} saleData
-     * @returns {Promise<Object>}
+     * @param {string} saleData.shift_id
+     * @param {Object[]} saleData.items
+     * @param {number} saleData.total
+     * @param {number} saleData.profit
+     * @param {string} saleData.payment_method
+     * @param {string} saleData.user_id
+     * @param {string} [saleData.seller_name] — снимок имени продавца
+     * @returns {Promise<{id: string}>}
      */
     async create(saleData) {
         console.log('[SaleRepository] Creating sale with data:', {
@@ -126,18 +112,18 @@ export const SaleRepository = {
             total: saleData.total,
             profit: saleData.profit,
             payment_method: saleData.payment_method,
-            user_id: saleData.user_id
+            user_id: saleData.user_id,
+            seller_name: saleData.seller_name
         });
 
-        // Отправляем массив объектов напрямую, без JSON.stringify
-        // Supabase сам преобразует JavaScript-массив в jsonb
         const { data, error } = await supabase.rpc('checkout_sale', {
             p_shift_id: saleData.shift_id,
             p_items: saleData.items,
             p_total: saleData.total,
             p_profit: saleData.profit,
             p_payment_method: saleData.payment_method,
-            p_user_id: saleData.user_id
+            p_user_id: saleData.user_id,
+            p_seller_name: saleData.seller_name || null
         });
 
         if (error) {
