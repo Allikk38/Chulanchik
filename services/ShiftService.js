@@ -112,4 +112,14 @@ export const ShiftService = {
             userId: shiftSnapshot?.user_id || null,
             action: AUDIT_ACTIONS.SHIFT_CLOSE,
             entityType: AUDIT_ENTITY_TYPES.SHIFT,
-            entityId:
+            entityId: shiftId || 'unknown',
+            oldData: shiftSnapshot,
+            newData: finalStats,
+            description: `Закрыта смена. Выручка: ${formatMoney(finalStats.revenue)}, продаж: ${finalStats.salesCount}`
+        });
+
+        return { success: true, stats: finalStats };
+    }
+};
+
+export default ShiftService;
