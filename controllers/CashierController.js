@@ -55,7 +55,7 @@ import { cartStore } from '../stores/CartStore.js';
 import { shiftStore } from '../stores/ShiftStore.js';
 import SaleService from '../services/SaleService.js';
 import ShiftService from '../services/ShiftService.js';
-import { formatMoney, debounce } from '../utils/formatters.js';
+import { formatMoney, debounce, resolveUserName } from '../utils/formatters.js';
 import { showNotification, showPaymentModal, showConfirmDialog } from '../utils/ui.js';
 import { openProductFormModal } from '../components/ProductForm.js';
 import { startBarcodeScan } from '../utils/BarcodeScanner.js';
