@@ -1,17 +1,14 @@
 // ============================================================
 // services/SaleService.js
-// v1.2.0 — 2026-09-18: добавлено логирование в audit_log
+// v1.3.0 — 2026-09-18: sellerName в продаже и аудите
 // ============================================================
 
 /**
  * Сервис продаж.
  *
  * Оформление продажи через RPC `checkout_sale`.
- * После успеха:
- *   - статусы товаров обновляются на 'sold' (локально);
- *   - статистика смены обновляется (локально);
- *   - корзина сбрасывается;
- *   - событие пишется в audit_log.
+ * Имя продавца передаётся снимком — денормализуется в sales
+ * для отображения в UI и сохранения истории.
  *
  * @module services/SaleService
  */
@@ -24,7 +21,16 @@ import { productStore } from '../stores/ProductStore.js';
 import { formatMoney, getPaymentMethodName } from '../utils/formatters.js';
 
 export const SaleService = {
-    async checkout({ paymentMethod, userId }) {
+    /**
+     * Оформляет продажу.
+     *
+     * @param {Object} options
+     * @param {string} options.paymentMethod — 'cash' | 'card' | 'transfer' | 'qr'
+     * @param {string} options.userId
+     * @param {string} [options.sellerName] — снимок имени продавца
+     * @returns {Promise<{success: boolean, error?: string, sale?: Object}>}
+     */
+    async checkout({ paymentMethod, userId, sellerName = null }) {
         if (cartStore.isEmpty()) {
             return { success: false, error: 'Корзина пуста' };
         }
@@ -96,7 +102,8 @@ export const SaleService = {
                 total,
                 profit: Math.round(profit),
                 payment_method: paymentMethod,
-                user_id: userId
+                user_id: userId,
+                seller_name: sellerName
             });
 
             for (const item of items) {
@@ -112,7 +119,10 @@ export const SaleService = {
 
             cartStore.reset();
 
-            // Аудит: успешная продажа
+            const auditDescription = sellerName
+                ? `Продажа на ${formatMoney(total)} (${itemsCount} поз., ${getPaymentMethodName(paymentMethod)}). Продавец: ${sellerName}`
+                : `Продажа на ${formatMoney(total)} (${itemsCount} поз., ${getPaymentMethodName(paymentMethod)})`;
+
             void AuditRepository.log({
                 userId,
                 action: AUDIT_ACTIONS.SALE,
@@ -124,9 +134,10 @@ export const SaleService = {
                     total,
                     profit: Math.round(profit),
                     payment_method: paymentMethod,
-                    shift_id: shiftId
+                    shift_id: shiftId,
+                    seller_name: sellerName
                 },
-                description: `Продажа на ${formatMoney(total)} (${itemsCount} поз., ${getPaymentMethodName(paymentMethod)})`
+                description: auditDescription
             });
 
             return { success: true, sale };
