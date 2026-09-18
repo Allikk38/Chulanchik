@@ -1,12 +1,27 @@
 // ============================================================
 // services/SaleService.js
-// v1.3.0 — 2026-04-30: восстановлен правильный файл
+// v1.2.0 — 2026-09-18: добавлено логирование в audit_log
 // ============================================================
 
+/**
+ * Сервис продаж.
+ *
+ * Оформление продажи через RPC `checkout_sale`.
+ * После успеха:
+ *   - статусы товаров обновляются на 'sold' (локально);
+ *   - статистика смены обновляется (локально);
+ *   - корзина сбрасывается;
+ *   - событие пишется в audit_log.
+ *
+ * @module services/SaleService
+ */
+
 import SaleRepository from '../repositories/SaleRepository.js';
+import AuditRepository, { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../repositories/AuditRepository.js';
 import { cartStore } from '../stores/CartStore.js';
 import { shiftStore } from '../stores/ShiftStore.js';
 import { productStore } from '../stores/ProductStore.js';
+import { formatMoney, getPaymentMethodName } from '../utils/formatters.js';
 
 export const SaleService = {
     async checkout({ paymentMethod, userId }) {
@@ -96,6 +111,24 @@ export const SaleService = {
             });
 
             cartStore.reset();
+
+            // Аудит: успешная продажа
+            void AuditRepository.log({
+                userId,
+                action: AUDIT_ACTIONS.SALE,
+                entityType: AUDIT_ENTITY_TYPES.SALE,
+                entityId: sale.id,
+                oldData: null,
+                newData: {
+                    items: itemsForDb,
+                    total,
+                    profit: Math.round(profit),
+                    payment_method: paymentMethod,
+                    shift_id: shiftId
+                },
+                description: `Продажа на ${formatMoney(total)} (${itemsCount} поз., ${getPaymentMethodName(paymentMethod)})`
+            });
+
             return { success: true, sale };
 
         } catch (err) {
