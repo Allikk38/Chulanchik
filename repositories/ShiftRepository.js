@@ -1,13 +1,14 @@
 // ============================================================
 // repositories/ShiftRepository.js
+// v1.1.0 — 2026-09-18: надёжный seller_name с fallback
 // ============================================================
 
 /**
  * Репозиторий смен.
- * 
+ *
  * Единственный модуль, который обращается к таблице shifts в Supabase.
  * Владеет кэшем активной смены в localStorage и списка смен в sessionStorage.
- * 
+ *
  * @module repositories/ShiftRepository
  */
 
@@ -29,11 +30,6 @@ const SHIFTS_LIST_TTL_MS = 2 * 60 * 1000;
 /** @type {Object|null} */
 let cachedActiveShift = null;
 
-/**
- * Загружает кэш активной смены из localStorage.
- *
- * @returns {Object|null}
- */
 function loadCachedActiveShift() {
     if (cachedActiveShift) return cachedActiveShift;
 
@@ -57,11 +53,6 @@ function loadCachedActiveShift() {
     return null;
 }
 
-/**
- * Сохраняет активную смену в localStorage.
- *
- * @param {Object|null} shift
- */
 function saveCachedActiveShift(shift) {
     cachedActiveShift = shift;
     try {
@@ -87,11 +78,6 @@ function saveCachedActiveShift(shift) {
 /** @type {Object|null} */
 let shiftsListCache = null;
 
-/**
- * Загружает кэш списка смен из sessionStorage.
- *
- * @returns {Object[]|null}
- */
 function loadShiftsListCache() {
     if (shiftsListCache) {
         if (Date.now() - shiftsListCache.timestamp < SHIFTS_LIST_TTL_MS) {
@@ -117,11 +103,6 @@ function loadShiftsListCache() {
     return null;
 }
 
-/**
- * Сохраняет список смен в sessionStorage.
- *
- * @param {Object[]} data
- */
 function saveShiftsListCache(data) {
     shiftsListCache = { data, timestamp: Date.now() };
     try {
@@ -135,12 +116,6 @@ function saveShiftsListCache(data) {
 // Хелперы
 // ============================================================
 
-/**
- * Нормализует поле items — может прийти как JSON-строка или уже как массив.
- *
- * @param {*} items
- * @returns {Object[]}
- */
 function normalizeItems(items) {
     if (!items) return [];
     if (Array.isArray(items)) return items;
@@ -155,30 +130,61 @@ function normalizeItems(items) {
     return [];
 }
 
+/**
+ * Формирует fallback-имя продавца из userId.
+ * Используется, если профиль пуст или запрос упал.
+ *
+ * @param {string} userId
+ * @returns {string}
+ */
+function buildFallbackName(userId) {
+    if (!userId) return 'Неизвестный';
+    return `Пользователь ${userId.slice(0, 8)}`;
+}
+
 // ============================================================
 // Репозиторий
 // ============================================================
 
 export const ShiftRepository = {
     /**
-     * Получает профиль пользователя (имя продавца).
+     * Получает имя продавца из profiles.
+     * Никогда не возвращает null — при отсутствии данных
+     * использует fallback по userId.
      *
      * @param {string} userId
      * @returns {Promise<string>}
      */
     async getSellerName(userId) {
-        const { data, error } = await supabase
-            .from('profiles')
-            .select('full_name')
-            .eq('id', userId)
-            .single();
-
-        if (error) {
-            console.warn('[ShiftRepository] getSellerName error:', error);
-            return null;
+        if (!userId) {
+            console.warn('[ShiftRepository] getSellerName: no userId');
+            return 'Неизвестный';
         }
 
-        return data?.full_name || null;
+        try {
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('full_name')
+                .eq('id', userId)
+                .single();
+
+            if (error) {
+                console.warn('[ShiftRepository] getSellerName error:', error);
+                return buildFallbackName(userId);
+            }
+
+            const name = data?.full_name?.trim();
+            if (!name) {
+                console.warn('[ShiftRepository] getSellerName: profile has empty full_name, using fallback');
+                return buildFallbackName(userId);
+            }
+
+            return name;
+
+        } catch (e) {
+            console.warn('[ShiftRepository] getSellerName exception:', e);
+            return buildFallbackName(userId);
+        }
     },
 
     /**
@@ -215,6 +221,8 @@ export const ShiftRepository = {
 
     /**
      * Открывает новую смену.
+     * seller_name гарантированно не null — берётся из профиля
+     * или через fallback по userId.
      *
      * @param {string} userId
      * @returns {Promise<Object>}
@@ -223,6 +231,7 @@ export const ShiftRepository = {
         console.log('[ShiftRepository] open() called, userId:', userId);
 
         const sellerName = await this.getSellerName(userId);
+        console.log('[ShiftRepository] resolved seller_name:', sellerName);
 
         const shiftData = {
             user_id: userId,
@@ -254,7 +263,8 @@ export const ShiftRepository = {
 
     /**
      * Закрывает смену.
-     * Обновляет closed_at, status, а также статистику (total_revenue, total_profit, sales_count).
+     * seller_name НЕ перезаписывается — он был установлен при open.
+     * Обновляются closed_at, status и статистика.
      *
      * @param {string} shiftId
      * @returns {Promise<Object>}
@@ -269,7 +279,8 @@ export const ShiftRepository = {
             status: 'closed',
             total_revenue: stats.revenue,
             total_profit: stats.profit,
-            sales_count: stats.salesCount
+            sales_count: stats.salesCount,
+            items_count: stats.itemsCount
         };
 
         console.log('[ShiftRepository] updating shift with stats:', updateData);
@@ -333,18 +344,11 @@ export const ShiftRepository = {
 
     /**
      * Возвращает список смен (для отчётов).
-     * При недоступности сервера возвращает кэшированные данные.
      *
      * @param {Object} [options]
-     * @param {string} [options.userId] — фильтр по пользователю
-     * @param {string} [options.from] — ISO-дата «с»
-     * @param {string} [options.to] — ISO-дата «по»
-     * @param {number} [options.limit=50]
-     * @param {boolean} [options.force=false] — принудительно с сервера
      * @returns {Promise<Object[]>}
      */
     async getAll({ userId, from, to, limit = 50, force = false } = {}) {
-        // Пробуем кэш если не принудительная загрузка
         if (!force) {
             const cached = loadShiftsListCache();
             if (cached) return cached;
@@ -372,7 +376,6 @@ export const ShiftRepository = {
         } catch (err) {
             console.error('[ShiftRepository] getAll error:', err);
 
-            // Если сервер недоступен — пробуем вернуть кэш независимо от TTL
             const staleCache = loadShiftsListCache();
             if (staleCache) {
                 console.warn('[ShiftRepository] returning stale cache due to network error');
