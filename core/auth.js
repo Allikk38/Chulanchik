@@ -1,14 +1,19 @@
 // ============================================================
 // core/auth.js
+// v1.1.0 — 2026-09-18: добавлено логирование входа в audit_log
 // ============================================================
 
 /**
  * Модуль аутентификации и авторизации.
  *
+ * Успешный вход пользователя пишется в audit_log (action: 'login').
+ * Выход НЕ логируется — это фоновое событие, засоряющее журнал.
+ *
  * @module auth
  */
 
 import { supabase } from './supabase-client.js';
+import AuditRepository, { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../repositories/AuditRepository.js';
 
 // ============================================================
 // Внутреннее состояние
@@ -151,6 +156,17 @@ export async function signIn(email, password) {
         currentUser = normalizeUser(data.user, profile, permissions);
         currentPermissions = permissions;
         notifyAuthChange();
+
+        // Аудит: успешный вход
+        void AuditRepository.log({
+            userId: currentUser.id,
+            action: AUDIT_ACTIONS.LOGIN,
+            entityType: AUDIT_ENTITY_TYPES.USER,
+            entityId: currentUser.id,
+            oldData: null,
+            newData: { email: currentUser.email },
+            description: `Вход в систему: ${currentUser.email}`
+        });
 
         return { success: true, user: currentUser, error: null };
 
