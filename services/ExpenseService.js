@@ -1,32 +1,37 @@
 // ============================================================
 // services/ExpenseService.js
+// v1.1.0 — 2026-09-18: добавлено логирование в audit_log
 // ============================================================
 
 /**
  * Сервис расходов.
- * 
+ *
  * Бизнес-логика: валидация, проверка прав,
  * координация между репозиторием и стором.
- * 
+ *
+ * Все успешные мутации (create/update/remove) пишутся в audit_log.
+ *
  * @module services/ExpenseService
  */
 
 import ExpenseRepository from '../repositories/ExpenseRepository.js';
+import AuditRepository, { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../repositories/AuditRepository.js';
 import { expenseStore } from '../stores/ExpenseStore.js';
+import { formatMoney } from '../utils/formatters.js';
 
 // ============================================================
 // Константы
 // ============================================================
 
 const CATEGORIES = [
-    'rent',        // Аренда
-    'advertising', // Реклама
-    'supplies',    // Хозтовары
-    'utilities',   // Коммунальные
-    'salary',      // Зарплата
-    'taxes',       // Налоги
-    'repair',      // Ремонт
-    'other'        // Прочее
+    'rent',
+    'advertising',
+    'supplies',
+    'utilities',
+    'salary',
+    'taxes',
+    'repair',
+    'other'
 ];
 
 const CATEGORY_LABELS = {
@@ -46,7 +51,7 @@ const CATEGORY_LABELS = {
 
 /**
  * Валидирует данные расхода.
- * 
+ *
  * @param {Object} data
  * @returns {{valid: boolean, errors: string[]}}
  */
@@ -85,7 +90,7 @@ function validateExpense(data) {
 export const ExpenseService = {
     /**
      * Возвращает список категорий с метками.
-     * 
+     *
      * @returns {Array<{value: string, label: string}>}
      */
     getCategories() {
@@ -97,7 +102,7 @@ export const ExpenseService = {
 
     /**
      * Возвращает метку категории.
-     * 
+     *
      * @param {string} category
      * @returns {string}
      */
@@ -107,7 +112,7 @@ export const ExpenseService = {
 
     /**
      * Создаёт расход.
-     * 
+     *
      * @param {Object} data
      * @param {number} data.amount
      * @param {string} data.category
@@ -147,6 +152,17 @@ export const ExpenseService = {
             expenseStore.addLocally(expense);
             console.log('[ExpenseService] expense created:', expense.id);
 
+            // Аудит: успешное создание расхода
+            void AuditRepository.log({
+                userId: data.userId,
+                action: AUDIT_ACTIONS.CREATE,
+                entityType: AUDIT_ENTITY_TYPES.EXPENSE,
+                entityId: expense.id,
+                oldData: null,
+                newData: expense,
+                description: `Добавлен расход: ${CATEGORY_LABELS[expense.category] || expense.category} — ${formatMoney(expense.amount)}`
+            });
+
             return { success: true, expense };
 
         } catch (err) {
@@ -157,7 +173,7 @@ export const ExpenseService = {
 
     /**
      * Обновляет расход.
-     * 
+     *
      * @param {string} id
      * @param {Object} data
      * @returns {Promise<{success: boolean, error?: string, expense?: Object}>}
@@ -196,6 +212,17 @@ export const ExpenseService = {
             expenseStore.updateLocally(id, expense);
             console.log('[ExpenseService] expense updated:', id);
 
+            // Аудит: успешное обновление расхода
+            void AuditRepository.log({
+                userId: data.userId || existing.created_by || null,
+                action: AUDIT_ACTIONS.UPDATE,
+                entityType: AUDIT_ENTITY_TYPES.EXPENSE,
+                entityId: id,
+                oldData: existing,
+                newData: expense,
+                description: `Изменён расход: ${CATEGORY_LABELS[expense.category] || expense.category} — ${formatMoney(expense.amount)}`
+            });
+
             return { success: true, expense };
 
         } catch (err) {
@@ -206,7 +233,7 @@ export const ExpenseService = {
 
     /**
      * Удаляет расход.
-     * 
+     *
      * @param {string} id
      * @returns {Promise<{success: boolean, error?: string}>}
      */
@@ -223,6 +250,17 @@ export const ExpenseService = {
             expenseStore.removeLocally(id);
             console.log('[ExpenseService] expense removed:', id);
 
+            // Аудит: успешное удаление расхода
+            void AuditRepository.log({
+                userId: existing.created_by || null,
+                action: AUDIT_ACTIONS.DELETE,
+                entityType: AUDIT_ENTITY_TYPES.EXPENSE,
+                entityId: id,
+                oldData: existing,
+                newData: null,
+                description: `Удалён расход: ${CATEGORY_LABELS[existing.category] || existing.category} — ${formatMoney(existing.amount)}`
+            });
+
             return { success: true };
 
         } catch (err) {
@@ -233,7 +271,7 @@ export const ExpenseService = {
 
     /**
      * Загружает расходы (инициализация стора).
-     * 
+     *
      * @returns {Promise<Object[]>}
      */
     async loadExpenses() {
