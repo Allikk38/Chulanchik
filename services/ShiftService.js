@@ -1,6 +1,6 @@
 // ============================================================
 // services/ShiftService.js
-// v1.1.0 — 2026-09-18: добавлено логирование в audit_log
+// v1.2.0 — 2026-09-18: имя продавца в audit description
 // ============================================================
 
 /**
@@ -9,7 +9,8 @@
  * Бизнес-логика открытия/закрытия смены.
  * Не зависит от UI.
  *
- * Открытие и закрытие смены пишутся в audit_log.
+ * Открытие и закрытие смены пишутся в audit_log
+ * с человекочитаемым именем продавца.
  *
  * @module services/ShiftService
  */
@@ -17,6 +18,28 @@
 import { shiftStore } from '../stores/ShiftStore.js';
 import AuditRepository, { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../repositories/AuditRepository.js';
 import { formatMoney } from '../utils/formatters.js';
+
+// ============================================================
+// Хелперы
+// ============================================================
+
+/**
+ * Извлекает имя продавца из снимка смены.
+ * Согласован с fallback-логикой ShiftRepository.
+ *
+ * @param {Object|null} shift
+ * @param {string|null} userId
+ * @returns {string}
+ */
+function resolveSellerName(shift, userId) {
+    const fromShift = shift?.seller_name?.trim();
+    if (fromShift) return fromShift;
+
+    if (userId) {
+        return `Пользователь ${userId.slice(0, 8)}`;
+    }
+    return 'Неизвестный';
+}
 
 // ============================================================
 // Сервис
@@ -55,14 +78,17 @@ export const ShiftService = {
 
         // Аудит: успешное открытие смены
         const shiftId = shiftStore.getCurrentShiftId();
+        const shiftSnapshot = shiftStore.getCurrent();
+        const sellerName = resolveSellerName(shiftSnapshot, userId);
+
         void AuditRepository.log({
             userId,
             action: AUDIT_ACTIONS.SHIFT_OPEN,
             entityType: AUDIT_ENTITY_TYPES.SHIFT,
             entityId: shiftId || 'unknown',
             oldData: null,
-            newData: shiftStore.getCurrent(),
-            description: 'Открыта смена'
+            newData: shiftSnapshot,
+            description: `Открыта смена: ${sellerName}`
         });
 
         return { success: true };
@@ -105,9 +131,8 @@ export const ShiftService = {
         console.log('[ShiftService] closeShift completed successfully, returning stats:', finalStats);
 
         // Аудит: успешное закрытие смены
-        // userId берём из снимка смены (поле user_id), потому что
-        // closeShift() не принимает userId, а закрыть смену может
-        // только тот, кто её открыл (по RLS).
+        const sellerName = resolveSellerName(shiftSnapshot, shiftSnapshot?.user_id);
+
         void AuditRepository.log({
             userId: shiftSnapshot?.user_id || null,
             action: AUDIT_ACTIONS.SHIFT_CLOSE,
@@ -115,7 +140,7 @@ export const ShiftService = {
             entityId: shiftId || 'unknown',
             oldData: shiftSnapshot,
             newData: finalStats,
-            description: `Закрыта смена. Выручка: ${formatMoney(finalStats.revenue)}, продаж: ${finalStats.salesCount}`
+            description: `Закрыта смена: ${sellerName}. Выручка: ${formatMoney(finalStats.revenue)}, продаж: ${finalStats.salesCount}`
         });
 
         return { success: true, stats: finalStats };
