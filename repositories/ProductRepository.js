@@ -1,13 +1,15 @@
 // ============================================================
 // repositories/ProductRepository.js
+// v1.1.0 — 2026-09-18: добавлены uploadPhoto / deletePhoto
 // ============================================================
 
 /**
  * Репозиторий товаров.
- * 
- * Единственный модуль, который обращается к таблице products в Supabase.
+ *
+ * Единственный модуль, который обращается к таблице products в Supabase
+ * и к Storage-бакету product-photos.
  * Владеет кэшем в sessionStorage (TTL 5 минут).
- * 
+ *
  * @module repositories/ProductRepository
  */
 
@@ -20,6 +22,10 @@ import { supabase } from '../core/supabase-client.js';
 const CACHE_KEY = 'products_cache';
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
+const PHOTOS_BUCKET = 'product-photos';
+const MAX_PHOTO_MB = 5;
+const ALLOWED_PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
 // ============================================================
 // Кэш
 // ============================================================
@@ -27,12 +33,6 @@ const CACHE_TTL_MS = 5 * 60 * 1000;
 /** @type {Object|null} */
 let cacheEntry = null;
 
-/**
- * Пытается загрузить кэш из sessionStorage.
- * Если кэш просрочен — удаляет его и возвращает null.
- * 
- * @returns {Object[]|null}
- */
 function loadCache() {
     if (cacheEntry) {
         if (Date.now() - cacheEntry.timestamp < CACHE_TTL_MS) {
@@ -52,18 +52,12 @@ function loadCache() {
             sessionStorage.removeItem(CACHE_KEY);
         }
     } catch (e) {
-        // битый кэш — игнорируем
         sessionStorage.removeItem(CACHE_KEY);
     }
 
     return null;
 }
 
-/**
- * Сохраняет данные в кэш.
- * 
- * @param {Object[]} data
- */
 function saveCache(data) {
     cacheEntry = { data, timestamp: Date.now() };
     try {
@@ -73,14 +67,72 @@ function saveCache(data) {
     }
 }
 
-/**
- * Инвалидирует кэш (вызывается после мутаций).
- */
 function invalidateCache() {
     cacheEntry = null;
     try {
         sessionStorage.removeItem(CACHE_KEY);
     } catch (e) { /* */ }
+}
+
+// ============================================================
+// Работа с фото товара
+// ============================================================
+
+/**
+ * Загружает фото товара в Storage.
+ * Валидирует MIME-тип и размер.
+ *
+ * @param {File} file
+ * @returns {Promise<string>} publicUrl загруженного файла
+ * @throws {Error} при невалидном файле или ошибке загрузки
+ */
+async function uploadPhoto(file) {
+    if (!file) {
+        throw new Error('Файл не передан');
+    }
+
+    if (!ALLOWED_PHOTO_TYPES.includes(file.type)) {
+        throw new Error('Поддерживаются только JPG, PNG, WEBP');
+    }
+
+    if (file.size > MAX_PHOTO_MB * 1024 * 1024) {
+        throw new Error(`Файл не должен превышать ${MAX_PHOTO_MB} MB`);
+    }
+
+    const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+    const fileName = `product-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+
+    const { error } = await supabase.storage
+        .from(PHOTOS_BUCKET)
+        .upload(fileName, file, { cacheControl: '3600', upsert: false });
+
+    if (error) {
+        throw new Error('Ошибка загрузки фото: ' + error.message);
+    }
+
+    const { data } = supabase.storage.from(PHOTOS_BUCKET).getPublicUrl(fileName);
+    return data.publicUrl;
+}
+
+/**
+ * Удаляет фото товара из Storage по его publicUrl.
+ * Молча игнорирует ошибки — удаление не критично.
+ *
+ * @param {string} photoUrl
+ * @returns {Promise<void>}
+ */
+async function deletePhoto(photoUrl) {
+    if (!photoUrl) return;
+
+    try {
+        // URL вида: https://xxx.supabase.co/storage/v1/object/public/product-photos/product-123-abc.jpg
+        const fileName = photoUrl.split('/').pop();
+        if (!fileName) return;
+
+        await supabase.storage.from(PHOTOS_BUCKET).remove([fileName]);
+    } catch (e) {
+        console.warn('[ProductRepository] deletePhoto error:', e);
+    }
 }
 
 // ============================================================
@@ -90,9 +142,9 @@ function invalidateCache() {
 export const ProductRepository = {
     /**
      * Загружает все товары.
-     * 
+     *
      * @param {Object} [options]
-     * @param {boolean} [options.force=false] — принудительно с сервера
+     * @param {boolean} [options.force=false]
      * @returns {Promise<Object[]>}
      */
     async loadAll({ force = false } = {}) {
@@ -113,21 +165,20 @@ export const ProductRepository = {
     },
 
     /**
-     * Загружает товары в наличии (для кассы).
-     * 
+     * Загружает товары в наличии.
+     *
      * @param {Object} [options]
      * @param {boolean} [options.force=false]
      * @returns {Promise<Object[]>}
      */
     async loadInStock({ force = false } = {}) {
-        // loadAll уже кэширует всё, фильтруем на стороне репозитория
         const all = await this.loadAll({ force });
         return all.filter(p => p.status === 'in_stock');
     },
 
     /**
      * Получает товар по ID.
-     * 
+     *
      * @param {string} id
      * @returns {Promise<Object|null>}
      */
@@ -144,15 +195,8 @@ export const ProductRepository = {
 
     /**
      * Создаёт товар.
-     * 
+     *
      * @param {Object} productData
-     * @param {string} productData.name
-     * @param {number} productData.price
-     * @param {number} [productData.cost_price]
-     * @param {string} [productData.category]
-     * @param {Object} [productData.attributes]
-     * @param {string} [productData.photo_url]
-     * @param {string} productData.created_by
      * @returns {Promise<Object>} созданный товар
      */
     async create(productData) {
@@ -179,10 +223,10 @@ export const ProductRepository = {
 
     /**
      * Обновляет товар.
-     * 
+     *
      * @param {string} id
      * @param {Object} updates
-     * @returns {Promise<Object>} обновлённый товар
+     * @returns {Promise<Object>}
      */
     async update(id, updates) {
         const { data, error } = await supabase
@@ -200,7 +244,7 @@ export const ProductRepository = {
 
     /**
      * Удаляет товар.
-     * 
+     *
      * @param {string} id
      * @returns {Promise<void>}
      */
@@ -213,7 +257,23 @@ export const ProductRepository = {
         if (error) throw error;
 
         invalidateCache();
-    }
+    },
+
+    /**
+     * Загружает фото товара в Storage.
+     *
+     * @param {File} file
+     * @returns {Promise<string>} publicUrl
+     */
+    uploadPhoto,
+
+    /**
+     * Удаляет фото товара из Storage.
+     *
+     * @param {string} photoUrl
+     * @returns {Promise<void>}
+     */
+    deletePhoto
 };
 
 export default ProductRepository;
