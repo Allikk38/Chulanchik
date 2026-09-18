@@ -1,17 +1,14 @@
 // ============================================================
 // services/ProductService.js
-// v1.1.0 — 2026-09-18: добавлено логирование в audit_log
+// v1.2.0 — 2026-09-18: загрузка/замена/удаление фото товара
 // ============================================================
 
 /**
  * Сервис товаров.
  *
- * Бизнес-логика: валидация, проверки прав (на уровне данных),
- * координация между репозиторием и стором.
- *
- * Все успешные мутации (create/update/remove) пишутся в audit_log
- * через AuditRepository.log(). Логирование — best-effort:
- * ошибка аудита не ломает основную операцию.
+ * Бизнес-логика: валидация, координация репозитория и стора,
+ * работа с фото (загрузка/замена/удаление в Storage),
+ * запись в audit_log.
  *
  * @module services/ProductService
  */
@@ -26,12 +23,6 @@ import { formatMoney } from '../utils/formatters.js';
 // Валидация
 // ============================================================
 
-/**
- * Валидирует основные поля товара.
- *
- * @param {Object} data
- * @returns {{valid: boolean, errors: string[]}}
- */
 function validateProductBase(data) {
     const errors = [];
 
@@ -51,6 +42,50 @@ function validateProductBase(data) {
 }
 
 // ============================================================
+// Хелперы для работы с фото
+// ============================================================
+
+/**
+ * Определяет финальный photo_url для операции create/update.
+ *
+ * Логика:
+ *   - photoRemoved === true → null (удалить фото)
+ *   - photoFile передан     → загрузить, вернуть новый URL
+ *   - иначе                 → оставить existing (или null)
+ *
+ * Старый файл удаляется из Storage, если:
+ *   - он был и заменяется новым, ИЛИ
+ *   - он был и явно удаляется пользователем.
+ *
+ * @param {Object} options
+ * @param {File|null} options.photoFile — новый файл (если выбран)
+ * @param {boolean} options.photoRemoved — флаг явного удаления
+ * @param {string|null} options.existingUrl — текущий URL фото (для update)
+ * @returns {Promise<string|null>} финальный photo_url
+ */
+async function resolvePhotoUrl({ photoFile, photoRemoved, existingUrl }) {
+    // Явное удаление — удаляем старый из Storage, возвращаем null
+    if (photoRemoved) {
+        if (existingUrl) {
+            await ProductRepository.deletePhoto(existingUrl);
+        }
+        return null;
+    }
+
+    // Новый файл — грузим, удаляем старый если был
+    if (photoFile) {
+        const newUrl = await ProductRepository.uploadPhoto(photoFile);
+        if (existingUrl) {
+            await ProductRepository.deletePhoto(existingUrl);
+        }
+        return newUrl;
+    }
+
+    // Ничего не меняется — оставляем как было
+    return existingUrl || null;
+}
+
+// ============================================================
 // Сервис
 // ============================================================
 
@@ -64,18 +99,16 @@ export const ProductService = {
      * @param {number} [data.cost_price]
      * @param {string} [data.category]
      * @param {Object} [data.attributes]
-     * @param {string} [data.photo_url]
+     * @param {File} [data.photoFile]
      * @param {string} data.created_by
      * @returns {Promise<{success: boolean, error?: string, product?: Object}>}
      */
     async create(data) {
-        // Валидация основных полей
         const baseValidation = validateProductBase(data);
         if (!baseValidation.valid) {
             return { success: false, error: baseValidation.errors[0] };
         }
 
-        // Валидация атрибутов категории
         const category = data.category || 'other';
         const attributes = data.attributes || {};
         const attrValidation = validateAttributes(category, attributes);
@@ -84,13 +117,21 @@ export const ProductService = {
         }
 
         try {
+            // Загружаем фото (если есть) ДО создания товара.
+            // Если загрузка упадёт — товар не создастся (лучше явная ошибка,
+            // чем товар без фото, которое пользователь выбрал).
+            let photoUrl = null;
+            if (data.photoFile) {
+                photoUrl = await ProductRepository.uploadPhoto(data.photoFile);
+            }
+
             const product = await ProductRepository.create({
                 name: data.name.trim(),
                 price: data.price,
                 cost_price: data.cost_price || 0,
                 category,
                 attributes,
-                photo_url: data.photo_url || null,
+                photo_url: photoUrl,
                 created_by: data.created_by
             });
 
@@ -119,7 +160,9 @@ export const ProductService = {
      * Обновляет товар.
      *
      * @param {string} id
-     * @param {Object} data — поля для обновления
+     * @param {Object} data
+     * @param {File} [data.photoFile] — новое фото (если заменяется)
+     * @param {boolean} [data.photoRemoved] — флаг удаления фото
      * @returns {Promise<{success: boolean, error?: string, product?: Object}>}
      */
     async update(id, data) {
@@ -133,7 +176,6 @@ export const ProductService = {
             return { success: false, error: 'Нельзя редактировать проданный товар' };
         }
 
-        // Валидируем только переданные поля
         if (data.name !== undefined && !data.name.trim()) {
             return { success: false, error: 'Название не может быть пустым' };
         }
@@ -142,7 +184,6 @@ export const ProductService = {
             return { success: false, error: 'Некорректная цена' };
         }
 
-        // Валидация атрибутов если переданы
         if (data.attributes) {
             const category = data.category || existing.category || 'other';
             const attrValidation = validateAttributes(category, data.attributes);
@@ -152,14 +193,34 @@ export const ProductService = {
         }
 
         try {
-            const updated = await ProductRepository.update(id, data);
+            // Определяем финальный photo_url:
+            //   - новое фото → грузим, старый удаляем;
+            //   - явное удаление → старый удаляем, null;
+            //   - ничего не менялось → оставляем existing.photo_url.
+            const finalPhotoUrl = await resolvePhotoUrl({
+                photoFile: data.photoFile || null,
+                photoRemoved: !!data.photoRemoved,
+                existingUrl: existing.photo_url || null
+            });
+
+            const updates = {
+                name: data.name,
+                price: data.price,
+                cost_price: data.cost_price,
+                category: data.category,
+                attributes: data.attributes,
+                photo_url: finalPhotoUrl
+            };
+
+            // Убираем undefined — не перезаписываем поля, которые не пришли
+            Object.keys(updates).forEach(key => {
+                if (updates[key] === undefined) delete updates[key];
+            });
+
+            const updated = await ProductRepository.update(id, updates);
             productStore.updateLocally(id, updated);
 
             // Аудит: успешное обновление
-            // userId определяем из updated.created_by (кого меняли) —
-            // это не идеально, но в текущей схеме у ProductService нет
-            // явного userId в аргументах. Для полной корректности
-            // нужно прокинуть userId из вызывающего кода.
             void AuditRepository.log({
                 userId: data.userId || existing.created_by || null,
                 action: AUDIT_ACTIONS.UPDATE,
@@ -180,6 +241,7 @@ export const ProductService = {
 
     /**
      * Удаляет товар.
+     * Также удаляет его фото из Storage.
      *
      * @param {string} id
      * @returns {Promise<{success: boolean, error?: string}>}
@@ -197,9 +259,14 @@ export const ProductService = {
 
         try {
             await ProductRepository.remove(id);
+
+            // Удаляем фото из Storage (не блокирует основную операцию)
+            if (existing.photo_url) {
+                await ProductRepository.deletePhoto(existing.photo_url);
+            }
+
             productStore.removeLocally(id);
 
-            // Аудит: успешное удаление
             void AuditRepository.log({
                 userId: existing.created_by || null,
                 action: AUDIT_ACTIONS.DELETE,
