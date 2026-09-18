@@ -1,13 +1,14 @@
 // ============================================================
 // components/ProductForm.js
+// v1.1.0 — 2026-09-18: флаг photoRemoved + корректная передача в сервис
 // ============================================================
 
 /**
  * Компонент формы товара.
- * 
+ *
  * Чистый UI. Не зависит от репозиториев или сторов.
  * Принимает данные, возвращает Promise с сохранённым товаром.
- * 
+ *
  * @module components/ProductForm
  */
 
@@ -161,7 +162,7 @@ function modalHtml({ mode, initialData }) {
 
 /**
  * Открывает модальное окно формы товара.
- * 
+ *
  * @param {Object} options
  * @param {'create'|'edit'} options.mode
  * @param {Object} [options.initialData] — данные для редактирования
@@ -172,7 +173,10 @@ export function openProductFormModal({ mode = 'create', initialData = {}, userId
     return new Promise(resolve => {
         const container = document.getElementById('modalContainer') || document.body;
 
+        // Состояние формы
         let photoFile = null;
+        // Флаг: пользователь явно удалил существующее фото (только для edit)
+        let photoRemoved = false;
         let isSubmitting = false;
 
         container.insertAdjacentHTML('beforeend', modalHtml({ mode, initialData }));
@@ -184,7 +188,7 @@ export function openProductFormModal({ mode = 'create', initialData = {}, userId
         const priceEl = $('pfPrice');
         const costEl = $('pfCost');
 
-        // --- Фото (только локальный превью, загрузка через сервис) ---
+        // --- Фото ---
         $('pfUploadBtn').onclick = () => $('pfPhotoInput').click();
 
         $('pfPhotoInput').onchange = (e) => {
@@ -200,6 +204,9 @@ export function openProductFormModal({ mode = 'create', initialData = {}, userId
             }
 
             photoFile = file;
+            // Новый файл выбран → флаг «удалено» сбрасывается
+            photoRemoved = false;
+
             const reader = new FileReader();
             reader.onload = () => {
                 $('pfPreview').classList.add('has-image');
@@ -213,6 +220,10 @@ export function openProductFormModal({ mode = 'create', initialData = {}, userId
 
         $('pfRemoveBtn').onclick = () => {
             photoFile = null;
+            // Если у товара было фото — помечаем на удаление
+            if (initialData.photo_url) {
+                photoRemoved = true;
+            }
             $('pfPreview').classList.remove('has-image');
             $('pfPlaceholder').style.display = 'flex';
             $('pfImg').style.display = 'none';
@@ -253,7 +264,6 @@ export function openProductFormModal({ mode = 'create', initialData = {}, userId
         $('pfSubmit').onclick = async () => {
             if (isSubmitting) return;
 
-            // Базовая валидация
             const name = nameEl.value.trim();
             if (!name) {
                 $('pfName_error').textContent = 'Название обязательно';
@@ -269,7 +279,6 @@ export function openProductFormModal({ mode = 'create', initialData = {}, userId
             const category = catEl.value;
             const cost = parseFloat(costEl.value) || 0;
 
-            // Собираем атрибуты
             const attrs = {};
             document.querySelectorAll('#pfCategoryFields [name]').forEach(f => {
                 attrs[f.name] = f.value;
@@ -297,7 +306,7 @@ export function openProductFormModal({ mode = 'create', initialData = {}, userId
                         price,
                         cost_price: cost,
                         attributes: attrs,
-                        photoFile: photoFile,
+                        photoFile: photoFile, // File или null
                         created_by: userId
                     });
                 } else {
@@ -307,8 +316,10 @@ export function openProductFormModal({ mode = 'create', initialData = {}, userId
                         price,
                         cost_price: cost,
                         attributes: attrs,
-                        photoFile: photoFile,
-                        existingPhotoUrl: initialData.photo_url
+                        photoFile: photoFile,     // File или null
+                        photoRemoved: photoRemoved, // true если явно удалено
+                        existingPhotoUrl: initialData.photo_url,
+                        userId
                     });
                 }
 
@@ -333,7 +344,6 @@ export function openProductFormModal({ mode = 'create', initialData = {}, userId
         const onKey = (e) => { if (e.key === 'Escape') { close(); document.removeEventListener('keydown', onKey); } };
         document.addEventListener('keydown', onKey);
 
-        // Фокус
         setTimeout(() => nameEl?.focus(), 100);
     });
 }
