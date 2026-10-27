@@ -1,8 +1,11 @@
 /**
  * Tables - Business Professional
  *
- * v6.0.0 — 2026-10-27: статусы — текст + точка, без «таблеток»;
- *                      убран uppercase у th.
+ * v7.0.0 — 2026-10-27: плотный кассовый вид
+ *   - зебра строк
+ *   - th: uppercase, 11px, letter-spacing
+ *   - деньги моноширинные, tabular-nums
+ *   - убран border-radius у .table-container
  *
  * @stylesheet tables
  */
@@ -15,17 +18,19 @@
 }
 
 .data-table thead {
-    background: var(--color-gray-50);
-    border-bottom: var(--border-width) solid var(--color-border);
+    background: #faf9f7;
+    border-bottom: 2px solid var(--color-primary);
 }
 
 .data-table th {
-    padding: var(--spacing-3) var(--spacing-4);
-    font-weight: var(--font-weight-semibold);
-    color: var(--color-text-secondary);
+    padding: 8px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--color-text-muted);
     text-align: left;
+    text-transform: uppercase;
+    letter-spacing: var(--letter-spacing-caps);
     white-space: nowrap;
-    font-size: var(--font-size-xs);
 }
 
 /* ========== СОРТИРУЕМЫЕ КОЛОНКИ ========== */
@@ -43,11 +48,11 @@
     top: 50%;
     transform: translateY(-50%);
     opacity: 0.4;
-    font-size: 12px;
+    font-size: 11px;
 }
 
 .data-table th.sortable:hover {
-    background: var(--color-gray-100);
+    background: #f0ede8;
 }
 
 .data-table th.sortable:hover::after {
@@ -68,9 +73,10 @@
 
 /* ========== ЯЧЕЙКИ ========== */
 .data-table td {
-    padding: var(--spacing-3) var(--spacing-4);
-    border-bottom: var(--border-width) solid var(--color-border-light);
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--color-border-light);
     vertical-align: middle;
+    color: var(--color-text);
 }
 
 /* ========== СТРОКИ ========== */
@@ -78,8 +84,13 @@
     background: var(--color-white);
 }
 
+/* Зебра — чётные строки тёплые */
+.data-table tbody tr:nth-child(even) {
+    background: #fbfaf7;
+}
+
 .data-table tbody tr:hover {
-    background: var(--color-gray-50);
+    background: #f5f0e9;
 }
 
 .data-table tbody tr.selected {
@@ -91,27 +102,27 @@
 /* Компактная таблица */
 .table-sm th,
 .table-sm td {
-    padding: var(--spacing-2) var(--spacing-3);
-    font-size: var(--font-size-xs);
+    padding: 6px 10px;
+    font-size: 12px;
 }
 
-/* Полосатая таблица */
+/* Полосатая таблица (для консистентности) */
 .table-striped tbody tr:nth-child(even) {
-    background: var(--color-gray-50);
+    background: #fbfaf7;
 }
 
 .table-striped tbody tr:nth-child(even):hover {
-    background: var(--color-gray-100);
+    background: #f0ede8;
 }
 
 /* Таблица с границами */
 .table-bordered {
-    border: var(--border-width) solid var(--color-border);
+    border: 1px solid var(--color-border);
 }
 
 .table-bordered th,
 .table-bordered td {
-    border: var(--border-width) solid var(--color-border);
+    border: 1px solid var(--color-border);
 }
 
 .table-bordered thead th {
@@ -123,14 +134,17 @@
 .data-table .text-center { text-align: center; }
 .data-table .text-right { text-align: right; }
 
-/* Денежные значения */
+/* Денежные значения — моноширинные, tabular-nums */
 .data-table .money {
     text-align: right;
-    font-weight: var(--font-weight-medium);
+    font-family: var(--font-family-mono);
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+    white-space: nowrap;
 }
 
-.data-table .money.positive { color: var(--color-success); }
-.data-table .money.negative { color: var(--color-danger); }
+.data-table .money.positive { color: var(--color-success-dark); }
+.data-table .money.negative { color: var(--color-danger-dark); }
 
 /* ========== ДЕЙСТВИЯ В ТАБЛИЦЕ ========== */
 .table-actions {
@@ -139,29 +153,30 @@
 }
 
 .table-actions .btn-icon {
-    width: 32px;
-    height: 32px;
+    width: 30px;
+    height: 30px;
     background: transparent;
-    border: none;
+    border: 1px solid transparent;
     border-radius: var(--radius-sm);
     color: var(--color-text-secondary);
 }
 
 .table-actions .btn-icon:hover {
     background: var(--color-gray-100);
+    border-color: var(--color-border);
     color: var(--color-primary);
 }
 
 .table-actions .btn-icon.btn-danger:hover {
     background: var(--color-danger-bg);
+    border-color: #fecaca;
     color: var(--color-danger);
 }
 
 /* ========== КОНТЕЙНЕР ТАБЛИЦЫ ========== */
 .table-container {
     overflow-x: auto;
-    border-radius: var(--radius-lg);
-    border: var(--border-width) solid var(--color-border);
+    border: 1px solid var(--color-border);
     background: var(--color-white);
 }
 
@@ -174,9 +189,9 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: var(--spacing-3) var(--spacing-4);
-    background: var(--color-gray-50);
-    border-top: var(--border-width) solid var(--color-border);
+    padding: 10px 12px;
+    background: #faf9f7;
+    border-top: 1px solid var(--color-border);
 }
 
 .table-info {
@@ -192,14 +207,14 @@
 }
 
 .pagination-btn {
-    min-width: 32px;
-    height: 32px;
+    min-width: 30px;
+    height: 30px;
     padding: 0 var(--spacing-2);
     display: flex;
     align-items: center;
     justify-content: center;
     background: var(--color-white);
-    border: var(--border-width) solid var(--color-border);
+    border: 1px solid var(--color-border);
     border-radius: var(--radius-sm);
     font-size: var(--font-size-sm);
     font-weight: var(--font-weight-medium);
@@ -208,8 +223,8 @@
 }
 
 .pagination-btn:hover:not(:disabled) {
-    background: var(--color-gray-50);
-    border-color: var(--color-gray-400);
+    background: #f5f0e9;
+    border-color: var(--color-text-muted);
 }
 
 .pagination-btn.active {
@@ -236,6 +251,7 @@
     font-size: var(--font-size-xs);
     font-weight: var(--font-weight-medium);
     color: var(--color-text);
+    white-space: nowrap;
 }
 
 .status-badge .status-dot-indicator {
@@ -258,7 +274,7 @@
 
 /* ========== ЧЕКБОКС В ТАБЛИЦЕ ========== */
 .data-table .checkbox-cell {
-    width: 40px;
+    width: 36px;
     text-align: center;
 }
 
@@ -297,8 +313,8 @@
     display: flex;
     align-items: center;
     gap: var(--spacing-3);
-    padding: var(--spacing-2) var(--spacing-3);
-    border-bottom: var(--border-width) solid var(--color-border-light);
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--color-border-light);
 }
 
 .top-product-item:last-child {
@@ -306,17 +322,18 @@
 }
 
 .top-product-item .rank {
-    width: 28px;
-    height: 28px;
+    width: 24px;
+    height: 24px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--color-gray-100);
-    border-radius: var(--radius-full);
-    font-size: var(--font-size-xs);
+    background: #f5f2ed;
+    border-radius: var(--radius-sm);
+    font-size: 11px;
     font-weight: var(--font-weight-bold);
     color: var(--color-text-secondary);
     flex-shrink: 0;
+    font-family: var(--font-family-mono);
 }
 
 .top-product-item .name {
@@ -329,6 +346,8 @@
 .top-product-item .value {
     color: var(--color-text-secondary);
     font-size: var(--font-size-xs);
+    font-family: var(--font-family-mono);
+    font-variant-numeric: tabular-nums;
 }
 
 .top-product-item .revenue {
@@ -336,6 +355,8 @@
     text-align: right;
     font-weight: var(--font-weight-semibold);
     color: var(--color-text);
+    font-family: var(--font-family-mono);
+    font-variant-numeric: tabular-nums;
 }
 
 /* ========== ПУСТОЕ СОСТОЯНИЕ ========== */
@@ -348,8 +369,7 @@
     text-align: center;
     color: var(--color-text-muted);
     background: var(--color-white);
-    border-radius: var(--radius-lg);
-    border: var(--border-width) dashed var(--color-border);
+    border: 1px dashed var(--color-border);
 }
 
 .empty-state p {
@@ -362,30 +382,30 @@
 @media (max-width: 768px) {
     .data-table th,
     .data-table td {
-        padding: var(--spacing-2);
-        font-size: var(--font-size-xs);
+        padding: 8px;
+        font-size: 12px;
     }
-    
+
+    .data-table th {
+        font-size: 10px;
+    }
+
     .table-footer {
         flex-direction: column;
         gap: var(--spacing-2);
     }
-    
+
     .pagination {
         flex-wrap: wrap;
         justify-content: center;
     }
-    
+
     .seller-email {
         display: none;
     }
 }
 
 @media (max-width: 480px) {
-    .table-container {
-        border-radius: var(--radius-md);
-    }
-    
     .pagination-btn {
         min-width: 28px;
         height: 28px;
