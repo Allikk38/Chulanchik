@@ -425,12 +425,28 @@ export async function buildReceipt(receipt) {
 }
 
 // ============================================================
+// Именованные экспорты для ширины бумаги
+// ============================================================
+
+/**
+ * Ширина рулона 58 мм (32 символа).
+ * @type {number}
+ */
+export const PAPER_WIDTH_58 = CMD.PAPER_WIDTH_58;
+
+/**
+ * Ширина рулона 80 мм (48 символов).
+ * @type {number}
+ */
+export const PAPER_WIDTH_80 = CMD.PAPER_WIDTH_80;
+
+// ============================================================
 // Экспорт по умолчанию
 // ============================================================
 
 export default {
     encodeCp866,
     buildReceipt,
-    PAPER_WIDTH_58: CMD.PAPER_WIDTH_58,
-    PAPER_WIDTH_80: CMD.PAPER_WIDTH_80
+    PAPER_WIDTH_58,
+    PAPER_WIDTH_80
 };
