@@ -412,14 +412,10 @@
     <!-- Уведомления -->
     <div id="notificationContainer"></div>
 
-    <script type="module" src="controllers/LoginController.js"></script>
-
-    <!-- PWA -->
-    <script>
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/Chulanchik/sw.js', { scope: '/Chulanchik/' })
-                .catch(() => {});
-        }
+    <script type="module">
+        import { initUpdateNotifier } from '../utils/update-notifier.js';
+        initUpdateNotifier();
     </script>
+    <script type="module" src="controllers/LoginController.js"></script>
 </body>
 </html>

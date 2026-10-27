@@ -10,7 +10,7 @@
     <title>Чуланчик</title>
 
     <base href="/Chulanchik/">
-    
+
     <!-- PWA -->
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
@@ -122,6 +122,10 @@
 
     <script type="module">
         import { initAuth } from './core/auth.js';
+        import { initUpdateNotifier } from './utils/update-notifier.js';
+
+        // Плашка «Доступна новая версия» — сразу, не ждём сессии
+        initUpdateNotifier();
 
         async function main() {
             try {
@@ -151,12 +155,6 @@
                 document.getElementById('errorBlock').classList.add('show');
             }
         }, 10000);
-
-        // PWA
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/Chulanchik/sw.js', { scope: '/Chulanchik/' })
-                .catch(() => {});
-        }
     </script>
 </body>
 </html>

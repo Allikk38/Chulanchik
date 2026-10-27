@@ -82,13 +82,10 @@
     <div id="modalContainer"></div>
     <div id="notificationContainer"></div>
 
-    <script type="module" src="controllers/ReportsController.js"></script>
-
-    <script>
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/Chulanchik/sw.js', { scope: '/Chulanchik/' })
-                .catch(function() {});
-        }
+    <script type="module">
+        import { initUpdateNotifier } from '../utils/update-notifier.js';
+        initUpdateNotifier();
     </script>
+    <script type="module" src="controllers/ReportsController.js"></script>
 </body>
 </html>

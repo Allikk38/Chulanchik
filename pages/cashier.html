@@ -292,13 +292,10 @@
     <!-- FAB: быстрое добавление товара (видна только на мобильных) -->
     <button class="fab-add-product" id="fabQuickAdd" title="Быстрый товар" style="display: none;">+</button>
 
-    <script type="module" src="controllers/CashierController.js"></script>
-
-    <script>
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/Chulanchik/sw.js', { scope: '/Chulanchik/' })
-                .catch(function() {});
-        }
+    <script type="module">
+        import { initUpdateNotifier } from '../utils/update-notifier.js';
+        initUpdateNotifier();
     </script>
+    <script type="module" src="controllers/CashierController.js"></script>
 </body>
 </html>

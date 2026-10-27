@@ -1,8 +1,9 @@
 // ============================================================
 // sw.js — Service Worker
+// v3 — 2026-10-27: авто-активация новой версии + postMessage
 // ============================================================
 
-const CACHE_VERSION = 'chulanchik-v2';
+const CACHE_VERSION = 'chulanchik-v3';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const PAGES_CACHE = `${CACHE_VERSION}-pages`;
 const BASE_PATH = '/Chulanchik';
@@ -44,8 +45,9 @@ self.addEventListener('install', event => {
     event.waitUntil(
         caches.open(STATIC_CACHE)
             .then(cache => cache.addAll(STATIC_ASSETS))
-            .then(() => self.skipWaiting())
             .catch(err => console.warn('[SW] Cache install error:', err))
+            // Активируемся сразу, не ждём закрытия всех вкладок
+            .then(() => self.skipWaiting())
     );
 });
 
@@ -68,7 +70,26 @@ self.addEventListener('activate', event => {
                     })
             ))
             .then(() => self.clients.claim())
+            .then(() => self.clients.matchAll({ type: 'window' }))
+            .then(clients => {
+                // Сообщаем всем открытым вкладкам, что новая версия готова
+                clients.forEach(client => {
+                    try {
+                        client.postMessage({ type: 'SW_UPDATED', version: CACHE_VERSION });
+                    } catch (e) { /* */ }
+                });
+            })
     );
+});
+
+// ============================================================
+// Сообщения от страницы
+// ============================================================
+
+self.addEventListener('message', event => {
+    if (event.data?.type === 'SKIP_WAITING') {
+        self.skipWaiting();
+    }
 });
 
 // ============================================================
