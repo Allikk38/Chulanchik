@@ -1,5 +1,7 @@
 // ============================================================
 // components/CashierProducts.js
+// v1.1.0 — 2026-10-27: счётчик «в корзине» на карточке,
+//                      кнопка повторной печати чека в шапке смены
 // ============================================================
 
 /**
@@ -78,6 +80,9 @@ export function renderClosedShift() {
 /**
  * Рендерит бар статистики открытой смены.
  *
+ * Если в state есть lastReceipt — показывает кнопку повторной печати
+ * (сценарий: чек не напечатался при оформлении, продажа уже прошла).
+ *
  * @returns {string} HTML
  */
 export function renderShiftBar() {
@@ -85,6 +90,10 @@ export function renderShiftBar() {
     const revenue = formatMoney(stats.revenue);
     const profit = formatMoney(stats.profit);
     const salesCount = stats.salesCount;
+
+    const reprintBtn = stateRef.lastReceipt
+        ? `<button class="btn-secondary btn-sm" id="reprintReceiptBtn" title="Напечатать чек последней продажи">Печать чека</button>`
+        : '';
 
     return `
         <div class="shift-bar">
@@ -106,6 +115,7 @@ export function renderShiftBar() {
                     <span class="stat-value">${profit}</span>
                 </div>
             </div>
+            ${reprintBtn}
             <button class="btn-danger btn-sm" id="closeShiftBtn"
                 ${shiftStoreRef.isPending() ? 'disabled' : ''}>
                 ${shiftStoreRef.isPending() ? 'Закрытие...' : 'Закрыть смену'}
@@ -171,6 +181,12 @@ export function renderToolbar() {
 /**
  * Рендерит сетку товаров.
  *
+ * Каждая карточка, которая уже в корзине, получает:
+ *   - класс in-cart (визуальная подсветка);
+ *   - бейдж «в корзине: N» — чтобы продавец видел количество;
+ *   - data-in-cart="true" — чтобы контроллер блокировал повторное
+ *     добавление штучного товара.
+ *
  * @returns {string} HTML
  */
 export function renderProductGrid() {
@@ -195,18 +211,26 @@ export function renderProductGrid() {
             : 'Нет товаров в наличии'}</div>`;
     }
 
-    const cartItemIds = new Set(cartStoreRef.getItems().map(i => i.id));
+    // Карта: id → quantity в корзине
+    const cartQtyMap = new Map();
+    cartStoreRef.getItems().forEach(i => {
+        cartQtyMap.set(i.id, (cartQtyMap.get(i.id) || 0) + i.quantity);
+    });
 
     return `
         <div class="products-grid">
             ${products.map(p => {
-                const inCart = cartItemIds.has(p.id);
+                const inCartQty = cartQtyMap.get(p.id) || 0;
+                const inCart = inCartQty > 0;
                 return `
-                <div class="product-card ${inCart ? 'in-cart' : ''}" data-id="${p.id}">
+                <div class="product-card ${inCart ? 'in-cart' : ''}"
+                     data-id="${p.id}"
+                     data-in-cart="${inCart ? 'true' : 'false'}">
                     <div class="product-photo">
                         ${p.photo_url
                             ? `<img src="${escapeAttr(p.photo_url)}" alt="" loading="lazy">`
                             : '<span class="photo-placeholder">Фото</span>'}
+                        ${inCart ? `<span class="product-cart-badge">в корзине: ${inCartQty}</span>` : ''}
                     </div>
                     <div class="product-info">
                         <div class="product-name">${escapeHtml(p.name)}</div>

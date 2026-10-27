@@ -1,6 +1,7 @@
 // ============================================================
 // services/SaleService.js
-// v1.3.0 — 2026-09-18: sellerName в продаже и аудите
+// v1.4.0 — 2026-10-27: явный диалог при недоступных товарах,
+//                      проверка офлайна, без молчаливого удаления
 // ============================================================
 
 /**
@@ -19,6 +20,7 @@ import { cartStore } from '../stores/CartStore.js';
 import { shiftStore } from '../stores/ShiftStore.js';
 import { productStore } from '../stores/ProductStore.js';
 import { formatMoney, getPaymentMethodName } from '../utils/formatters.js';
+import { showConfirmDialog, showNotification } from '../utils/ui.js';
 
 export const SaleService = {
     /**
@@ -41,6 +43,12 @@ export const SaleService = {
 
         if (!userId) {
             return { success: false, error: 'Пользователь не определён' };
+        }
+
+        // Офлайн — сразу говорим, чтобы не ждать таймаута Supabase
+        if (!navigator.onLine) {
+            showNotification('Нет подключения к интернету — продажа не сохранится', 'error');
+            return { success: false, error: 'Нет подключения к интернету' };
         }
 
         const shiftId = shiftStore.getCurrentShiftId();
@@ -67,14 +75,31 @@ export const SaleService = {
             }
         }
 
+        // НЕ удаляем молча — показываем диалог с перечнем
         if (unavailableItems.length > 0) {
+            const names = unavailableItems
+                .map(i => `«${i.name}» — ${i.reason}`)
+                .join('\n');
+
+            const ok = await showConfirmDialog({
+                title: 'Товары недоступны',
+                message: `Следующие товары больше нельзя продать:\n${names}\n\nУдалить их из корзины? После этого проверьте сумму и оформите продажу снова.`,
+                confirmText: 'Удалить из корзины',
+                cancelText: 'Отмена',
+                confirmClass: 'btn-danger'
+            });
+
+            if (!ok) {
+                return { success: false, error: 'Продажа отменена' };
+            }
+
             for (const unavailable of unavailableItems) {
                 cartStore.removeItem(unavailable.id);
             }
-            const names = unavailableItems.map(item => `«${item.name}»`).join(', ');
+
             return {
                 success: false,
-                error: `Некоторые товары больше недоступны и удалены из корзины: ${names}. Проверьте корзину и попробуйте снова.`
+                error: `Из корзины удалено ${unavailableItems.length} недоступных товаров. Проверьте состав и оформите продажу.`
             };
         }
 
@@ -151,13 +176,25 @@ export const SaleService = {
                 const unavailableIds = errorMessage.match(uuidPattern);
 
                 if (unavailableIds && unavailableIds.length > 0) {
-                    for (const id of unavailableIds) {
-                        cartStore.removeItem(id);
+                    // RPC сообщил о гонке — не удаляем молча, спрашиваем
+                    const ok = await showConfirmDialog({
+                        title: 'Товары уже проданы',
+                        message: `Некоторые товары уже проданы другим пользователем (${unavailableIds.length} шт.).\n\nУдалить их из корзины и оформить заново?`,
+                        confirmText: 'Удалить и обновить',
+                        cancelText: 'Отмена',
+                        confirmClass: 'btn-danger'
+                    });
+
+                    if (ok) {
+                        for (const id of unavailableIds) {
+                            cartStore.removeItem(id);
+                        }
+                        return {
+                            success: false,
+                            error: 'Корзина обновлена — проверьте состав и оформите продажу снова'
+                        };
                     }
-                    return {
-                        success: false,
-                        error: 'Некоторые товары уже проданы другим пользователем и удалены из корзины. Пожалуйста, проверьте корзину и попробуйте снова.'
-                    };
+                    return { success: false, error: 'Продажа отменена' };
                 }
             }
 

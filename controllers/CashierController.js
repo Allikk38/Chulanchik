@@ -1,6 +1,7 @@
 // ============================================================
 // controllers/CashierController.js
-// v2.4.0 — 2026-09-18: USB HID-сканер + ESC/POS-принтер
+// v2.5.0 — 2026-10-27: повторная печать чека, офлайн-индикатор,
+//                      защита от дублей, проверка корзины при закрытии
 // ============================================================
 //
 // НАЗНАЧЕНИЕ
@@ -19,26 +20,11 @@
 //   usbScanner           — глобальный HID-слушатель
 //   usbPrinter           — работа с ESC/POS-принтером (WebUSB)
 //
-// ПОТОК ДАННЫХ
-//   1. init() вызывается при DOMContentLoaded
-//   2. Вставляется AppHeader с навигацией
-//   3. Проверяется авторизация через requireAuth()
-//   4. Кэшируется DOM
-//   5. Внедряются зависимости в CashierCart и CashierProducts
-//   6. Инициализируется usbScanner (глобальный HID-слушатель)
-//   7. Восстанавливается подключение к usbPrinter (tryReconnect)
-//   8. Рендерится скелетон загрузки
-//   9. Загружаются товары с таймаутом
-//  10. Восстанавливается корзина с проверкой статусов
-//  11. Загружается смена
-//  12. render() перестраивает интерфейс
-//
 // ИЗМЕНЕНИЯ
-//   v2.4.0 — интеграция USB-сканера и ESC/POS-принтера:
-//            - initUsbScanner() — глобальный HID-слушатель
-//            - initUsbPrinter() — восстановление соединения
-//            - printReceiptAfterSale() — печать после checkout
-//            - кнопка «Подключить принтер» в шапке
+//   v2.5.0 — повторная печать последнего чека, офлайн-индикатор,
+//            запрет дублей штучного товара, проверка корзины
+//            при закрытии смены, F9 не работает в офлайне
+//   v2.4.0 — интеграция USB-сканера и ESC/POS-принтера
 //   v2.3.2 — исправлен импорт SaleService на именованный
 //   v2.3.1 — исправлен импорт SaleService
 //   v2.3.0 — исправление бесконечной загрузки на мобильных
@@ -106,7 +92,9 @@ const state = {
     isSlowLoad: false,
     isCheckingOut: false,
     usbScannerDispose: null,
-    usbPrinterStatus: 'disconnected'
+    usbPrinterStatus: 'disconnected',
+    /** Снимок последней успешной продажи — для повторной печати чека */
+    lastReceipt: null
 };
 
 // ============================================================
@@ -149,8 +137,7 @@ function initUsbScanner() {
             const all = productStore.getInStock();
             const exact = all.find(p => String(p.id).toLowerCase() === barcode.toLowerCase());
             if (exact) {
-                cartStore.addItem(exact);
-                showNotification(`«${exact.name}» добавлен в корзину`, 'success');
+                addProductToCart(exact);
                 return;
             }
 
@@ -160,14 +147,12 @@ function initUsbScanner() {
             );
 
             if (matches.length === 1) {
-                cartStore.addItem(matches[0]);
-                showNotification(`«${matches[0].name}» добавлен в корзину`, 'success');
+                addProductToCart(matches[0]);
             } else if (matches.length > 1) {
                 state.searchQuery = barcode;
                 state.selectedCategory = null;
                 showNotification(`Найдено ${matches.length} товаров`, 'info');
                 render();
-                // Фокусируем поле поиска, чтобы пользователь видел результат
                 setTimeout(() => document.getElementById('searchInput')?.focus(), 50);
             } else {
                 showNotification(`Товар по штрихкоду "${barcode}" не найден`, 'warning');
@@ -176,6 +161,28 @@ function initUsbScanner() {
     });
 
     console.log('[Cashier] HID scanner initialized');
+}
+
+/**
+ * Добавляет товар в корзину с защитой от дублей штучного товара.
+ * Штучным считаем товар, у которого нет поля quantity_limit
+ * или оно === 1. Для комиссионки это дефолт.
+ *
+ * @param {Object} product
+ */
+function addProductToCart(product) {
+    if (!product) return;
+
+    const alreadyInCart = cartStore.getItems().some(i => i.id === product.id);
+    const isSinglePiece = !product.quantity_limit || Number(product.quantity_limit) === 1;
+
+    if (alreadyInCart && isSinglePiece) {
+        showNotification(`«${product.name}» уже в корзине`, 'warning');
+        return;
+    }
+
+    cartStore.addItem(product);
+    showNotification(`«${product.name}» добавлен в корзину`, 'success');
 }
 
 // ============================================================
@@ -265,18 +272,19 @@ async function handlePrinterButtonClick() {
 }
 
 /**
- * Печатает чек после успешной продажи.
- * Не блокирует UI — fire-and-forget.
+ * Печатает чек. Возвращает результат, чтобы вызывающий код
+ * мог показать тост и обновить состояние.
  *
- * @param {Object} sale — объект из SaleService.checkout()
- * @param {Array} items — снимок cartStore.getItems() ДО reset()
- * @param {string} paymentMethod
- * @param {string} sellerName
+ * @param {Object} receipt
+ * @param {Object} receipt.sale
+ * @param {Array} receipt.items — снимок cartStore.getItems() ДО reset
+ * @param {string} receipt.paymentMethod
+ * @param {string} receipt.sellerName
+ * @returns {Promise<{success: boolean, error?: string}>}
  */
 async function printReceiptAfterSale({ sale, items, paymentMethod, sellerName }) {
     if (state.usbPrinterStatus !== 'connected') {
-        console.log('[Cashier] printer not connected — skip print');
-        return;
+        return { success: false, error: 'Принтер не подключён' };
     }
 
     const receiptData = {
@@ -297,10 +305,10 @@ async function printReceiptAfterSale({ sale, items, paymentMethod, sellerName })
     const result = await usbPrinter.printReceipt(receiptData);
     if (result.success) {
         console.log('[Cashier] receipt printed');
-    } else {
-        console.warn('[Cashier] print failed:', result.error);
-        showNotification(`Не удалось напечатать чек: ${result.error}`, 'warning');
+        return { success: true };
     }
+    console.warn('[Cashier] print failed:', result.error);
+    return { success: false, error: result.error || 'Ошибка печати' };
 }
 
 /**
@@ -317,6 +325,37 @@ function cartStoreTotalBeforeReset(items) {
         const qty = Number(item.quantity) || 0;
         return sum + Math.round(price * (1 - discount / 100) * qty);
     }, 0);
+}
+
+// ============================================================
+// Офлайн-индикатор
+// ============================================================
+
+let offlineBannerEl = null;
+
+function updateOnlineStatus() {
+    if (!offlineBannerEl) {
+        offlineBannerEl = document.createElement('div');
+        offlineBannerEl.id = 'cashierOfflineBanner';
+        offlineBannerEl.style.cssText = [
+            'position:fixed',
+            'top:0',
+            'left:0',
+            'right:0',
+            'background:#ea580c',
+            'color:#fff',
+            'text-align:center',
+            'padding:6px 12px',
+            'font-size:13px',
+            'font-weight:500',
+            'z-index:9999',
+            'display:none'
+        ].join(';');
+        offlineBannerEl.textContent = 'Нет подключения к интернету — продажи и печать не сохранятся';
+        document.body.appendChild(offlineBannerEl);
+    }
+
+    offlineBannerEl.style.display = navigator.onLine ? 'none' : 'block';
 }
 
 // ============================================================
@@ -464,16 +503,14 @@ async function startScan() {
         );
 
         if (products.length === 1) {
-            cartStore.addItem(products[0]);
-            showNotification(`"${products[0].name}" добавлен в корзину`, 'success');
+            addProductToCart(products[0]);
             state.searchQuery = '';
         } else if (products.length > 1) {
             showNotification(`Найдено ${products.length} товаров`, 'info');
         } else {
             const product = productStore.getById(barcode);
             if (product && product.status === 'in_stock') {
-                cartStore.addItem(product);
-                showNotification(`"${product.name}" добавлен в корзину`, 'success');
+                addProductToCart(product);
                 state.searchQuery = '';
             } else {
                 showNotification('Товар не найден', 'warning');
@@ -498,6 +535,12 @@ async function checkout() {
     if (cartStore.isEmpty()) return;
     if (state.isCheckingOut) return;
 
+    // Офлайн — сразу отказ, без модалки оплаты
+    if (!navigator.onLine) {
+        showNotification('Нет подключения к интернету — продажа не сохранится', 'error');
+        return;
+    }
+
     const checkoutBtn = document.getElementById('checkoutBtn');
     const total = cartStore.getTotal();
     const method = await showPaymentModal(total);
@@ -511,8 +554,6 @@ async function checkout() {
 
     // Снимок корзины ДО reset — нужен для печати чека
     const itemsSnapshot = cartStore.getItems();
-
-    // Имя продавца для снимка в sales.seller_name и в аудите.
     const sellerName = resolveUserName(state.user);
 
     const result = await SaleService.checkout({
@@ -531,13 +572,28 @@ async function checkout() {
         closeCart();
         showNotification(`Продажа на ${formatMoney(total)} оформлена`, 'success');
 
-        // Печать чека — fire-and-forget, не блокирует UI
-        void printReceiptAfterSale({
+        // Сохраняем снимок для повторной печати
+        state.lastReceipt = {
             sale: result.sale,
             items: itemsSnapshot,
             paymentMethod: method,
             sellerName
-        });
+        };
+
+        // Печатаем — с явным результатом
+        const printResult = await printReceiptAfterSale(state.lastReceipt);
+        if (printResult.success) {
+            showNotification('Чек напечатан', 'success', { duration: 2000 });
+        } else {
+            showNotification(
+                `Чек не напечатан: ${printResult.error}. Нажмите «Печать чека» в шапке смены.`,
+                'warning',
+                { duration: 6000 }
+            );
+        }
+
+        // Перерисовываем, чтобы появилась кнопка «Печать чека»
+        render();
     } else {
         showNotification(result.error || 'Ошибка оформления', 'error');
     }
@@ -568,6 +624,18 @@ async function closeShift() {
         return;
     }
 
+    // Защита от случайного закрытия с непустой корзиной
+    if (!cartStore.isEmpty()) {
+        const ok = await showConfirmDialog({
+            title: 'В корзине есть товары',
+            message: `В корзине ${cartStore.getCount()} поз. на ${formatMoney(cartStore.getTotal())}. Закрытие смены очистит корзину. Продолжить?`,
+            confirmText: 'Закрыть смену',
+            cancelText: 'Вернуться в корзину',
+            confirmClass: 'btn-danger'
+        });
+        if (!ok) return;
+    }
+
     const confirmed = await showConfirmDialog({
         title: 'Закрытие смены',
         message: [
@@ -588,6 +656,7 @@ async function closeShift() {
 
     if (result.success) {
         cartStore.reset();
+        state.lastReceipt = null;
 
         const successMsg = [
             `Выручка: ${formatMoney(result.stats.revenue)}`,
@@ -626,6 +695,17 @@ function bindEvents() {
 
     document.getElementById('scanBtn')?.addEventListener('click', startScan);
 
+    // Повторная печать последнего чека
+    document.getElementById('reprintReceiptBtn')?.addEventListener('click', async () => {
+        if (!state.lastReceipt) return;
+        const res = await printReceiptAfterSale(state.lastReceipt);
+        if (res.success) {
+            showNotification('Чек напечатан', 'success');
+        } else {
+            showNotification(`Не удалось напечатать: ${res.error}`, 'error');
+        }
+    });
+
     document.getElementById('resetFiltersBtn')?.addEventListener('click', () => {
         state.searchQuery = '';
         state.selectedCategory = null;
@@ -653,7 +733,7 @@ function bindEvents() {
         card.addEventListener('click', () => {
             const product = productStore.getById(card.dataset.id);
             if (product && product.status === 'in_stock') {
-                cartStore.addItem(product);
+                addProductToCart(product);
             }
         });
     });
@@ -752,7 +832,6 @@ function injectPrinterControls() {
     const actions = document.querySelector('.header-actions');
     if (!actions) return;
 
-    // Уже вставлено
     if (document.getElementById('connectPrinterBtn')) return;
 
     const wrapper = document.createElement('div');
@@ -773,7 +852,6 @@ function injectPrinterControls() {
     wrapper.appendChild(indicator);
     wrapper.appendChild(button);
 
-    // Вставляем перед кнопкой «Выход», чтобы не ломать порядок
     const logoutBtn = document.getElementById('logoutBtn');
     if (logoutBtn && logoutBtn.parentElement === actions) {
         actions.insertBefore(wrapper, logoutBtn);
@@ -803,6 +881,11 @@ function bindGlobalEvents() {
         renderMobileCartTrigger();
     });
 
+    // Офлайн/онлайн
+    window.addEventListener('online', updateOnlineStatus);
+    window.addEventListener('offline', updateOnlineStatus);
+    updateOnlineStatus();
+
     // Отслеживаем физическое отключение устройства
     if (navigator.usb && typeof navigator.usb.addEventListener === 'function') {
         navigator.usb.addEventListener('disconnect', (event) => {
@@ -817,7 +900,7 @@ function bindGlobalEvents() {
 }
 
 async function init() {
-    console.log('[Cashier] v2.4.0 — USB HID scanner + ESC/POS printer');
+    console.log('[Cashier] v2.5.0 — reprint + offline banner + duplicate guard');
 
     const headerHtml = renderAppHeader({
         currentPage: 'cashier',

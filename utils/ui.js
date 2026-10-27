@@ -324,6 +324,18 @@ export function showConfirmDialog(options = {}) {
  * @param {number} total - Сумма к оплате
  * @returns {Promise<string|null>} Способ оплаты ('cash', 'card', 'transfer') или null при отмене
  */
+/**
+ * Показывает модальное окно выбора способа оплаты.
+ *
+ * v1.2.0 — 2026-10-27: для «Наличные» добавлен ввод полученной суммы
+ *                      и live-расчёт сдачи. Быстрые суммы 500/1000/2000/5000.
+ *
+ * Возвращает строку способа оплаты ('cash' | 'card' | 'transfer')
+ * или null при отмене. Контракт с вызывающим кодом не изменён.
+ *
+ * @param {number} total - Сумма к оплате
+ * @returns {Promise<string|null>}
+ */
 export function showPaymentModal(total) {
     const formatMoney = (amount) => {
         return new Intl.NumberFormat('ru-RU', {
@@ -332,10 +344,10 @@ export function showPaymentModal(total) {
             minimumFractionDigits: 0
         }).format(amount).replace('RUB', ' RUB').trim();
     };
-    
+
     return new Promise((resolve) => {
         const container = getModalContainer();
-        
+
         const overlay = document.createElement('div');
         overlay.className = 'sh-modal-overlay';
         overlay.style.cssText = `
@@ -351,7 +363,7 @@ export function showPaymentModal(total) {
             z-index: 10000;
             padding: 16px;
         `;
-        
+
         const modal = document.createElement('div');
         modal.className = 'sh-modal sh-payment-modal';
         modal.style.cssText = `
@@ -359,10 +371,10 @@ export function showPaymentModal(total) {
             border-radius: 12px;
             box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
             width: 100%;
-            max-width: 400px;
+            max-width: 440px;
             overflow: hidden;
         `;
-        
+
         modal.innerHTML = `
             <div style="padding: 20px 24px; border-bottom: 1px solid #e2e8f0;">
                 <h3 style="margin: 0; font-size: 18px; font-weight: 600; color: #0f172a;">Выберите способ оплаты</h3>
@@ -422,8 +434,29 @@ export function showPaymentModal(total) {
                         <span style="font-size: 14px; font-weight: 500; color: #0f172a;">Перевод</span>
                     </button>
                 </div>
+
+                <div id="shCashPanel" style="display:none; margin-top: 20px; padding-top: 20px; border-top: 1px dashed #e2e8f0;">
+                    <label style="display:block; font-size:13px; font-weight:500; color:#0f172a; margin-bottom:6px;">Получено от клиента</label>
+                    <input id="shCashReceived" type="number" min="0" step="1" placeholder="0"
+                        style="width:100%; padding:10px 12px; border:1px solid #e2e8f0; border-radius:8px; font-size:16px; box-sizing:border-box;">
+                    <div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap;">
+                        ${[500, 1000, 2000, 5000].map(v =>
+                            `<button type="button" class="sh-quick-cash" data-value="${v}" style="
+                                padding:6px 12px; font-size:13px; border-radius:6px;
+                                border:1px solid #e2e8f0; background:#fff; color:#0f172a; cursor:pointer;
+                            ">${v}</button>`
+                        ).join('')}
+                        <button type="button" class="sh-quick-cash" data-value="${total}" style="
+                            padding:6px 12px; font-size:13px; border-radius:6px;
+                            border:1px solid #1a3c2a; background:#1a3c2a; color:#fff; cursor:pointer;
+                        ">Без сдачи</button>
+                    </div>
+                    <div id="shChangeLine" style="margin-top:12px; font-size:15px; color:#0f172a; font-weight:500;">
+                        Сдача: <span id="shChangeValue">—</span>
+                    </div>
+                </div>
             </div>
-            <div style="padding: 16px 24px; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; background: #f8fafc;">
+            <div style="padding: 16px 24px; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap:8px; background: #f8fafc;">
                 <button class="sh-modal-cancel" style="
                     padding: 8px 20px;
                     border-radius: 6px;
@@ -434,25 +467,72 @@ export function showPaymentModal(total) {
                     background: white;
                     color: #475569;
                 ">Отмена</button>
+                <button id="shConfirmCash" style="
+                    display:none;
+                    padding: 8px 20px;
+                    border-radius: 6px;
+                    font-size: 14px;
+                    font-weight: 500;
+                    cursor: pointer;
+                    border: none;
+                    background: #1a3c2a;
+                    color: white;
+                ">Подтвердить наличные</button>
             </div>
         `;
-        
+
         overlay.appendChild(modal);
         container.appendChild(overlay);
-        
+
+        const cashPanel = modal.querySelector('#shCashPanel');
+        const receivedInput = modal.querySelector('#shCashReceived');
+        const changeValueEl = modal.querySelector('#shChangeValue');
+        const confirmCashBtn = modal.querySelector('#shConfirmCash');
+        let selectedMethod = null;
+
         const close = (result) => {
             overlay.remove();
             resolve(result);
         };
-        
+
+        const updateChange = () => {
+            const received = Number(receivedInput.value) || 0;
+            if (received <= 0) {
+                changeValueEl.textContent = '—';
+                return;
+            }
+            const change = received - total;
+            changeValueEl.textContent = change >= 0
+                ? formatMoney(change)
+                : `не хватает ${formatMoney(Math.abs(change))}`;
+            changeValueEl.style.color = change >= 0 ? '#16a34a' : '#dc2626';
+        };
+
+        const showCashPanel = () => {
+            selectedMethod = 'cash';
+            cashPanel.style.display = 'block';
+            confirmCashBtn.style.display = 'inline-block';
+            // Прячем кнопки способов оплаты — выбор сделан
+            modal.querySelectorAll('.sh-payment-option').forEach(b => {
+                b.style.display = 'none';
+            });
+            // Фокус в поле «Получено», сразу подставляем сумму
+            receivedInput.value = String(total);
+            updateChange();
+            setTimeout(() => {
+                receivedInput.focus();
+                receivedInput.select();
+            }, 50);
+        };
+
         // Обработчики закрытия
         overlay.addEventListener('click', (e) => {
             if (e.target === overlay) close(null);
         });
-        
+
         modal.querySelector('.sh-modal-cancel').addEventListener('click', () => close(null));
-        
-        // Обработчики выбора способа оплаты
+
+        // Выбор способа оплаты
         modal.querySelectorAll('.sh-payment-option').forEach(btn => {
             btn.addEventListener('mouseenter', () => {
                 btn.style.borderColor = '#2563eb';
@@ -463,11 +543,36 @@ export function showPaymentModal(total) {
                 btn.style.background = 'white';
             });
             btn.addEventListener('click', () => {
-                close(btn.dataset.method);
+                const method = btn.dataset.method;
+                if (method === 'cash') {
+                    showCashPanel();
+                } else {
+                    close(method);
+                }
             });
         });
-        
-        // Закрытие по Escape
+
+        // Быстрые суммы
+        modal.querySelectorAll('.sh-quick-cash').forEach(btn => {
+            btn.addEventListener('click', () => {
+                receivedInput.value = btn.dataset.value;
+                updateChange();
+            });
+        });
+
+        receivedInput.addEventListener('input', updateChange);
+
+        // Enter в поле «Получено» = подтвердить
+        receivedInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                close('cash');
+            }
+        });
+
+        confirmCashBtn.addEventListener('click', () => close('cash'));
+
+        // Escape
         const handleEscape = (e) => {
             if (e.key === 'Escape') {
                 close(null);

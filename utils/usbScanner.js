@@ -1,6 +1,9 @@
 // ============================================================
 // utils/usbScanner.js
 // ============================================================
+// v1.1.0 — 2026-10-27: сканер не перехватывает ввод в #searchInput
+//                      (раньше символы шли и в поиск, и в буфер)
+// ============================================================
 
 /**
  * Глобальный слушатель HID-сканера штрихкодов.
@@ -13,8 +16,8 @@
  *   - средний интервал между символами < 50 мс;
  *   - завершающий символ — Enter.
  *
- * Если фокус находится в textarea или в обычном input (не в #searchInput),
- * скан игнорируется — чтобы не мешать ручному вводу.
+ * Если фокус находится в textarea или в обычном input (включая #searchInput),
+ * скан игнорируется — чтобы не дублировать ручной ввод.
  *
  * @module utils/usbScanner
  */
@@ -48,6 +51,10 @@ const scannerState = {
  * Игнорировать ли скан, если фокус в этом элементе.
  * Возвращает true, если сканирование надо подавить.
  *
+ * ВАЖНО: #searchInput теперь тоже игнорируется — иначе символы
+ * попадают одновременно и в поле, и в буфер сканера, и при Enter
+ * товар добавляется дважды.
+ *
  * @param {HTMLElement|null} activeEl
  * @returns {boolean}
  */
@@ -59,21 +66,14 @@ function shouldIgnoreTarget(activeEl) {
     // В textarea — игнорируем всегда
     if (tag === 'TEXTAREA') return true;
 
-    // В обычном input (кроме #searchInput) — игнорируем,
-    // чтобы не перехватывать ввод в формах.
+    // В любом input — игнорируем, чтобы не дублировать ручной ввод
     if (tag === 'INPUT') {
-        const id = activeEl.id || '';
-        const type = (activeEl.getAttribute('type') || 'text').toLowerCase();
-
-        // Если это #searchInput — разрешаем сканер (там как раз удобно)
-        if (id === 'searchInput') return false;
-
-        // В input[type=text] вне поиска — игнорируем
-        if (type === 'text' || type === 'search') return true;
-
-        // В числовых полях, checkbox и т.п. — тоже игнорируем
         return true;
     }
+
+    // В select/contenteditable и т.п. — тоже не мешаем
+    if (tag === 'SELECT') return true;
+    if (activeEl.isContentEditable) return true;
 
     return false;
 }

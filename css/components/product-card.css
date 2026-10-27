@@ -525,3 +525,15 @@
 .category-group.collapsed .category-products {
     display: none;
 }
+.product-card { position: relative; }
+.product-cart-badge {
+    position: absolute;
+    top: var(--spacing-2);
+    left: var(--spacing-2);
+    background: var(--color-primary);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: var(--radius-full);
+}
