@@ -1,7 +1,7 @@
 // ============================================================
 // components/CashierProducts.js
-// v1.1.0 — 2026-10-27: счётчик «в корзине» на карточке,
-//                      кнопка повторной печати чека в шапке смены
+// v1.2.0 — 2026-10-27: счётчик категорий — только in_stock,
+//                      через getInStockCategories()
 // ============================================================
 
 /**
@@ -130,6 +130,11 @@ export function renderShiftBar() {
 /**
  * Рендерит тулбар поиска и категорий.
  *
+ * Счётчик категорий — по товарам в наличии (getInStockCategories()).
+ * Проданные и зарезервированные товары в счётчик не попадают:
+ * продавец видит «Одежда (4)» и, нажав, видит 4 товара, а не пустой
+ * экран. Общий счётчик «Все» тоже берётся из in_stock — консистентно.
+ *
  * @returns {string} HTML
  */
 export function renderToolbar() {
@@ -165,7 +170,7 @@ export function renderToolbar() {
             <button class="category-tab ${!stateRef.selectedCategory ? 'active' : ''}" data-category="">
                 Все (${productStoreRef.getInStock().length})
             </button>
-            ${productStoreRef.getCategories().map(c => `
+            ${productStoreRef.getInStockCategories().map(c => `
                 <button class="category-tab ${stateRef.selectedCategory === c.value ? 'active' : ''}"
                     data-category="${c.value}">
                     ${getCategoryName(c.value)} (${c.count})

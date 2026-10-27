@@ -1,13 +1,16 @@
 // ============================================================
 // stores/ProductStore.js
+// v1.1.0 — 2026-10-27: добавлен getInStockCategories() —
+//                      счётчик категорий только по товарам
+//                      в наличии (для фильтра кассы)
 // ============================================================
 
 /**
  * Единый стор товаров для всего приложения.
- * 
+ *
  * Владеет состоянием productsState, подписчики (касса, склад, отчёты)
  * получают уведомления через события EventEmitter.
- * 
+ *
  * @module stores/ProductStore
  */
 
@@ -184,11 +187,40 @@ class ProductStore extends EventEmitter {
     /**
      * Возвращает список категорий с количеством.
      * 
+     * Считает ВСЕ товары (включая проданные и зарезервированные).
+     * Используется на складе, где в таблице видны все товары.
+     * 
+     * Для кассы используйте getInStockCategories() — там нужен
+     * счётчик только по товарам в наличии, иначе бейдж «Одежда (12)»
+     * при 4 товарах в наличии выглядит как ошибка.
+     * 
      * @returns {Array<{value: string, count: number}>}
      */
     getCategories() {
         const counts = new Map();
         state.all.forEach(p => {
+            const cat = p.category || 'other';
+            counts.set(cat, (counts.get(cat) || 0) + 1);
+        });
+        return Array.from(counts.entries())
+            .map(([value, count]) => ({ value, count }))
+            .sort((a, b) => b.count - a.count);
+    }
+
+    /**
+     * Возвращает список категорий с количеством товаров В НАЛИЧИИ.
+     * 
+     * Используется фильтром кассы: категории должны показывать
+     * только то, что реально можно продать. Проданные/зарезервированные
+     * товары в счётчик не попадают — иначе бейдж категории вводит
+     * продавца в заблуждение (нажимает «Одежда (12)», видит 4 товара).
+     * 
+     * @returns {Array<{value: string, count: number}>}
+     */
+    getInStockCategories() {
+        const counts = new Map();
+        state.all.forEach(p => {
+            if (p.status !== 'in_stock') return;
             const cat = p.category || 'other';
             counts.set(cat, (counts.get(cat) || 0) + 1);
         });
