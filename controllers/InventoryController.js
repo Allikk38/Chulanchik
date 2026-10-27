@@ -1,6 +1,6 @@
 // ============================================================
 // controllers/InventoryController.js
-// v6.1.0 — 2026-09-18: печать ценников
+// v6.2.0 — 2026-10-27: админ может удалять проданные товары
 // ============================================================
 
 /**
@@ -32,6 +32,7 @@
  *   8. Фильтры обновляют renderTable() и renderMobileCards()
  *
  * ИЗМЕНЕНИЯ
+ *   v6.2.0 — админ может удалять проданные товары (флаг isAdmin)
  *   v6.1.0 — добавлена печать ценников (кнопка «Ценники»)
  *   v6.0.1 — рефакторинг: escapeHtml импортируется из utils/formatters.js
  *   v6.0.0 — добавлен просмотр карточек на мобильных
@@ -483,9 +484,20 @@ async function deleteProduct(id) {
     const product = productStore.getById(id);
     if (!product) return;
 
+    const isAdmin = state.user?.roleName === 'admin';
+    const isSold = product.status === 'sold';
+
+    // Продано и не админ — сразу показываем понятную ошибку, без диалога.
+    if (isSold && !isAdmin) {
+        showNotification('Удалять проданные товары может только администратор', 'error');
+        return;
+    }
+
     const confirmed = await showConfirmDialog({
-        title: 'Удаление товара',
-        message: `Вы уверены, что хотите удалить товар "${product.name}"?`,
+        title: isSold ? 'Удаление проданного товара' : 'Удаление товара',
+        message: isSold
+            ? `«${product.name}» уже продан. Удалить запись о товаре? История продаж сохранится, но товар исчезнет из складского учёта.`
+            : `Вы уверены, что хотите удалить товар «${product.name}»?`,
         confirmText: 'Удалить',
         confirmClass: 'btn-danger'
     });
@@ -496,13 +508,18 @@ async function deleteProduct(id) {
     renderTable();
     renderMobileCards();
 
-    const { success, error } = await ProductService.remove(id);
+    const { success, error } = await ProductService.remove(id, { isAdmin });
 
     state.isBusy = false;
     state.selectedIds.delete(id);
 
     if (success) {
-        showNotification(`Товар "${product.name}" удалён`, 'success');
+        showNotification(
+            isSold
+                ? `Запись о проданном товаре «${product.name}» удалена`
+                : `Товар «${product.name}» удалён`,
+            'success'
+        );
     } else {
         showNotification(error || 'Ошибка удаления', 'error');
     }

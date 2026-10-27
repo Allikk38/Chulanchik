@@ -1,6 +1,6 @@
 // ============================================================
 // services/ProductService.js
-// v1.2.0 — 2026-09-18: загрузка/замена/удаление фото товара
+// v1.3.0 — 2026-10-27: админ может удалять проданные товары
 // ============================================================
 
 /**
@@ -243,18 +243,25 @@ export const ProductService = {
      * Удаляет товар.
      * Также удаляет его фото из Storage.
      *
+     * Проданный товар может удалить только администратор
+     * (флаг isAdmin передаёт контроллер — сервис не лезет в auth).
+     *
      * @param {string} id
+     * @param {Object} [options]
+     * @param {boolean} [options.isAdmin=false] — разрешить удаление проданного
      * @returns {Promise<{success: boolean, error?: string}>}
      */
-    async remove(id) {
+    async remove(id, { isAdmin = false } = {}) {
         const existing = productStore.getById(id);
 
         if (!existing) {
             return { success: false, error: 'Товар не найден' };
         }
 
-        if (existing.status === 'sold') {
-            return { success: false, error: 'Нельзя удалить проданный товар' };
+        // Продано — удалять может только админ.
+        // Остальные получают понятную ошибку.
+        if (existing.status === 'sold' && !isAdmin) {
+            return { success: false, error: 'Удалять проданные товары может только администратор' };
         }
 
         try {
@@ -274,7 +281,8 @@ export const ProductService = {
                 entityId: id,
                 oldData: existing,
                 newData: null,
-                description: `Удалён товар: «${existing.name}»`
+                description: `Удалён товар: «${existing.name}»` +
+                    (existing.status === 'sold' ? ' (проданный, удалён администратором)' : '')
             });
 
             return { success: true };

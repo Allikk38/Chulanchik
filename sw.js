@@ -2,7 +2,7 @@
 // sw.js — Service Worker
 // ============================================================
 
-const CACHE_VERSION = 'chulanchik-v1';
+const CACHE_VERSION = 'chulanchik-v2';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const PAGES_CACHE = `${CACHE_VERSION}-pages`;
 const BASE_PATH = '/Chulanchik';
