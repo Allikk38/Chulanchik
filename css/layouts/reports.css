@@ -1,17 +1,10 @@
 /**
  * Reports Layout - Business Professional
- * 
- * Строгая страница отчетов для бизнес-аналитики.
- * Без анимаций, без градиентов.
- * Тёплая цветовая гамма, единая со складом и кассой.
- * 
+ *
+ * v5.1.0 — 2026-10-27: плоские KPI-карточки, убраны цветные полосы,
+ *                      uppercase, monospace у сумм, «таблетки» статусов.
+ *
  * @stylesheet reports
- * @version 5.0.0
- * @changes
- * - v5.0.0: Тёплая гамма, унификация с остальными страницами.
- * - Исправлен скролл: .reports-page получил height: 100% и overflow-y: auto.
- * - Табы переведены на тёплый акцент #1a3c2a.
- * - KPI-карточки унифицированы со складом.
  */
 
 /* ========== REPORTS PAGE ========== */
@@ -71,7 +64,7 @@
     gap: var(--spacing-1);
     padding: var(--spacing-1);
     background: var(--color-white);
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-md);
     border: 1px solid #e0dbd3;
     width: fit-content;
     flex-shrink: 0;
@@ -82,7 +75,7 @@
     align-items: center;
     gap: var(--spacing-2);
     padding: var(--spacing-2) var(--spacing-4);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-sm);
     font-weight: var(--font-weight-medium);
     font-size: var(--font-size-sm);
     color: #6b5e53;
@@ -131,25 +124,19 @@
     gap: var(--spacing-5);
 }
 
-/* ========== KPI GRID ========== */
+/* ========== KPI GRID (плоский список) ========== */
 .kpi-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: var(--spacing-4);
+    gap: var(--spacing-3);
 }
 
 .kpi-card {
     padding: var(--spacing-4);
     background: var(--color-white);
-    border-radius: var(--radius-lg);
+    border-radius: 4px;
     border: 1px solid #e0dbd3;
 }
-
-/* Цветовое кодирование KPI */
-.kpi-card:nth-child(1) { border-left: 3px solid #1a3c2a; }
-.kpi-card:nth-child(2) { border-left: 3px solid #2e7d32; }
-.kpi-card:nth-child(3) { border-left: 3px solid #e65100; }
-.kpi-card:nth-child(4) { border-left: 3px solid #0369a1; }
 
 .kpi-card:hover {
     background: #faf9f7;
@@ -158,27 +145,14 @@
 .kpi-header {
     display: flex;
     align-items: center;
-    gap: var(--spacing-3);
+    gap: var(--spacing-2);
     margin-bottom: var(--spacing-2);
 }
 
-.kpi-icon {
-    font-size: 20px;
-    opacity: 0.7;
-    color: #1a3c2a;
-    width: 24px;
-    height: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
 .kpi-title {
-    font-size: var(--font-size-xs);
-    color: #8c7b6e;
-    font-weight: var(--font-weight-medium);
-    text-transform: uppercase;
-    letter-spacing: var(--letter-spacing-wide);
+    font-size: var(--font-size-sm);
+    color: #6b5e53;
+    font-weight: var(--font-weight-normal);
 }
 
 .kpi-value {
@@ -186,19 +160,18 @@
     font-weight: var(--font-weight-bold);
     color: #1e1a16;
     margin-bottom: var(--spacing-1);
-    font-family: var(--font-family-mono);
 }
 
 /* ========== NET PROFIT CARD ========== */
 .net-profit-card {
-    border-left: 3px solid #1a3c2a !important;
+    /* без цветной полосы */
 }
 
 /* ========== EXPENSES SUMMARY CARD ========== */
 .expenses-summary-card {
     padding: var(--spacing-4);
     background: var(--color-white);
-    border-radius: var(--radius-lg);
+    border-radius: 4px;
     border: 1px solid #e0dbd3;
 }
 
@@ -214,8 +187,6 @@
     font-weight: var(--font-weight-semibold);
     color: #1e1a16;
     font-size: var(--font-size-sm);
-    text-transform: uppercase;
-    letter-spacing: var(--letter-spacing-wide);
 }
 
 .expenses-summary-stats {
@@ -233,15 +204,12 @@
 .expense-stat-label {
     font-size: var(--font-size-xs);
     color: #8c7b6e;
-    text-transform: uppercase;
-    letter-spacing: var(--letter-spacing-wide);
 }
 
 .expense-stat-value {
     font-size: var(--font-size-xl);
     font-weight: var(--font-weight-bold);
     color: #1e1a16;
-    font-family: var(--font-family-mono);
 }
 
 .recent-expenses-list {
@@ -287,7 +255,6 @@
     font-size: var(--font-size-sm);
     font-weight: var(--font-weight-semibold);
     color: #1e1a16;
-    font-family: var(--font-family-mono);
     white-space: nowrap;
 }
 
@@ -302,13 +269,13 @@
 .charts-row {
     display: grid;
     grid-template-columns: 2fr 1fr;
-    gap: var(--spacing-5);
+    gap: var(--spacing-4);
 }
 
 .chart-card {
     padding: var(--spacing-4);
     background: var(--color-white);
-    border-radius: var(--radius-lg);
+    border-radius: 4px;
     border: 1px solid #e0dbd3;
 }
 
@@ -317,8 +284,6 @@
     font-weight: var(--font-weight-semibold);
     color: #1e1a16;
     font-size: var(--font-size-sm);
-    text-transform: uppercase;
-    letter-spacing: var(--letter-spacing-wide);
 }
 
 .chart-card.full-width {
@@ -329,7 +294,7 @@
     position: relative;
     height: 200px;
     background: var(--color-white);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-sm);
     padding: var(--spacing-2);
     border: 1px solid #f0ede8;
 }
@@ -342,14 +307,14 @@
 .dashboard-bottom {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: var(--spacing-5);
+    gap: var(--spacing-4);
 }
 
 /* ========== CARD ========== */
 .card {
     padding: var(--spacing-4);
     background: var(--color-white);
-    border-radius: var(--radius-lg);
+    border-radius: 4px;
     border: 1px solid #e0dbd3;
 }
 
@@ -357,9 +322,7 @@
     margin-bottom: var(--spacing-3);
     font-weight: var(--font-weight-semibold);
     color: #1e1a16;
-    text-transform: uppercase;
-    letter-spacing: var(--letter-spacing-wide);
-    font-size: var(--font-size-xs);
+    font-size: var(--font-size-sm);
 }
 
 /* ========== TOP PRODUCT ITEM ========== */
@@ -410,7 +373,6 @@
     text-align: right;
     font-weight: var(--font-weight-semibold);
     color: #1e1a16;
-    font-family: var(--font-family-mono);
     font-size: var(--font-size-sm);
 }
 
@@ -418,14 +380,14 @@
 .summary-cards {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: var(--spacing-4);
+    gap: var(--spacing-3);
     margin-bottom: var(--spacing-4);
 }
 
 .summary-card {
     padding: var(--spacing-3) var(--spacing-4);
     background: var(--color-white);
-    border-radius: var(--radius-lg);
+    border-radius: 4px;
     border: 1px solid #e0dbd3;
 }
 
@@ -434,8 +396,7 @@
     font-size: var(--font-size-xs);
     color: #8c7b6e;
     margin-bottom: var(--spacing-1);
-    text-transform: uppercase;
-    letter-spacing: var(--letter-spacing-wide);
+    font-weight: var(--font-weight-medium);
 }
 
 .summary-card .value {
@@ -443,14 +404,13 @@
     font-size: var(--font-size-xl);
     font-weight: var(--font-weight-bold);
     color: #1e1a16;
-    font-family: var(--font-family-mono);
 }
 
 /* ========== TWO COLUMNS ========== */
 .two-columns {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: var(--spacing-5);
+    gap: var(--spacing-4);
     margin-bottom: var(--spacing-5);
 }
 
@@ -488,7 +448,6 @@
     min-width: 80px;
     text-align: right;
     color: #6b5e53;
-    font-family: var(--font-family-mono);
     font-size: var(--font-size-sm);
 }
 
@@ -519,7 +478,7 @@
     flex-wrap: wrap;
     padding: var(--spacing-3) var(--spacing-4);
     background: var(--color-white);
-    border-radius: var(--radius-lg);
+    border-radius: 4px;
     border: 1px solid #e0dbd3;
 }
 
@@ -533,8 +492,6 @@
     font-size: var(--font-size-xs);
     font-weight: var(--font-weight-medium);
     color: #6b5e53;
-    text-transform: uppercase;
-    letter-spacing: var(--letter-spacing-wide);
 }
 
 .filter-input,
@@ -581,7 +538,6 @@
     font-size: var(--font-size-xl);
     font-weight: var(--font-weight-bold);
     color: #1e1a16;
-    font-family: var(--font-family-mono);
 }
 
 /* ========== EXPENSE TABLE ========== */
@@ -601,8 +557,6 @@
     font-size: var(--font-size-xs);
     font-weight: var(--font-weight-semibold);
     color: #8c7b6e;
-    text-transform: uppercase;
-    letter-spacing: var(--letter-spacing-wide);
     text-align: left;
     white-space: nowrap;
 }
@@ -649,7 +603,6 @@
 
 .expense-amount {
     font-weight: var(--font-weight-semibold);
-    font-family: var(--font-family-mono);
     color: #1e1a16;
 }
 
@@ -665,31 +618,28 @@
 .expense-id {
     font-size: var(--font-size-xs);
     color: #8c7b6e;
-    font-family: var(--font-family-mono);
 }
 
 .expense-date {
     color: #6b5e53;
 }
 
-/* ========== CATEGORY BADGES ========== */
+/* ========== CATEGORY BADGES (без «таблеток», только цвет текста) ========== */
 .category-badge {
     display: inline-block;
-    padding: 2px 10px;
-    border-radius: var(--radius-full);
     font-size: var(--font-size-xs);
-    font-weight: var(--font-weight-semibold);
-    text-transform: uppercase;
+    font-weight: var(--font-weight-medium);
+    color: #374151;
 }
 
-.category-badge.category-rent { background: #e0e7ff; color: #4338ca; }
-.category-badge.category-advertising { background: #fce7f3; color: #be185d; }
-.category-badge.category-supplies { background: #d1fae5; color: #065f46; }
-.category-badge.category-utilities { background: #fed7aa; color: #9a3412; }
-.category-badge.category-salary { background: #e0e7ff; color: #3730a3; }
-.category-badge.category-taxes { background: #fecaca; color: #991b1b; }
-.category-badge.category-repair { background: #fef3c7; color: #92400e; }
-.category-badge.category-other { background: #f3f4f6; color: #374151; }
+.category-badge.category-rent { color: #4338ca; }
+.category-badge.category-advertising { color: #be185d; }
+.category-badge.category-supplies { color: #065f46; }
+.category-badge.category-utilities { color: #9a3412; }
+.category-badge.category-salary { color: #3730a3; }
+.category-badge.category-taxes { color: #991b1b; }
+.category-badge.category-repair { color: #92400e; }
+.category-badge.category-other { color: #374151; }
 
 /* ========== ROW ACTIONS ========== */
 .row-actions {
@@ -735,14 +685,8 @@
     text-align: center;
     color: #8c7b6e;
     background: var(--color-white);
-    border-radius: var(--radius-lg);
+    border-radius: 4px;
     border: 2px dashed #e0dbd3;
-}
-
-.empty-state-icon {
-    font-size: 48px;
-    margin-bottom: var(--spacing-4);
-    opacity: 0.5;
 }
 
 .empty-state p {
@@ -786,30 +730,33 @@
     to { transform: rotate(360deg); }
 }
 
-/* ========== STATUS BADGE ========== */
+/* ========== STATUS BADGE (текст + точка) ========== */
 .status-badge {
-    display: inline-block;
-    padding: 2px 10px;
-    border-radius: var(--radius-full);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     font-size: var(--font-size-xs);
-    font-weight: var(--font-weight-semibold);
-    text-transform: uppercase;
+    font-weight: var(--font-weight-medium);
+    color: #1e1a16;
 }
 
-.status-badge.status-in_stock {
-    background: #e8f5e9;
-    color: #2e7d32;
+.status-badge .status-dot-indicator {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--color-gray-400);
+    flex-shrink: 0;
 }
 
-.status-badge.status-sold {
-    background: #ffebee;
-    color: #c62828;
-}
+.status-badge.status-in_stock { color: #2e7d32; }
+.status-badge.status-in_stock .status-dot-indicator { background: #2e7d32; }
 
-.status-badge.status-reserved {
-    background: #fff3e0;
-    color: #e65100;
-}
+.status-badge.status-sold { color: #c62828; }
+.status-badge.status-sold .status-dot-indicator { background: #c62828; }
+
+.status-badge.status-reserved { color: #e65100; }
+.status-badge.status-reserved .status-dot-indicator { background: #e65100; }
 
 /* ========== ТЕКСТОВЫЕ УТИЛИТЫ ДЛЯ ОТЧЁТОВ ========== */
 .text-success { color: #2e7d32; }
@@ -819,7 +766,7 @@
 /* ========== ТАБЛИЦЫ ВНУТРИ КАРТОЧЕК ========== */
 .table-container {
     overflow-x: auto;
-    border-radius: var(--radius-lg);
+    border-radius: 4px;
     border: 1px solid #e0dbd3;
     background: var(--color-white);
 }
@@ -840,8 +787,6 @@
     font-size: var(--font-size-xs);
     font-weight: var(--font-weight-semibold);
     color: #8c7b6e;
-    text-transform: uppercase;
-    letter-spacing: var(--letter-spacing-wide);
     text-align: left;
     white-space: nowrap;
 }
@@ -860,23 +805,14 @@
 
 .data-table .money {
     text-align: right;
-    font-family: var(--font-family-mono);
     font-weight: var(--font-weight-medium);
 }
 
 /* ========== REPORTS RESPONSIVE ========== */
 @media (max-width: 1024px) {
-    .charts-row {
-        grid-template-columns: 1fr;
-    }
-    
-    .dashboard-bottom {
-        grid-template-columns: 1fr;
-    }
-    
-    .two-columns {
-        grid-template-columns: 1fr;
-    }
+    .charts-row { grid-template-columns: 1fr; }
+    .dashboard-bottom { grid-template-columns: 1fr; }
+    .two-columns { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 768px) {
@@ -884,57 +820,34 @@
         flex-direction: column;
         align-items: stretch;
     }
-    
-    .period-selector {
-        flex-wrap: wrap;
-    }
-    
-    .kpi-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-    
+
+    .period-selector { flex-wrap: wrap; }
+
+    .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+
     .reports-tabs {
         overflow-x: auto;
         flex-wrap: nowrap;
         width: 100%;
         -webkit-overflow-scrolling: touch;
     }
-    
-    .chart-container {
-        height: 250px;
-    }
+
+    .chart-container { height: 250px; }
 
     .expense-filters {
         flex-direction: column;
         align-items: stretch;
     }
 
-    .filter-group {
-        width: 100%;
-    }
-
-    .expenses-actions {
-        flex-direction: column;
-    }
-
-    .expenses-actions button {
-        width: 100%;
-    }
-
-    .expenses-summary {
-        flex-direction: column;
-    }
+    .filter-group { width: 100%; }
+    .expenses-actions { flex-direction: column; }
+    .expenses-actions button { width: 100%; }
+    .expenses-summary { flex-direction: column; }
 }
 
 @media (max-width: 480px) {
-    .kpi-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .reports-tabs {
-        width: 100%;
-        overflow-x: auto;
-    }
+    .kpi-grid { grid-template-columns: 1fr; }
+    .reports-tabs { width: 100%; overflow-x: auto; }
 }
 
 /* ========== ПЕЧАТЬ ========== */

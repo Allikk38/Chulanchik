@@ -1,15 +1,10 @@
 /**
  * Product Card Component
- * 
- * Стили для отображения товаров в виде карточек и в таблице.
- * 
+ *
+ * v6.0.0 — 2026-10-27: убраны тени у карточек товара,
+ *                      радиусы 6px, без «парящих» карточек.
+ *
  * @stylesheet product-card
- * @version 5.1.0
- * @changes
- * - v5.1.0: Добавлен класс .product-card.in-cart для визуального индикатора.
- * - Убраны transform-анимации (translateY, scale).
- * - Убрана анимация pulse.
- * - Упрощены переходы (только shadow и background).
  */
 
 /* ========== PRODUCTS GRID ========== */
@@ -26,15 +21,14 @@
     display: flex;
     flex-direction: column;
     background: var(--color-white);
-    border-radius: var(--radius-lg);
+    border-radius: 4px;
     overflow: hidden;
-    box-shadow: var(--shadow-sm);
     cursor: pointer;
     border: var(--border-width) solid var(--color-border);
 }
 
 .product-card:hover {
-    box-shadow: var(--shadow-md);
+    border-color: var(--color-text-muted);
 }
 
 .product-card.product-sold {
@@ -42,13 +36,9 @@
     cursor: not-allowed;
 }
 
-.product-card.product-sold:hover {
-    box-shadow: var(--shadow-sm);
-}
-
 /* Индикатор товара, уже добавленного в корзину */
 .product-card.in-cart {
-    border-left: 3px solid var(--color-primary);
+    border-color: var(--color-primary);
     background: var(--color-primary-bg);
 }
 
@@ -75,13 +65,10 @@
 }
 
 .photo-placeholder {
-    font-size: 48px;
-    opacity: 0.4;
-    color: var(--color-text-muted);
-}
-
-.photo-placeholder.large {
-    font-size: 80px;
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: var(--color-gray-100);
 }
 
 .product-badge {
@@ -93,12 +80,13 @@
     border-radius: var(--radius-full);
     font-size: var(--font-size-xs);
     font-weight: var(--font-weight-medium);
-    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--color-border);
 }
 
 .product-badge.profit-badge {
     background: var(--color-success);
     color: var(--color-white);
+    border-color: var(--color-success);
 }
 
 /* ========== PRODUCT INFO ========== */
@@ -157,7 +145,6 @@
 .products-table-wrapper {
     background: var(--color-white);
     border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-sm);
     overflow-x: auto;
 }
 
@@ -224,8 +211,10 @@
 }
 
 .thumb-placeholder {
-    font-size: 24px;
-    opacity: 0.4;
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: var(--color-gray-100);
 }
 
 .products-table .name-cell {
@@ -236,7 +225,6 @@
     font-size: var(--font-size-xs);
     color: var(--color-text-muted);
     margin-top: var(--spacing-0-5);
-    font-family: var(--font-family-mono);
 }
 
 .products-table .attributes-cell {
@@ -270,45 +258,39 @@
     font-size: var(--font-size-xs);
 }
 
-.price-margin.positive {
-    color: var(--color-success);
-}
-
-.price-margin.negative {
-    color: var(--color-danger);
-}
+.price-margin.positive { color: var(--color-success); }
+.price-margin.negative { color: var(--color-danger); }
 
 .products-table .status-cell {
     white-space: nowrap;
 }
 
+/* Статусы — текст + точка */
 .status-badge {
-    display: inline-block;
-    padding: var(--spacing-1) var(--spacing-2);
-    border-radius: var(--radius-full);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     font-size: var(--font-size-xs);
     font-weight: var(--font-weight-medium);
 }
 
-.status-badge.status-in_stock {
-    background: var(--color-success-bg);
-    color: var(--color-success);
+.status-badge .status-dot-indicator {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--color-gray-400);
+    flex-shrink: 0;
 }
 
-.status-badge.status-sold {
-    background: var(--color-danger-bg);
-    color: var(--color-danger);
-}
+.status-badge.status-in_stock { color: var(--color-success); }
+.status-badge.status-in_stock .status-dot-indicator { background: var(--color-success); }
 
-.status-badge.status-reserved {
-    background: var(--color-warning-bg);
-    color: var(--color-warning-dark);
-}
+.status-badge.status-sold { color: var(--color-danger); }
+.status-badge.status-sold .status-dot-indicator { background: var(--color-danger); }
 
-.status-badge.large {
-    padding: var(--spacing-2) var(--spacing-4);
-    font-size: var(--font-size-sm);
-}
+.status-badge.status-reserved { color: var(--color-warning-dark); }
+.status-badge.status-reserved .status-dot-indicator { background: var(--color-warning); }
 
 .products-table .actions-cell {
     white-space: nowrap;
@@ -329,13 +311,13 @@
     padding: var(--spacing-2);
     background: var(--color-white);
     border-radius: var(--radius-md);
-    box-shadow: var(--shadow-sm);
+    border: var(--border-width) solid var(--color-border);
     cursor: pointer;
     min-width: 80px;
 }
 
 .quick-item:hover {
-    box-shadow: var(--shadow-md);
+    border-color: var(--color-text-muted);
 }
 
 .quick-item.sold {
@@ -353,7 +335,6 @@
     justify-content: center;
     margin-bottom: var(--spacing-1);
     overflow: hidden;
-    font-size: 24px;
 }
 
 .quick-item-photo img {
@@ -386,40 +367,15 @@
     border-radius: var(--radius-sm);
 }
 
-.skeleton-checkbox {
-    width: 20px;
-    height: 20px;
-}
+.skeleton-checkbox { width: 20px; height: 20px; }
+.skeleton-image { width: 60px; height: 60px; }
+.skeleton-text { flex: 1; height: 16px; }
+.skeleton-badge { width: 80px; height: 24px; border-radius: var(--radius-full); }
+.skeleton-actions { width: 60px; height: 32px; }
 
-.skeleton-image {
-    width: 60px;
-    height: 60px;
-}
-
-.skeleton-text {
-    flex: 1;
-    height: 16px;
-}
-
-.skeleton-badge {
-    width: 80px;
-    height: 24px;
-    border-radius: var(--radius-full);
-}
-
-.skeleton-actions {
-    width: 60px;
-    height: 32px;
-}
-
-/* Простая пульсация для скелетона (только opacity) */
 @keyframes skeleton-pulse {
-    0%, 100% {
-        opacity: 1;
-    }
-    50% {
-        opacity: 0.5;
-    }
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
 }
 
 .skeleton {
@@ -441,13 +397,12 @@
     padding: var(--spacing-3) var(--spacing-4);
     background: var(--color-white);
     border-radius: var(--radius-md);
-    box-shadow: var(--shadow-xs);
+    border: var(--border-width) solid var(--color-border);
     cursor: pointer;
 }
 
 .product-item:hover {
     background: var(--color-gray-50);
-    box-shadow: var(--shadow-sm);
 }
 
 .product-item.product-sold {
@@ -524,16 +479,4 @@
 
 .category-group.collapsed .category-products {
     display: none;
-}
-.product-card { position: relative; }
-.product-cart-badge {
-    position: absolute;
-    top: var(--spacing-2);
-    left: var(--spacing-2);
-    background: var(--color-primary);
-    color: #fff;
-    font-size: 11px;
-    font-weight: 600;
-    padding: 2px 8px;
-    border-radius: var(--radius-full);
 }

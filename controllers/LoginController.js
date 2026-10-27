@@ -1,5 +1,6 @@
 // ============================================================
 // controllers/LoginController.js
+// v1.1.0 — 2026-10-27: тумблер оформления на странице входа
 // ============================================================
 
 /**
@@ -11,6 +12,7 @@
 import { signIn } from '../core/auth.js';
 import { isValidEmail } from '../utils/formatters.js';
 import { showNotification } from '../utils/ui.js';
+import { renderDesignToggle, bindDesignToggle } from '../utils/design-toggle.js';
 
 // ============================================================
 // DOM
@@ -24,7 +26,8 @@ const DOM = {
     passwordError: document.getElementById('passwordError'),
     formError: document.getElementById('formError'),
     btn: document.getElementById('loginBtn'),
-    offlineBanner: document.getElementById('offlineBanner')
+    offlineBanner: document.getElementById('offlineBanner'),
+    designToggleContainer: document.getElementById('designToggleContainer')
 };
 
 // ============================================================
@@ -113,6 +116,21 @@ function updateOfflineBanner() {
 }
 
 // ============================================================
+// Оформление
+// ============================================================
+
+function initDesignToggle() {
+    if (!DOM.designToggleContainer) return;
+
+    DOM.designToggleContainer.innerHTML = renderDesignToggle();
+    bindDesignToggle((version) => {
+        // Дизайн меняется на лету — design-v2.css подключается/отключается
+        // внутри setDesign(). Дополнительных действий не нужно.
+        console.log('[Login] design changed to:', version);
+    });
+}
+
+// ============================================================
 // Инициализация
 // ============================================================
 
@@ -124,6 +142,8 @@ function init() {
     window.addEventListener('online', updateOfflineBanner);
     window.addEventListener('offline', updateOfflineBanner);
     updateOfflineBanner();
+
+    initDesignToggle();
 
     DOM.email.focus();
 }

@@ -1,15 +1,10 @@
 /**
  * Inventory Layout - Business Professional
- * 
- * Строгая страница склада для бизнес-приложений.
- * Тёплая цветовая гамма, единая со страницей входа.
- * На мобильных — карточки вместо таблицы.
- * 
+ *
+ * v6.1.0 — 2026-10-27: убран uppercase у лейблов, статусы — текст + точка,
+ *                      без цветных «таблеток».
+ *
  * @stylesheet inventory
- * @version 6.0.1
- * @changes
- * - v6.0.1: Исправлен конфликт display-правил. Таблица и карточки корректно переключаются.
- * - v6.0.0: Тёплая гамма в стиле страницы входа. Акцент — тёмно-зелёный #1a3c2a.
  */
 
 /* ========== INVENTORY PAGE CONTAINER ========== */
@@ -73,9 +68,9 @@
 }
 
 .view-toggle-btn {
-    width: 36px;
+    min-width: 80px;
     height: 36px;
-    padding: 0;
+    padding: 0 var(--spacing-3);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -84,7 +79,8 @@
     border-radius: var(--radius-md);
     color: #6b5e53;
     cursor: pointer;
-    font-size: 18px;
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
 }
 
 .view-toggle-btn:hover {
@@ -122,12 +118,6 @@
     background: #faf9f7;
 }
 
-.stat-card-inline .stat-icon {
-    font-size: 28px;
-    color: #1a3c2a;
-    opacity: 0.7;
-}
-
 .stat-card-inline .stat-content {
     display: flex;
     flex-direction: column;
@@ -136,9 +126,8 @@
 .stat-card-inline .stat-label {
     font-size: var(--font-size-xs);
     color: #8c7b6e;
-    text-transform: uppercase;
-    letter-spacing: var(--letter-spacing-wide);
     margin-bottom: var(--spacing-1);
+    font-weight: var(--font-weight-medium);
 }
 
 .stat-card-inline .stat-value {
@@ -174,8 +163,6 @@
     font-size: var(--font-size-xs);
     font-weight: var(--font-weight-semibold);
     color: #8c7b6e;
-    text-transform: uppercase;
-    letter-spacing: var(--letter-spacing-wide);
     text-align: left;
     white-space: nowrap;
     border-bottom: 1px solid #e0dbd3;
@@ -195,30 +182,32 @@
     background: #faf9f7;
 }
 
-/* Статусы */
+/* ========== СТАТУСЫ: текст + точка ========== */
 .status-badge {
-    display: inline-block;
-    padding: var(--spacing-1) var(--spacing-3);
-    border-radius: var(--radius-full);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     font-size: var(--font-size-xs);
-    font-weight: var(--font-weight-semibold);
-    text-transform: uppercase;
+    font-weight: var(--font-weight-medium);
+    color: #1e1a16;
 }
 
-.status-badge.status-in_stock {
-    background: #e8f5e9;
-    color: #2e7d32;
+.status-dot-indicator {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--color-gray-400);
+    flex-shrink: 0;
 }
 
-.status-badge.status-sold {
-    background: #ffebee;
-    color: #c62828;
-}
+.status-badge.status-in_stock .status-dot-indicator { background: #2e7d32; }
+.status-badge.status-sold .status-dot-indicator { background: #c62828; }
+.status-badge.status-reserved .status-dot-indicator { background: #e65100; }
 
-.status-badge.status-reserved {
-    background: #fff3e0;
-    color: #e65100;
-}
+.status-badge.status-in_stock { color: #2e7d32; }
+.status-badge.status-sold { color: #c62828; }
+.status-badge.status-reserved { color: #e65100; }
 
 /* Фото товара */
 .product-thumb {
@@ -240,40 +229,33 @@
 }
 
 .thumb-placeholder {
-    font-size: 20px;
-    color: #8c7b6e;
-    opacity: 0.5;
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: #f5f2ed;
 }
 
 /* Ячейка цены */
 .price-main {
     font-weight: var(--font-weight-semibold);
     color: #1e1a16;
-    font-family: var(--font-family-mono);
     text-align: right;
 }
 
 .price-cost {
     font-size: var(--font-size-xs);
     color: #8c7b6e;
-    font-family: var(--font-family-mono);
     text-align: right;
 }
 
 .price-margin {
     font-size: var(--font-size-xs);
     font-weight: var(--font-weight-medium);
-    font-family: var(--font-family-mono);
     text-align: right;
 }
 
-.price-margin.positive {
-    color: #2e7d32;
-}
-
-.price-margin.negative {
-    color: #c62828;
-}
+.price-margin.positive { color: #2e7d32; }
+.price-margin.negative { color: #c62828; }
 
 /* Действия */
 .row-actions {
@@ -291,12 +273,6 @@
     border-radius: var(--radius-lg);
     border: 2px dashed #e0dbd3;
     margin: var(--spacing-4);
-}
-
-.empty-state-icon {
-    font-size: 48px;
-    margin-bottom: var(--spacing-4);
-    opacity: 0.5;
 }
 
 /* ========== SKELETON LOADER ========== */
@@ -357,13 +333,8 @@
     box-shadow: 0 2px 8px rgba(26, 60, 42, 0.3);
 }
 
-.fab-add-product:hover {
-    background: #153023;
-}
-
-.fab-add-product:active {
-    background: #0e2118;
-}
+.fab-add-product:hover { background: #153023; }
+.fab-add-product:active { background: #0e2118; }
 
 /* ========== LOAD MORE TRIGGER ========== */
 .load-more-trigger {
@@ -401,9 +372,7 @@
     min-height: 72px;
 }
 
-.mobile-product-card:active {
-    background: #faf9f7;
-}
+.mobile-product-card:active { background: #faf9f7; }
 
 .mobile-product-card.selected {
     background: #f5f0e9;
@@ -430,9 +399,9 @@
 }
 
 .mobile-product-card .card-photo .photo-placeholder {
-    font-size: 24px;
-    color: #8c7b6e;
-    opacity: 0.4;
+    display: block;
+    width: 100%;
+    height: 100%;
 }
 
 .mobile-product-card .card-info {
@@ -466,28 +435,21 @@
 }
 
 .mobile-product-card .card-status {
-    display: inline-block;
-    padding: 1px 8px;
-    border-radius: var(--radius-full);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     font-size: 10px;
-    font-weight: var(--font-weight-semibold);
-    text-transform: uppercase;
+    font-weight: var(--font-weight-medium);
 }
 
-.mobile-product-card .card-status.status-in_stock {
-    background: #e8f5e9;
-    color: #2e7d32;
+.mobile-product-card .card-status .status-dot-indicator {
+    width: 5px;
+    height: 5px;
 }
 
-.mobile-product-card .card-status.status-sold {
-    background: #ffebee;
-    color: #c62828;
-}
-
-.mobile-product-card .card-status.status-reserved {
-    background: #fff3e0;
-    color: #e65100;
-}
+.mobile-product-card .card-status.status-in_stock { color: #2e7d32; }
+.mobile-product-card .card-status.status-sold { color: #c62828; }
+.mobile-product-card .card-status.status-reserved { color: #e65100; }
 
 .mobile-product-card .card-price {
     text-align: right;
@@ -501,14 +463,12 @@
 .mobile-product-card .card-price .price-value {
     font-weight: var(--font-weight-semibold);
     color: #1e1a16;
-    font-family: var(--font-family-mono);
     font-size: var(--font-size-sm);
 }
 
 .mobile-product-card .card-price .price-cost {
     font-size: var(--font-size-xs);
     color: #8c7b6e;
-    font-family: var(--font-family-mono);
 }
 
 .mobile-product-card .card-actions {
@@ -550,38 +510,18 @@
         min-width: 140px;
     }
 
-    .stat-card-inline .stat-icon {
-        font-size: 22px;
-    }
-
     .stat-card-inline .stat-value {
         font-size: var(--font-size-lg);
     }
 
-    /* Показываем переключатель */
-    .view-toggle {
-        display: flex;
-    }
+    .view-toggle { display: flex; }
 
-    /* По умолчанию на мобильных — карточки */
-    .products-table-wrapper {
-        display: none;
-    }
+    .products-table-wrapper { display: none; }
+    .mobile-product-cards { display: flex; }
 
-    .mobile-product-cards {
-        display: flex;
-    }
+    .inventory-page.show-table .products-table-wrapper { display: flex; }
+    .inventory-page.show-table .mobile-product-cards { display: none; }
 
-    /* Когда активна таблица */
-    .inventory-page.show-table .products-table-wrapper {
-        display: flex;
-    }
-
-    .inventory-page.show-table .mobile-product-cards {
-        display: none;
-    }
-
-    /* Кнопка FAB */
     .fab-add-product {
         display: flex;
         bottom: 80px;
@@ -590,38 +530,26 @@
         height: 48px;
     }
 
-    .header-right .btn-primary {
-        display: none;
-    }
+    .header-right .btn-primary { display: none; }
 }
 
 @media (max-width: 480px) {
-    .products-table td {
-        padding: var(--spacing-2);
-    }
+    .products-table td { padding: var(--spacing-2); }
 
     .stat-card-inline {
         padding: var(--spacing-2) var(--spacing-3);
         min-width: 100px;
     }
 
-    .stat-card-inline .stat-value {
-        font-size: var(--font-size-base);
-    }
+    .stat-card-inline .stat-value { font-size: var(--font-size-base); }
 
     .mobile-product-card {
         padding: var(--spacing-2);
         gap: var(--spacing-2);
     }
 
-    .mobile-product-card .card-photo {
-        width: 48px;
-        height: 48px;
-    }
-
-    .mobile-product-card .card-name {
-        font-size: var(--font-size-xs);
-    }
+    .mobile-product-card .card-photo { width: 48px; height: 48px; }
+    .mobile-product-card .card-name { font-size: var(--font-size-xs); }
 }
 
 /* ========== ПЕЧАТЬ ========== */
@@ -640,7 +568,5 @@
         border: 1px solid #e0dbd3;
     }
 
-    .products-table td {
-        border: 1px solid #e0dbd3;
-    }
+    .products-table td { border: 1px solid #e0dbd3; }
 }

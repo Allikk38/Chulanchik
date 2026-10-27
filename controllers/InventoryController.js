@@ -1,41 +1,13 @@
 // ============================================================
 // controllers/InventoryController.js
-// v6.2.0 — 2026-10-27: админ может удалять проданные товары
+// v6.3.0 — 2026-10-27: убраны псевдо-иконки статистики
 // ============================================================
 
 /**
  * Контроллер страницы склада.
  *
- * НАЗНАЧЕНИЕ
- *   Управляет фильтрами, рендерингом таблицы/карточек товаров
- *   и действиями с товарами (создание, редактирование, удаление,
- *   печать ценников).
- *
- * ЗАВИСИМОСТИ
- *   productStore              — стор товаров (ProductStore)
- *   ProductService            — бизнес-логика товаров
- *   AppHeader                 — рендеринг навигации
- *   ProductForm               — модальная форма товара
- *   PriceTagForm              — модалка печати ценников
- *   showNotification          — уведомления
- *   showConfirmDialog         — диалог подтверждения
- *   formatters                — форматирование (formatMoney, getCategoryName, getStatusText, escapeHtml)
- *
- * ПОТОК ДАННЫХ
- *   1. init() при DOMContentLoaded
- *   2. Вставка AppHeader
- *   3. Проверка авторизации через requireAuth()
- *   4. Подписка на productStore.on('change')
- *   5. Загрузка товаров через productStore.loadProducts()
- *   6. renderAll() отрисовывает статистику, таблицу, карточки
- *   7. Действия пользователя → addProduct(), editProduct(), deleteProduct(), printTags()
- *   8. Фильтры обновляют renderTable() и renderMobileCards()
- *
- * ИЗМЕНЕНИЯ
- *   v6.2.0 — админ может удалять проданные товары (флаг isAdmin)
- *   v6.1.0 — добавлена печать ценников (кнопка «Ценники»)
- *   v6.0.1 — рефакторинг: escapeHtml импортируется из utils/formatters.js
- *   v6.0.0 — добавлен просмотр карточек на мобильных
+ * v6.3.0 — в renderStats() псевдо-иконки "!= + - ~" заменены
+ *           на текстовые метки (Всего / В наличии / Продано / Склад).
  *
  * @module controllers/InventoryController
  */
@@ -108,28 +80,24 @@ function renderStats() {
 
     DOM.statsBar.innerHTML = `
         <div class="stat-card-inline">
-            <span class="stat-icon">!=</span>
             <div class="stat-content">
                 <span class="stat-label">Всего товаров</span>
                 <span class="stat-value">${stats.total}</span>
             </div>
         </div>
         <div class="stat-card-inline">
-            <span class="stat-icon">+</span>
             <div class="stat-content">
                 <span class="stat-label">В наличии</span>
                 <span class="stat-value" style="color: var(--color-success)">${stats.inStock}</span>
             </div>
         </div>
         <div class="stat-card-inline">
-            <span class="stat-icon">-</span>
             <div class="stat-content">
                 <span class="stat-label">Продано</span>
                 <span class="stat-value" style="color: var(--color-danger)">${stats.sold}</span>
             </div>
         </div>
         <div class="stat-card-inline">
-            <span class="stat-icon">~</span>
             <div class="stat-content">
                 <span class="stat-label">Стоимость склада</span>
                 <span class="stat-value">${formatMoney(stats.stockValue)}</span>
@@ -207,7 +175,6 @@ function renderTable() {
     if (products.length === 0) {
         DOM.tableBody.innerHTML = `
             <tr><td colspan="7" style="text-align:center;padding:60px;">
-                <div class="empty-state-icon">--</div>
                 <p>${state.filters.search || state.filters.status || state.filters.category
                     ? 'По вашему запросу ничего не найдено'
                     : 'Нет товаров. Нажмите «Добавить товар»'}</p>
@@ -230,7 +197,7 @@ function renderTable() {
                     <div class="product-thumb">
                         ${p.photo_url
                             ? `<img src="${escapeAttr(p.photo_url)}" alt="" loading="lazy">`
-                            : '<span class="thumb-placeholder">--</span>'}
+                            : '<span class="thumb-placeholder"></span>'}
                     </div>
                 </td>
                 <td class="name-cell">
@@ -242,13 +209,25 @@ function renderTable() {
                     <div class="price-main">${formatMoney(p.price)}</div>
                     ${p.cost_price ? `<div class="price-cost">Себ.: ${formatMoney(p.cost_price)}</div>` : ''}
                 </td>
-                <td><span class="status-badge ${statusClass}">${getStatusText(p.status)}</span></td>
+                <td>
+                    <span class="status-badge ${statusClass}">
+                        <span class="status-dot-indicator"></span>${getStatusText(p.status)}
+                    </span>
+                </td>
                 <td class="actions-cell">
                     <div class="row-actions">
                         <button class="btn-icon" data-action="edit" data-id="${p.id}"
-                            ${state.isBusy ? 'disabled' : ''} title="Редактировать">Edit</button>
+                            ${state.isBusy ? 'disabled' : ''} title="Редактировать" aria-label="Редактировать">
+                            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                                <path d="M11.5 2.5l2 2L5 13H3v-2l8.5-8.5z"/>
+                            </svg>
+                        </button>
                         <button class="btn-icon btn-danger" data-action="delete" data-id="${p.id}"
-                            ${state.isBusy ? 'disabled' : ''} title="Удалить">Del</button>
+                            ${state.isBusy ? 'disabled' : ''} title="Удалить" aria-label="Удалить">
+                            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                                <path d="M3 4h10M6 4V2.5h4V4M5 4l.5 9h5L11 4"/>
+                            </svg>
+                        </button>
                     </div>
                 </td>
             </tr>`;
@@ -294,7 +273,6 @@ function renderMobileCards() {
     if (products.length === 0) {
         DOM.mobileCardsContainer.innerHTML = `
             <div class="empty-state">
-                <div class="empty-state-icon">--</div>
                 <p>${state.filters.search || state.filters.status || state.filters.category
                     ? 'По вашему запросу ничего не найдено'
                     : 'Нет товаров. Нажмите «Добавить товар»'}</p>
@@ -311,13 +289,15 @@ function renderMobileCards() {
                 <div class="card-photo">
                     ${p.photo_url
                         ? `<img src="${escapeAttr(p.photo_url)}" alt="" loading="lazy">`
-                        : '<span class="photo-placeholder">--</span>'}
+                        : '<span class="photo-placeholder"></span>'}
                 </div>
                 <div class="card-info">
                     <div class="card-name">${escapeHtml(p.name)}</div>
                     <div class="card-meta">
                         <span class="card-category">${getCategoryName(p.category)}</span>
-                        <span class="card-status status-${statusClass}">${getStatusText(p.status)}</span>
+                        <span class="card-status status-${statusClass}">
+                            <span class="status-dot-indicator"></span>${getStatusText(p.status)}
+                        </span>
                     </div>
                 </div>
                 <div class="card-price">
@@ -326,18 +306,24 @@ function renderMobileCards() {
                 </div>
                 <div class="card-actions">
                     <button class="btn-icon" data-action="edit" data-id="${p.id}"
-                        ${state.isBusy ? 'disabled' : ''} title="Редактировать">Edit</button>
+                        ${state.isBusy ? 'disabled' : ''} title="Редактировать" aria-label="Редактировать">
+                        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                            <path d="M11.5 2.5l2 2L5 13H3v-2l8.5-8.5z"/>
+                        </svg>
+                    </button>
                     <button class="btn-icon btn-danger" data-action="delete" data-id="${p.id}"
-                        ${state.isBusy ? 'disabled' : ''} title="Удалить">Del</button>
+                        ${state.isBusy ? 'disabled' : ''} title="Удалить" aria-label="Удалить">
+                        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                            <path d="M3 4h10M6 4V2.5h4V4M5 4l.5 9h5L11 4"/>
+                        </svg>
+                    </button>
                 </div>
             </div>`;
     }).join('');
 
     // Обработчики карточек
     DOM.mobileCardsContainer.querySelectorAll('.mobile-product-card').forEach(card => {
-        // Клик по карточке — выбор (как чекбокс)
         card.addEventListener('click', (e) => {
-            // Не срабатываем если кликнули по кнопке
             if (e.target.closest('button')) return;
 
             const id = card.dataset.id;
@@ -352,7 +338,6 @@ function renderMobileCards() {
         });
     });
 
-    // Кнопки действий в карточках
     DOM.mobileCardsContainer.querySelectorAll('[data-action="edit"]').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -384,9 +369,6 @@ function updateSelectAll() {
     DOM.selectAllCb.indeterminate = checked.length > 0 && checked.length < checkboxes.length;
 }
 
-/**
- * Синхронизирует состояние чекбоксов в таблице с выбранными карточками и наоборот.
- */
 function updateMobileCardsSelection() {
     if (!DOM.mobileCardsContainer) return;
 
@@ -399,32 +381,25 @@ function updateMobileCardsSelection() {
         }
     });
 
-    // Также синхронизируем чекбоксы в таблице
     document.querySelectorAll('.table-checkbox').forEach(cb => {
         cb.checked = state.selectedIds.has(cb.dataset.id);
     });
 }
 
-/**
- * Обновляет вид кнопки переключения таблица/карточки.
- */
 function updateViewToggleButton() {
     if (!DOM.viewToggleBtn) return;
 
     if (state.showTable) {
         DOM.viewToggleBtn.classList.add('active');
-        DOM.viewToggleBtn.textContent = '|||';
+        DOM.viewToggleBtn.textContent = 'Таблица';
         DOM.viewToggleBtn.title = 'Показать карточками';
     } else {
         DOM.viewToggleBtn.classList.remove('active');
-        DOM.viewToggleBtn.textContent = '::';
+        DOM.viewToggleBtn.textContent = 'Карточки';
         DOM.viewToggleBtn.title = 'Показать таблицей';
     }
 }
 
-/**
- * Переключает режим отображения на мобильных.
- */
 function toggleView() {
     state.showTable = !state.showTable;
 
@@ -487,7 +462,6 @@ async function deleteProduct(id) {
     const isAdmin = state.user?.roleName === 'admin';
     const isSold = product.status === 'sold';
 
-    // Продано и не админ — сразу показываем понятную ошибку, без диалога.
     if (isSold && !isAdmin) {
         showNotification('Удалять проданные товары может только администратор', 'error');
         return;
@@ -528,11 +502,6 @@ async function deleteProduct(id) {
     renderMobileCards();
 }
 
-/**
- * Открывает модалку печати ценников.
- * Передаёт выбранные ID (если пользователь отметил чекбоксами) —
- * модалка сама решит, использовать их или печатать всё.
- */
 function printTags() {
     const selectedIds = Array.from(state.selectedIds);
     openPriceTagModal({ selectedIds });
@@ -607,19 +576,14 @@ function bindEvents() {
     bindViewToggle();
 }
 
-/**
- * Привязывает обработчик кнопки переключения таблица/карточки.
- */
 function bindViewToggle() {
     if (!DOM.viewToggleBtn) return;
-
     DOM.viewToggleBtn.addEventListener('click', toggleView);
 }
 
 async function init() {
     console.log('[Inventory] init() started');
 
-    // 1. Вставляем навигацию синхронно, до любых асинхронных операций
     const headerHtml = renderAppHeader({
         currentPage: 'inventory',
         userName: 'Пользователь'
@@ -648,7 +612,6 @@ async function init() {
         onLogout: () => logout()
     });
 
-    // 2. Проверяем авторизацию
     const { user, authError } = await requireAuth();
     if (authError || !user) {
         window.location.href = 'pages/login.html';
@@ -658,17 +621,13 @@ async function init() {
     state.user = user;
     console.log('[Inventory] user authenticated:', user.email);
 
-    // 3. Обновляем имя пользователя в уже вставленной шапке
     updateUserName(user.fullName || user.email?.split('@')[0] || 'Пользователь');
 
-    // 4. Кэшируем DOM и вешаем события
     cacheDom();
     bindEvents();
 
-    // 5. Подписываемся на изменения стора
     productStore.on('change', () => renderAll());
 
-    // 6. Загружаем данные
     await productStore.loadProducts();
     renderAll();
 

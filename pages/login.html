@@ -27,7 +27,6 @@
     <link rel="stylesheet" href="css/styles.css">
 
     <!-- Временный переключатель второго дизайна. Удалить вместе с css/design-v2.css -->
-        <!-- Временный переключатель второго дизайна. Удалить вместе с css/design-v2.css -->
     <script type="module">
         import { initDesign } from '/Chulanchik/utils/design-toggle.js';
         initDesign();
@@ -255,6 +254,40 @@
             to { transform: rotate(360deg); }
         }
 
+        /* Переключатель оформления */
+        .design-toggle {
+            display: flex;
+            gap: 0;
+            margin-top: 16px;
+            padding: 3px;
+            background: #f0ede8;
+            border-radius: 8px;
+        }
+
+        .design-toggle-option {
+            flex: 1;
+            padding: 8px 12px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--login-text-secondary);
+            background: transparent;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.15s, color 0.15s;
+        }
+
+        .design-toggle-option:hover {
+            color: var(--login-text);
+        }
+
+        .design-toggle-option.active {
+            background: #ffffff;
+            color: var(--login-accent);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+        }
+
         /* Подсказка под кнопкой */
         .login-hint {
             margin-top: 14px;
@@ -362,6 +395,9 @@
                     <button type="submit" class="btn-login" id="loginBtn">
                         Войти
                     </button>
+
+                    <!-- Выбор оформления -->
+                    <div id="designToggleContainer"></div>
 
                     <!-- Подсказка -->
                     <div class="login-hint">

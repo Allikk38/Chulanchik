@@ -1,12 +1,13 @@
 // ============================================================
 // components/ExpenseList.js
+// v1.1.0 — 2026-10-27: SVG вместо эмодзи
 // ============================================================
 
 /**
  * Компонент списка расходов.
- * 
+ *
  * Чистый UI. Отображает таблицу расходов с фильтрацией.
- * 
+ *
  * @module components/ExpenseList
  */
 
@@ -28,13 +29,18 @@ const CATEGORY_LABELS = {
     other: 'Прочее'
 };
 
+// SVG-иконки (минимальные, без эмодзи)
+const ICON_EDIT = `<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M11.5 2.5l2 2L5 13H3v-2l8.5-8.5z"/></svg>`;
+const ICON_TRASH = `<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 4h10M6 4V2.5h4V4M5 4l.5 9h5L11 4"/></svg>`;
+const ICON_RECEIPT = `<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 2h10v12l-2-1-1 1-1-1-1 1-1-1-1 1-1-1-1 1V2z"/><path d="M6 6h4M6 9h4"/></svg>`;
+
 // ============================================================
 // Рендеринг
 // ============================================================
 
 /**
  * Рендерит таблицу расходов.
- * 
+ *
  * @param {Object} options
  * @param {Array} options.expenses - список расходов
  * @param {Function} options.onEdit - callback при редактировании
@@ -54,7 +60,6 @@ export function renderExpenseTable({ expenses, onEdit, onDelete, isLoading }) {
     if (expenses.length === 0) {
         return `
             <div class="empty-state">
-                <div class="empty-state-icon">📭</div>
                 <p>Нет расходов за выбранный период</p>
                 <small>Нажмите «+ Добавить расход», чтобы внести первые данные</small>
             </div>`;
@@ -111,18 +116,18 @@ function renderExpenseRow(expense, onEdit, onDelete) {
             </td>
             <td class="receipt-cell">
                 ${hasReceipt ? `
-                    <button class="btn-icon btn-sm view-receipt-btn" data-receipt-url="${escapeHtml(expense.receipt_url)}" title="Показать чек">
-                        📎
+                    <button class="btn-icon btn-sm view-receipt-btn" data-receipt-url="${escapeHtml(expense.receipt_url)}" title="Показать чек" aria-label="Показать чек">
+                        ${ICON_RECEIPT}
                     </button>
                 ` : '<span class="text-muted">—</span>'}
             </td>
             <td class="actions-cell text-center">
                 <div class="row-actions">
-                    <button class="btn-icon btn-sm edit-expense" data-id="${expense.id}" title="Редактировать">
-                        ✎
+                    <button class="btn-icon btn-sm edit-expense" data-id="${expense.id}" title="Редактировать" aria-label="Редактировать">
+                        ${ICON_EDIT}
                     </button>
-                    <button class="btn-icon btn-sm btn-danger delete-expense" data-id="${expense.id}" title="Удалить">
-                        ✕
+                    <button class="btn-icon btn-sm btn-danger delete-expense" data-id="${expense.id}" title="Удалить" aria-label="Удалить">
+                        ${ICON_TRASH}
                     </button>
                 </div>
             </td>
@@ -131,7 +136,7 @@ function renderExpenseRow(expense, onEdit, onDelete) {
 
 /**
  * Рендерит фильтры для списка расходов.
- * 
+ *
  * @param {Object} options
  * @param {string} options.fromDate - начальная дата (YYYY-MM-DD)
  * @param {string} options.toDate - конечная дата (YYYY-MM-DD)
@@ -177,7 +182,7 @@ export function renderExpenseFilters({ fromDate, toDate, category }) {
 
 /**
  * Инициализирует обработчики для списка расходов.
- * 
+ *
  * @param {HTMLElement} container - контейнер с таблицей
  * @param {Object} handlers
  * @param {Function} handlers.onEdit
@@ -187,7 +192,6 @@ export function renderExpenseFilters({ fromDate, toDate, category }) {
 export function bindExpenseListEvents(container, handlers) {
     if (!container) return;
 
-    // Редактирование
     container.querySelectorAll('.edit-expense').forEach(btn => {
         btn.removeEventListener('click', handlers._editHandler);
         const handler = (e) => {
@@ -199,7 +203,6 @@ export function bindExpenseListEvents(container, handlers) {
         btn._editHandler = handler;
     });
 
-    // Удаление
     container.querySelectorAll('.delete-expense').forEach(btn => {
         btn.removeEventListener('click', handlers._deleteHandler);
         const handler = async (e) => {
@@ -219,7 +222,6 @@ export function bindExpenseListEvents(container, handlers) {
         btn._deleteHandler = handler;
     });
 
-    // Просмотр чека
     container.querySelectorAll('.view-receipt-btn').forEach(btn => {
         btn.removeEventListener('click', handlers._receiptHandler);
         const handler = (e) => {
@@ -234,7 +236,7 @@ export function bindExpenseListEvents(container, handlers) {
 
 /**
  * Показывает модальное окно с чеком.
- * 
+ *
  * @param {string} receiptUrl
  */
 export function showReceiptModal(receiptUrl) {
@@ -244,7 +246,7 @@ export function showReceiptModal(receiptUrl) {
         <div class="modal receipt-modal-content">
             <div class="modal-header">
                 <h3>Чек</h3>
-                <button class="btn-close receipt-close">x</button>
+                <button class="btn-close receipt-close" aria-label="Закрыть">&times;</button>
             </div>
             <div class="modal-body">
                 <img src="${escapeHtml(receiptUrl)}" alt="Чек" style="max-width:100%; height:auto;">

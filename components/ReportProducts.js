@@ -1,6 +1,6 @@
 // ============================================================
 // components/ReportProducts.js
-// Добавлена кнопка «Отчёт сдатчику»
+// v1.1.0 — 2026-10-27: убран 📭 из пустого состояния
 // ============================================================
 
 /**
@@ -107,7 +107,6 @@ function renderSlowMovingList(products) {
 // ============================================================
 
 async function handleConsignorReport() {
-    // Запрашиваем ФИО комитента
     const fullName = await showPromptDialog({
         title: 'Отчёт сдатчику',
         label: 'ФИО комитента (сдатчика)',
@@ -118,17 +117,14 @@ async function handleConsignorReport() {
 
     if (!fullName) return;
 
-    // Берём все товары (в будущем — с фильтром по комитенту)
     const allProducts = productStore.getAll();
 
-    // Считаем итоги
     const soldItems = allProducts.filter(p => p.status === 'sold');
     const total = soldItems.reduce((sum, p) => sum + (Number(p.price) || 0), 0);
     const commissionPercent = 30;
     const commission = Math.round(total * commissionPercent / 100);
     const toPay = total - commission;
 
-    // Формируем данные для отчёта
     const reportData = {
         consignor: {
             fullName: fullName.trim(),
@@ -208,7 +204,6 @@ export function renderProductsTab(state) {
 
 /**
  * Привязывает обработчики событий для вкладки «Товары».
- * Вызывается контроллером после вставки HTML в DOM.
  */
 export function bindProductsEvents() {
     const btn = document.getElementById('consignorReportBtn');
@@ -217,10 +212,6 @@ export function bindProductsEvents() {
         btn.addEventListener('click', handleConsignorReport);
     }
 }
-
-// ============================================================
-// Экспорт по умолчанию
-// ============================================================
 
 export default {
     renderProductsTab,

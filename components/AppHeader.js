@@ -1,5 +1,6 @@
 // ============================================================
 // components/AppHeader.js
+// v1.1.0 — 2026-10-27: убран app-divider (ИИ-маркер)
 // ============================================================
 
 /**
@@ -66,7 +67,6 @@ export function renderAppHeader({ currentPage, userName }) {
         <header class="app-header">
             <div class="app-header-left">
                 <span class="app-brand">Чуланчик</span>
-                <span class="app-divider"></span>
                 <span class="app-section">${escapeHtml(sectionLabel)}</span>
             </div>
 
