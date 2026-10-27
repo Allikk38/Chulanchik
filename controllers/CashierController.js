@@ -1,6 +1,6 @@
 // ============================================================
 // controllers/CashierController.js
-// v2.3.2 — 2026-04-30: исправлен импорт SaleService на именованный
+// v2.4.0 — 2026-09-18: USB HID-сканер + ESC/POS-принтер
 // ============================================================
 //
 // НАЗНАЧЕНИЕ
@@ -16,22 +16,31 @@
 //   CashierCart          — рендеринг корзины и мобильной кнопки
 //   CashierProducts      — рендеринг панели товаров
 //   AppHeader            — рендеринг навигации
+//   usbScanner           — глобальный HID-слушатель
+//   usbPrinter           — работа с ESC/POS-принтером (WebUSB)
 //
-// ПОТОК ДАННЫХ (изменён в v2.3.0)
+// ПОТОК ДАННЫХ
 //   1. init() вызывается при DOMContentLoaded
 //   2. Вставляется AppHeader с навигацией
 //   3. Проверяется авторизация через requireAuth()
 //   4. Кэшируется DOM
 //   5. Внедряются зависимости в CashierCart и CashierProducts
-//   6. Рендерится скелетон загрузки
-//   7. Загружаются товары (productStore.loadProducts) с таймаутом
-//   8. Восстанавливается корзина с проверкой статусов
-//   9. Загружается смена (shiftStore.checkOpenShift)
-//  10. render() перестраивает интерфейс
+//   6. Инициализируется usbScanner (глобальный HID-слушатель)
+//   7. Восстанавливается подключение к usbPrinter (tryReconnect)
+//   8. Рендерится скелетон загрузки
+//   9. Загружаются товары с таймаутом
+//  10. Восстанавливается корзина с проверкой статусов
+//  11. Загружается смена
+//  12. render() перестраивает интерфейс
 //
 // ИЗМЕНЕНИЯ
-//   v2.3.2 — исправлен импорт SaleService на именованный, добавлена защита от двойного оформления
-//   v2.3.1 — исправлен импорт SaleService (использовать default)
+//   v2.4.0 — интеграция USB-сканера и ESC/POS-принтера:
+//            - initUsbScanner() — глобальный HID-слушатель
+//            - initUsbPrinter() — восстановление соединения
+//            - printReceiptAfterSale() — печать после checkout
+//            - кнопка «Подключить принтер» в шапке
+//   v2.3.2 — исправлен импорт SaleService на именованный
+//   v2.3.1 — исправлен импорт SaleService
 //   v2.3.0 — исправление бесконечной загрузки на мобильных
 //   v2.2.0 — валидация корзины и таймаут загрузки
 //   v2.1.0 — удалена дублирующаяся ensureMobileCartButton()
@@ -74,6 +83,9 @@ import {
     renderToolbar,
     renderProductGrid
 } from '../components/CashierProducts.js';
+import * as usbScanner from '../utils/usbScanner.js';
+import * as usbPrinter from '../utils/usbPrinter.js';
+
 // ============================================================
 // Константы
 // ============================================================
@@ -92,7 +104,9 @@ const state = {
     isScanning: false,
     isInitialLoading: true,
     isSlowLoad: false,
-    isCheckingOut: false
+    isCheckingOut: false,
+    usbScannerDispose: null,
+    usbPrinterStatus: 'disconnected'
 };
 
 // ============================================================
@@ -102,6 +116,208 @@ const state = {
 const DOM = {
     content: null
 };
+
+// ============================================================
+// USB — сканер
+// ============================================================
+
+/**
+ * Инициализирует глобальный HID-сканер.
+ * При успешном распознавании штрихкода:
+ *   - 1 товар in_stock → добавляет в корзину;
+ *   - N товаров → заполняет поиск;
+ *   - 0 → уведомление.
+ */
+function initUsbScanner() {
+    if (state.usbScannerDispose) return;
+
+    state.usbScannerDispose = usbScanner.init({
+        onScan: (barcode) => {
+            console.log('[Cashier] HID scan received:', barcode);
+
+            if (state.isInitialLoading) return;
+
+            // Смена закрыта — игнорируем
+            if (!shiftStore.isOpen()) {
+                showNotification('Смена закрыта — откройте смену для продаж', 'warning');
+                return;
+            }
+
+            // Ищем товары по штрихкоду:
+            // 1) точное совпадение по id (частый случай для комиссионки)
+            // 2) частичное совпадение по name
+            const all = productStore.getInStock();
+            const exact = all.find(p => String(p.id).toLowerCase() === barcode.toLowerCase());
+            if (exact) {
+                cartStore.addItem(exact);
+                showNotification(`«${exact.name}» добавлен в корзину`, 'success');
+                return;
+            }
+
+            const matches = all.filter(p =>
+                p.name?.toLowerCase().includes(barcode.toLowerCase()) ||
+                p.id?.toLowerCase().includes(barcode.toLowerCase())
+            );
+
+            if (matches.length === 1) {
+                cartStore.addItem(matches[0]);
+                showNotification(`«${matches[0].name}» добавлен в корзину`, 'success');
+            } else if (matches.length > 1) {
+                state.searchQuery = barcode;
+                state.selectedCategory = null;
+                showNotification(`Найдено ${matches.length} товаров`, 'info');
+                render();
+                // Фокусируем поле поиска, чтобы пользователь видел результат
+                setTimeout(() => document.getElementById('searchInput')?.focus(), 50);
+            } else {
+                showNotification(`Товар по штрихкоду "${barcode}" не найден`, 'warning');
+            }
+        }
+    });
+
+    console.log('[Cashier] HID scanner initialized');
+}
+
+// ============================================================
+// USB — принтер
+// ============================================================
+
+/**
+ * Инициализирует соединение с принтером:
+ *   - подписывается на изменение статуса (для индикатора);
+ *   - пытается восстановить соединение с ранее разрешённым устройством.
+ */
+async function initUsbPrinter() {
+    usbPrinter.onStatusChange((status, error) => {
+        state.usbPrinterStatus = status;
+        updatePrinterIndicator(status, error);
+    });
+
+    if (!usbPrinter.isSupported()) {
+        console.log('[Cashier] USB printer not supported in this browser');
+        updatePrinterIndicator('unsupported', null);
+        return;
+    }
+
+    const reconnected = await usbPrinter.tryReconnect();
+    console.log('[Cashier] printer reconnect result:', reconnected);
+}
+
+/**
+ * Обновляет индикатор и кнопку принтера в шапке.
+ *
+ * @param {string} status
+ * @param {string|null} error
+ */
+function updatePrinterIndicator(status, error) {
+    const indicator = document.getElementById('printerIndicator');
+    const button = document.getElementById('connectPrinterBtn');
+
+    if (indicator) {
+        indicator.dataset.status = status;
+        const map = {
+            disconnected: { text: 'Принтер не подключён', color: '#8c7b6e' },
+            connecting:   { text: 'Подключение...', color: '#ea580c' },
+            connected:    { text: 'Принтер подключён', color: '#16a34a' },
+            error:        { text: 'Ошибка принтера', color: '#dc2626' },
+            unsupported:  { text: 'Принтер не поддерживается', color: '#94a3b8' }
+        };
+        const info = map[status] || map.disconnected;
+        indicator.textContent = info.text;
+        indicator.style.color = info.color;
+        indicator.title = error || '';
+    }
+
+    if (button) {
+        if (status === 'unsupported') {
+            button.disabled = true;
+            button.title = 'WebUSB не поддерживается в этом браузере (Chrome/Edge на десктопе)';
+        } else if (status === 'connected') {
+            button.disabled = false;
+            button.textContent = 'Отключить принтер';
+        } else if (status === 'connecting') {
+            button.disabled = true;
+            button.textContent = 'Подключение...';
+        } else {
+            button.disabled = false;
+            button.textContent = 'Подключить принтер';
+        }
+    }
+}
+
+/**
+ * Обработчик клика по кнопке принтера.
+ * Если подключён — отключает, иначе — открывает диалог выбора устройства.
+ */
+async function handlePrinterButtonClick() {
+    if (state.usbPrinterStatus === 'connected') {
+        await usbPrinter.disconnect();
+        showNotification('Принтер отключён', 'info');
+        return;
+    }
+
+    const ok = await usbPrinter.connect();
+    if (ok) {
+        showNotification('Принтер подключён', 'success');
+    } else if (state.usbPrinterStatus === 'error') {
+        showNotification('Не удалось подключить принтер', 'error');
+    }
+}
+
+/**
+ * Печатает чек после успешной продажи.
+ * Не блокирует UI — fire-and-forget.
+ *
+ * @param {Object} sale — объект из SaleService.checkout()
+ * @param {Array} items — снимок cartStore.getItems() ДО reset()
+ * @param {string} paymentMethod
+ * @param {string} sellerName
+ */
+async function printReceiptAfterSale({ sale, items, paymentMethod, sellerName }) {
+    if (state.usbPrinterStatus !== 'connected') {
+        console.log('[Cashier] printer not connected — skip print');
+        return;
+    }
+
+    const receiptData = {
+        shopName: 'Чуланчик',
+        date: new Date(),
+        sellerName,
+        shiftId: shiftStore.getCurrentShiftId(),
+        saleId: sale?.id || '',
+        items,
+        total: cartStoreTotalBeforeReset(items),
+        paymentMethod,
+        qrText: sale?.id
+            ? `Чуланчик|sale=${sale.id}|total=${cartStoreTotalBeforeReset(items)}`
+            : '',
+        paperWidth: usbPrinter.PAPER_WIDTH_58
+    };
+
+    const result = await usbPrinter.printReceipt(receiptData);
+    if (result.success) {
+        console.log('[Cashier] receipt printed');
+    } else {
+        console.warn('[Cashier] print failed:', result.error);
+        showNotification(`Не удалось напечатать чек: ${result.error}`, 'warning');
+    }
+}
+
+/**
+ * Восстанавливает сумму корзины по снимку items
+ * (cartStore уже мог быть reset — нельзя читать getTotal()).
+ *
+ * @param {Array} items
+ * @returns {number}
+ */
+function cartStoreTotalBeforeReset(items) {
+    return items.reduce((sum, item) => {
+        const price = Number(item.price) || 0;
+        const discount = Number(item.discount) || 0;
+        const qty = Number(item.quantity) || 0;
+        return sum + Math.round(price * (1 - discount / 100) * qty);
+    }, 0);
+}
 
 // ============================================================
 // Рендеринг
@@ -225,7 +441,7 @@ function updateFabVisibility() {
 }
 
 // ============================================================
-// Сканирование штрихкода
+// Сканирование штрихкода (камера)
 // ============================================================
 
 async function startScan() {
@@ -293,8 +509,10 @@ async function checkout() {
         checkoutBtn.textContent = 'Оформление...';
     }
 
+    // Снимок корзины ДО reset — нужен для печати чека
+    const itemsSnapshot = cartStore.getItems();
+
     // Имя продавца для снимка в sales.seller_name и в аудите.
-    // resolveUserName делает fallback: fullName → email → id.
     const sellerName = resolveUserName(state.user);
 
     const result = await SaleService.checkout({
@@ -312,10 +530,19 @@ async function checkout() {
     if (result.success) {
         closeCart();
         showNotification(`Продажа на ${formatMoney(total)} оформлена`, 'success');
+
+        // Печать чека — fire-and-forget, не блокирует UI
+        void printReceiptAfterSale({
+            sale: result.sale,
+            items: itemsSnapshot,
+            paymentMethod: method,
+            sellerName
+        });
     } else {
         showNotification(result.error || 'Ошибка оформления', 'error');
     }
 }
+
 async function quickAdd() {
     if (!hasPermission('products:create')) {
         showNotification('Недостаточно прав', 'error');
@@ -517,6 +744,44 @@ function cacheDom() {
     DOM.content = document.getElementById('cashierContent');
 }
 
+/**
+ * Вставляет блок кнопок принтера в правую часть шапки
+ * (рядом с «Выход»). Ничего не ломает, если шапки нет.
+ */
+function injectPrinterControls() {
+    const actions = document.querySelector('.header-actions');
+    if (!actions) return;
+
+    // Уже вставлено
+    if (document.getElementById('connectPrinterBtn')) return;
+
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = 'display:flex;align-items:center;gap:8px;';
+
+    const indicator = document.createElement('span');
+    indicator.id = 'printerIndicator';
+    indicator.style.cssText = 'font-size:11px;white-space:nowrap;';
+    indicator.textContent = 'Принтер не подключён';
+    indicator.style.color = '#8c7b6e';
+
+    const button = document.createElement('button');
+    button.id = 'connectPrinterBtn';
+    button.className = 'btn-ghost btn-sm';
+    button.textContent = 'Подключить принтер';
+    button.addEventListener('click', handlePrinterButtonClick);
+
+    wrapper.appendChild(indicator);
+    wrapper.appendChild(button);
+
+    // Вставляем перед кнопкой «Выход», чтобы не ломать порядок
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn && logoutBtn.parentElement === actions) {
+        actions.insertBefore(wrapper, logoutBtn);
+    } else {
+        actions.appendChild(wrapper);
+    }
+}
+
 function bindGlobalEvents() {
     document.addEventListener('keydown', e => {
         if (e.ctrlKey && e.key === 'f') {
@@ -537,10 +802,22 @@ function bindGlobalEvents() {
         updateFabVisibility();
         renderMobileCartTrigger();
     });
+
+    // Отслеживаем физическое отключение устройства
+    if (navigator.usb && typeof navigator.usb.addEventListener === 'function') {
+        navigator.usb.addEventListener('disconnect', (event) => {
+            if (state.usbPrinterStatus === 'connected') {
+                console.warn('[Cashier] USB device disconnected:', event.device?.productName);
+                showNotification('Принтер отключён', 'warning');
+                state.usbPrinterStatus = 'disconnected';
+                updatePrinterIndicator('disconnected', null);
+            }
+        });
+    }
 }
 
 async function init() {
-    console.log('[Cashier] v2.3.2 - fixed SaleService import to named');
+    console.log('[Cashier] v2.4.0 — USB HID scanner + ESC/POS printer');
 
     const headerHtml = renderAppHeader({
         currentPage: 'cashier',
@@ -569,6 +846,9 @@ async function init() {
         onLogout: () => logout()
     });
 
+    // Кнопка принтера — сразу, до авторизации (чтобы не мигала)
+    injectPrinterControls();
+
     const { user, authError } = await requireAuth();
     if (authError || !user) {
         window.location.href = 'pages/login.html';
@@ -586,6 +866,12 @@ async function init() {
     initProducts({ productStore, cartStore, shiftStore, state });
 
     bindGlobalEvents();
+
+    // USB-сканер — независим от данных, можно инициализировать сразу
+    initUsbScanner();
+
+    // USB-принтер — асинхронно, не блокирует загрузку
+    void initUsbPrinter();
 
     state.isInitialLoading = true;
     render();
