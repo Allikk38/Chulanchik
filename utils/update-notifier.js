@@ -1,6 +1,8 @@
 // ============================================================
 // utils/update-notifier.js
-// v1.0.0 — 2026-10-27: плашка «Доступна новая версия»
+// v1.1.0 — 2026-10-27: немедленный update() после регистрации,
+//                      query-параметр против кэша GitHub Pages,
+//                      лог controllerchange для диагностики
 // ============================================================
 //
 // НАЗНАЧЕНИЕ
@@ -10,17 +12,25 @@
 //
 // ЛОГИКА
 //   1. Регистрирует SW (если ещё не зарегистрирован).
-//   2. Слушает 'updatefound' и 'statechange' — если новый SW
+//   2. Сразу после регистрации вызывает registration.update() —
+//      не ждёт 30 минут.
+//   3. Слушает 'updatefound' и 'statechange' — если новый SW
 //      перешёл в состояние 'installed', показывает плашку.
-//   3. Слушает сообщения SW_UPDATED от уже активного воркера
+//   4. Слушает сообщения SW_UPDATED от уже активного воркера
 //      (после activate с clients.claim).
-//   4. При клике «Обновить»:
+//   5. При клике «Обновить»:
 //      - отправляет SKIP_WAITING (если воркер ещё ждёт),
 //      - перезагружает страницу.
 //
 // ИСПОЛЬЗУЕТСЯ
 //   Все страницы приложения: index.html, pages/*.html
 //   Вызов: initUpdateNotifier() — сразу в <head> как модуль.
+//
+// ИЗМЕНЕНИЯ
+//   v1.1.0 — немедленный update() после register, query-параметр
+//            ?v=Date.now() против кэша GitHub Pages, лог
+//            controllerchange для диагностики.
+//   v1.0.0 — первоначальная версия.
 //
 // ============================================================
 
@@ -165,18 +175,33 @@ export function initUpdateNotifier() {
         }
     });
 
-    // Регистрируем (или находим) SW
-    navigator.serviceWorker.register('/Chulanchik/sw.js', { scope: '/Chulanchik/' })
+    // Лог смены контроллера — помогает диагностике, когда плашка
+    // не появляется, но воркер уже активировался
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+        console.log('[update-notifier] controller changed — new SW active');
+    });
+
+    // Регистрируем (или находим) SW.
+    // Query-параметр ?v=Date.now() обходит агрессивный кэш GitHub Pages:
+    // CDN отдаёт sw.js с большим max-age, и без query-параметра
+    // браузер может месяцами видеть старую версию.
+    const swUrl = `/Chulanchik/sw.js?v=${Date.now()}`;
+
+    navigator.serviceWorker.register(swUrl, { scope: '/Chulanchik/' })
         .then(registration => {
             swRegistration = registration;
 
-            // 1. Уже есть ожидающий воркер? Показываем плашку сразу.
+            // 1. Сразу запрашиваем обновление — не ждём 30 минут.
+            //    Если на сервере уже лежит новый sw.js, браузер его увидит.
+            registration.update().catch(() => { /* офлайн — не критично */ });
+
+            // 2. Уже есть ожидающий воркер? Показываем плашку сразу.
             if (registration.waiting) {
                 waitingWorker = registration.waiting;
                 showBanner();
             }
 
-            // 2. Новый воркер обнаружен при загрузке этой страницы
+            // 3. Новый воркер обнаружен при загрузке этой страницы
             registration.addEventListener('updatefound', () => {
                 const newWorker = registration.installing;
                 if (!newWorker) return;
@@ -190,13 +215,13 @@ export function initUpdateNotifier() {
                 });
             });
 
-            // 3. Периодическая проверка обновлений (каждые 30 минут)
+            // 4. Периодическая проверка обновлений (каждые 30 минут)
             //    На случай, если вкладка не закрывается днями.
             setInterval(() => {
                 registration.update().catch(() => { /* офлайн */ });
             }, 30 * 60 * 1000);
 
-            // 4. Проверка при возврате фокуса на вкладку (продавец вернулся
+            // 5. Проверка при возврате фокуса на вкладку (продавец вернулся
             //    с обеда — есть шанс, что вышел новый деплой)
             document.addEventListener('visibilitychange', () => {
                 if (document.visibilityState === 'visible') {

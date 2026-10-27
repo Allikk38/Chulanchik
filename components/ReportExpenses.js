@@ -1,7 +1,7 @@
 // ============================================================
 // components/ReportExpenses.js
-// v1.1.0 — 2026-10-27: корректные entities, formatDateTime,
-//                      отступ у кнопки «Добавить расход»
+// v1.2.0 — 2026-10-27: убраны цветные модификаторы category-badge
+//                      (нейтральный текст, без цветных плашек)
 // ============================================================
 
 /**
@@ -54,7 +54,7 @@ function renderExpenseRow(expense) {
         <tr data-id="${expense.id}">
             <td class="date-cell">${formatDateTime(expense.expense_date)}</td>
             <td class="category-cell">
-                <span class="category-badge category-${expense.category}">
+                <span class="category-badge">
                     ${escapeHtml(getCategoryLabel(expense.category))}
                 </span>
             </td>

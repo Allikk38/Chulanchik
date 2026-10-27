@@ -624,22 +624,13 @@
     color: #6b5e53;
 }
 
-/* ========== CATEGORY BADGES (без «таблеток», только цвет текста) ========== */
+/* ========== CATEGORY BADGES (нейтральный текст, без цветов) ========== */
 .category-badge {
     display: inline-block;
     font-size: var(--font-size-xs);
     font-weight: var(--font-weight-medium);
-    color: #374151;
+    color: #6b5e53;
 }
-
-.category-badge.category-rent { color: #4338ca; }
-.category-badge.category-advertising { color: #be185d; }
-.category-badge.category-supplies { color: #065f46; }
-.category-badge.category-utilities { color: #9a3412; }
-.category-badge.category-salary { color: #3730a3; }
-.category-badge.category-taxes { color: #991b1b; }
-.category-badge.category-repair { color: #92400e; }
-.category-badge.category-other { color: #374151; }
 
 /* ========== ROW ACTIONS ========== */
 .row-actions {
