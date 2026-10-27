@@ -704,12 +704,91 @@ export function showPromptDialog(options = {}) {
         }, 100);
     });
 }
+/**
+ * Модалка «введите логин/пароль администратора».
+ * Возвращает {email, password} или null.
+ *
+ * @returns {Promise<{email: string, password: string}|null>}
+ */
+export function showAdminPasswordDialog() {
+    return new Promise((resolve) => {
+        const container = getModalContainer();
 
+        const overlay = document.createElement('div');
+        overlay.className = 'sh-modal-overlay';
+        overlay.style.cssText = `
+            position: fixed; top:0; left:0; right:0; bottom:0;
+            background: rgba(15, 23, 42, 0.4);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 10000; padding: 16px;
+        `;
+
+        const modal = document.createElement('div');
+        modal.className = 'sh-modal';
+        modal.style.cssText = `
+            background: white; border-radius: 12px;
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+            width: 100%; max-width: 400px; overflow: hidden;
+        `;
+
+        modal.innerHTML = `
+            <div style="padding:20px 24px;border-bottom:1px solid #e2e8f0;">
+                <h3 style="margin:0;font-size:18px;font-weight:600;color:#0f172a;">Требуется подтверждение</h3>
+            </div>
+            <div style="padding:24px;">
+                <p style="margin:0 0 16px;font-size:14px;color:#475569;">
+                    Удаление может выполнить только администратор.
+                </p>
+                <label style="display:block;margin-bottom:6px;font-size:13px;font-weight:500;color:#0f172a;">Email администратора</label>
+                <input type="email" id="shAdminEmail" autocomplete="username"
+                    style="width:100%;padding:10px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:15px;box-sizing:border-box;margin-bottom:12px;">
+                <label style="display:block;margin-bottom:6px;font-size:13px;font-weight:500;color:#0f172a;">Пароль</label>
+                <input type="password" id="shAdminPassword" autocomplete="current-password"
+                    style="width:100%;padding:10px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:15px;box-sizing:border-box;">
+                <div id="shAdminError" style="margin-top:8px;font-size:12px;color:#dc2626;min-height:16px;"></div>
+            </div>
+            <div style="padding:16px 24px;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;gap:8px;background:#f8fafc;">
+                <button class="sh-cancel" style="padding:8px 20px;border-radius:6px;font-size:14px;cursor:pointer;border:1px solid #e2e8f0;background:white;color:#475569;">Отмена</button>
+                <button class="sh-confirm" style="padding:8px 20px;border-radius:6px;font-size:14px;cursor:pointer;border:none;background:#dc2626;color:white;">Подтвердить</button>
+            </div>
+        `;
+
+        overlay.appendChild(modal);
+        container.appendChild(overlay);
+
+        const emailEl = modal.querySelector('#shAdminEmail');
+        const passEl = modal.querySelector('#shAdminPassword');
+        const errEl = modal.querySelector('#shAdminError');
+
+        const close = (result) => { overlay.remove(); resolve(result); };
+
+        overlay.addEventListener('click', e => { if (e.target === overlay) close(null); });
+        modal.querySelector('.sh-cancel').addEventListener('click', () => close(null));
+        modal.querySelector('.sh-confirm').addEventListener('click', () => {
+            const email = emailEl.value.trim();
+            const password = passEl.value;
+            if (!email || !password) {
+                errEl.textContent = 'Введите email и пароль';
+                return;
+            }
+            close({ email, password });
+        });
+
+        const onKey = (e) => {
+            if (e.key === 'Escape') { close(null); document.removeEventListener('keydown', onKey); }
+            if (e.key === 'Enter') { modal.querySelector('.sh-confirm').click(); }
+        };
+        document.addEventListener('keydown', onKey);
+
+        setTimeout(() => emailEl.focus(), 100);
+    });
+}
 // ========== ЭКСПОРТ ПО УМОЛЧАНИЮ ==========
 
 export default {
     showNotification,
     showConfirmDialog,
     showPaymentModal,
-    showPromptDialog
+    showPromptDialog,
+    showAdminPasswordDialog
 };

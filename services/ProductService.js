@@ -1,6 +1,6 @@
 // ============================================================
 // services/ProductService.js
-// v1.3.0 — 2026-10-27: админ может удалять проданные товары
+// v1.4.0 — 2026-10-27: quantity_limit в create
 // ============================================================
 
 /**
@@ -38,6 +38,13 @@ function validateProductBase(data) {
         errors.push('Себестоимость не может быть отрицательной');
     }
 
+    if (data.quantity_limit !== undefined && data.quantity_limit !== null) {
+        const ql = Number(data.quantity_limit);
+        if (!Number.isFinite(ql) || ql < 1) {
+            errors.push('Лимит количества должен быть ≥ 1');
+        }
+    }
+
     return { valid: errors.length === 0, errors };
 }
 
@@ -45,26 +52,7 @@ function validateProductBase(data) {
 // Хелперы для работы с фото
 // ============================================================
 
-/**
- * Определяет финальный photo_url для операции create/update.
- *
- * Логика:
- *   - photoRemoved === true → null (удалить фото)
- *   - photoFile передан     → загрузить, вернуть новый URL
- *   - иначе                 → оставить existing (или null)
- *
- * Старый файл удаляется из Storage, если:
- *   - он был и заменяется новым, ИЛИ
- *   - он был и явно удаляется пользователем.
- *
- * @param {Object} options
- * @param {File|null} options.photoFile — новый файл (если выбран)
- * @param {boolean} options.photoRemoved — флаг явного удаления
- * @param {string|null} options.existingUrl — текущий URL фото (для update)
- * @returns {Promise<string|null>} финальный photo_url
- */
 async function resolvePhotoUrl({ photoFile, photoRemoved, existingUrl }) {
-    // Явное удаление — удаляем старый из Storage, возвращаем null
     if (photoRemoved) {
         if (existingUrl) {
             await ProductRepository.deletePhoto(existingUrl);
@@ -72,7 +60,6 @@ async function resolvePhotoUrl({ photoFile, photoRemoved, existingUrl }) {
         return null;
     }
 
-    // Новый файл — грузим, удаляем старый если был
     if (photoFile) {
         const newUrl = await ProductRepository.uploadPhoto(photoFile);
         if (existingUrl) {
@@ -81,7 +68,6 @@ async function resolvePhotoUrl({ photoFile, photoRemoved, existingUrl }) {
         return newUrl;
     }
 
-    // Ничего не меняется — оставляем как было
     return existingUrl || null;
 }
 
@@ -90,19 +76,6 @@ async function resolvePhotoUrl({ photoFile, photoRemoved, existingUrl }) {
 // ============================================================
 
 export const ProductService = {
-    /**
-     * Создаёт товар.
-     *
-     * @param {Object} data
-     * @param {string} data.name
-     * @param {number} data.price
-     * @param {number} [data.cost_price]
-     * @param {string} [data.category]
-     * @param {Object} [data.attributes]
-     * @param {File} [data.photoFile]
-     * @param {string} data.created_by
-     * @returns {Promise<{success: boolean, error?: string, product?: Object}>}
-     */
     async create(data) {
         const baseValidation = validateProductBase(data);
         if (!baseValidation.valid) {
@@ -117,9 +90,6 @@ export const ProductService = {
         }
 
         try {
-            // Загружаем фото (если есть) ДО создания товара.
-            // Если загрузка упадёт — товар не создастся (лучше явная ошибка,
-            // чем товар без фото, которое пользователь выбрал).
             let photoUrl = null;
             if (data.photoFile) {
                 photoUrl = await ProductRepository.uploadPhoto(data.photoFile);
@@ -132,12 +102,12 @@ export const ProductService = {
                 category,
                 attributes,
                 photo_url: photoUrl,
-                created_by: data.created_by
+                created_by: data.created_by,
+                quantity_limit: Number(data.quantity_limit) || 1
             });
 
             productStore.addLocally(product);
 
-            // Аудит: успешное создание
             void AuditRepository.log({
                 userId: data.created_by,
                 action: AUDIT_ACTIONS.CREATE,
@@ -156,15 +126,6 @@ export const ProductService = {
         }
     },
 
-    /**
-     * Обновляет товар.
-     *
-     * @param {string} id
-     * @param {Object} data
-     * @param {File} [data.photoFile] — новое фото (если заменяется)
-     * @param {boolean} [data.photoRemoved] — флаг удаления фото
-     * @returns {Promise<{success: boolean, error?: string, product?: Object}>}
-     */
     async update(id, data) {
         const existing = productStore.getById(id);
 
@@ -193,10 +154,6 @@ export const ProductService = {
         }
 
         try {
-            // Определяем финальный photo_url:
-            //   - новое фото → грузим, старый удаляем;
-            //   - явное удаление → старый удаляем, null;
-            //   - ничего не менялось → оставляем existing.photo_url.
             const finalPhotoUrl = await resolvePhotoUrl({
                 photoFile: data.photoFile || null,
                 photoRemoved: !!data.photoRemoved,
@@ -209,10 +166,12 @@ export const ProductService = {
                 cost_price: data.cost_price,
                 category: data.category,
                 attributes: data.attributes,
-                photo_url: finalPhotoUrl
+                photo_url: finalPhotoUrl,
+                quantity_limit: data.quantity_limit !== undefined
+                    ? Number(data.quantity_limit) || 1
+                    : undefined
             };
 
-            // Убираем undefined — не перезаписываем поля, которые не пришли
             Object.keys(updates).forEach(key => {
                 if (updates[key] === undefined) delete updates[key];
             });
@@ -220,7 +179,6 @@ export const ProductService = {
             const updated = await ProductRepository.update(id, updates);
             productStore.updateLocally(id, updated);
 
-            // Аудит: успешное обновление
             void AuditRepository.log({
                 userId: data.userId || existing.created_by || null,
                 action: AUDIT_ACTIONS.UPDATE,
@@ -239,18 +197,6 @@ export const ProductService = {
         }
     },
 
-    /**
-     * Удаляет товар.
-     * Также удаляет его фото из Storage.
-     *
-     * Проданный товар может удалить только администратор
-     * (флаг isAdmin передаёт контроллер — сервис не лезет в auth).
-     *
-     * @param {string} id
-     * @param {Object} [options]
-     * @param {boolean} [options.isAdmin=false] — разрешить удаление проданного
-     * @returns {Promise<{success: boolean, error?: string}>}
-     */
     async remove(id, { isAdmin = false } = {}) {
         const existing = productStore.getById(id);
 
@@ -258,8 +204,6 @@ export const ProductService = {
             return { success: false, error: 'Товар не найден' };
         }
 
-        // Продано — удалять может только админ.
-        // Остальные получают понятную ошибку.
         if (existing.status === 'sold' && !isAdmin) {
             return { success: false, error: 'Удалять проданные товары может только администратор' };
         }
@@ -267,7 +211,6 @@ export const ProductService = {
         try {
             await ProductRepository.remove(id);
 
-            // Удаляем фото из Storage (не блокирует основную операцию)
             if (existing.photo_url) {
                 await ProductRepository.deletePhoto(existing.photo_url);
             }

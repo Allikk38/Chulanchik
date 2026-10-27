@@ -462,27 +462,40 @@ async function deleteProduct(id) {
     const isAdmin = state.user?.roleName === 'admin';
     const isSold = product.status === 'sold';
 
-    if (isSold && !isAdmin) {
-        showNotification('Удалять проданные товары может только администратор', 'error');
-        return;
-    }
-
+    // 1. Подтверждение
     const confirmed = await showConfirmDialog({
         title: isSold ? 'Удаление проданного товара' : 'Удаление товара',
         message: isSold
-            ? `«${product.name}» уже продан. Удалить запись о товаре? История продаж сохранится, но товар исчезнет из складского учёта.`
+            ? `«${product.name}» уже продан. Удалить запись о товаре? История продаж сохранится.`
             : `Вы уверены, что хотите удалить товар «${product.name}»?`,
-        confirmText: 'Удалить',
+        confirmText: 'Продолжить',
         confirmClass: 'btn-danger'
     });
-
     if (!confirmed) return;
+
+    // 2. Если не админ — требуем пароль админа
+    if (!isAdmin) {
+        const { showAdminPasswordDialog } = await import('../utils/ui.js');
+        const { verifyAdminCredentials } = await import('../core/auth.js');
+
+        const creds = await showAdminPasswordDialog();
+        if (!creds) return;
+
+        const check = await verifyAdminCredentials(creds.email, creds.password);
+        if (!check.ok) {
+            showNotification(check.error || 'Неверные данные администратора', 'error');
+            return;
+        }
+
+        // Продолжаем как "админ" на одну операцию
+        state.user = { ...state.user, roleName: 'admin', verifiedForDeletion: true };
+    }
 
     state.isBusy = true;
     renderTable();
     renderMobileCards();
 
-    const { success, error } = await ProductService.remove(id, { isAdmin });
+    const { success, error } = await ProductService.remove(id, { isAdmin: true });
 
     state.isBusy = false;
     state.selectedIds.delete(id);

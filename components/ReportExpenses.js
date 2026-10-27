@@ -1,6 +1,7 @@
 // ============================================================
 // components/ReportExpenses.js
-// Шаг 9: CRUD расходов через модалку
+// v1.1.0 — 2026-10-27: корректные entities, formatDateTime,
+//                      отступ у кнопки «Добавить расход»
 // ============================================================
 
 /**
@@ -12,7 +13,7 @@
  * @module components/ReportExpenses
  */
 
-import { formatMoney, formatDate, escapeHtml } from '../utils/formatters.js';
+import { formatMoney, formatDateTime, escapeHtml } from '../utils/formatters.js';
 
 // ============================================================
 // Константы
@@ -51,7 +52,7 @@ function renderExpenseRow(expense) {
 
     return `
         <tr data-id="${expense.id}">
-            <td class="date-cell">${formatDate(expense.expense_date)}</td>
+            <td class="date-cell">${formatDateTime(expense.expense_date)}</td>
             <td class="category-cell">
                 <span class="category-badge category-${expense.category}">
                     ${escapeHtml(getCategoryLabel(expense.category))}
@@ -69,17 +70,17 @@ function renderExpenseRow(expense) {
             <td class="receipt-cell text-center">
                 ${hasReceipt ? `
                     <button class="btn-icon btn-sm view-receipt-btn" data-receipt-url="${escapeHtml(expense.receipt_url)}" title="Показать чек">
-                        &check;
+                        &#10003;
                     </button>
                 ` : '<span class="text-muted">--</span>'}
             </td>
             <td class="actions-cell text-center">
                 <div class="row-actions">
                     <button class="btn-icon btn-sm edit-expense" data-id="${expense.id}" title="Редактировать">
-                        &pencil;
+                        &#9998;
                     </button>
                     <button class="btn-icon btn-sm btn-danger delete-expense" data-id="${expense.id}" title="Удалить">
-                        &times;
+                        &#215;
                     </button>
                 </div>
             </td>
@@ -131,7 +132,7 @@ export function renderExpensesTab(state) {
     const summary = computeExpensesSummary(state.expenses);
 
     return `
-        <div class="expenses-tab-header">
+        <div class="expenses-tab-header" style="margin-top: var(--spacing-4);">
             <div class="expenses-actions">
                 <button class="btn-primary" id="addExpenseBtn">+ Добавить расход</button>
             </div>
@@ -168,8 +169,6 @@ export function bindExpensesEvents(state, onDataChanged) {
         addBtn.addEventListener('click', async () => {
             const { openExpenseFormModal } = await import('../components/ExpenseForm.js');
             const { showNotification } = await import('../utils/ui.js');
-            const { expenseStore } = await import('../stores/ExpenseStore.js');
-            const ExpenseService = (await import('../services/ExpenseService.js')).default;
 
             const result = await openExpenseFormModal({
                 mode: 'create',

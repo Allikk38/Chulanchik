@@ -1,6 +1,6 @@
 // ============================================================
 // components/ReportShifts.js
-// Шаг 7: Вкладка «Смены» — сводка, по продавцам, список
+// v1.1.0 — 2026-10-27: fallback по user_id, если seller_name пуст
 // ============================================================
 
 /**
@@ -12,6 +12,24 @@
  */
 
 import { formatMoney, formatNumber, formatDateTime, escapeHtml } from '../utils/formatters.js';
+
+// ============================================================
+// Хелперы
+// ============================================================
+
+/**
+ * Возвращает человекочитаемое имя продавца.
+ * Приоритет: seller_name → fallback по user_id → '--'.
+ *
+ * @param {Object} row — shift или sale
+ * @returns {string}
+ */
+function resolveSellerName(row) {
+    const name = row?.seller_name?.trim();
+    if (name) return name;
+    if (row?.user_id) return `Пользователь ${String(row.user_id).slice(0, 8)}`;
+    return '--';
+}
 
 // ============================================================
 // Вычисления
@@ -30,7 +48,7 @@ function computeShiftsBySeller(shifts) {
     const bySeller = {};
 
     shifts.forEach(shift => {
-        const name = shift.seller_name || 'Неизвестный';
+        const name = resolveSellerName(shift);
         if (!bySeller[name]) {
             bySeller[name] = { shifts: 0, salesCount: 0, revenue: 0, profit: 0 };
         }
@@ -104,7 +122,7 @@ function renderShiftsTable(shifts) {
                         <tr>
                             <td>${formatDateTime(s.opened_at)}</td>
                             <td>${s.closed_at ? formatDateTime(s.closed_at) : '--'}</td>
-                            <td>${escapeHtml(s.seller_name || '--')}</td>
+                            <td>${escapeHtml(resolveSellerName(s))}</td>
                             <td>${s.sales_count || 0}</td>
                             <td class="money">${formatMoney(s.total_revenue || 0)}</td>
                             <td>

@@ -1,6 +1,6 @@
 // ============================================================
 // components/ReportSales.js
-// v1.1.0 — 2026-09-18: колонка «Продавец»
+// v1.2.0 — 2026-10-27: fallback по user_id, если seller_name пуст
 // ============================================================
 
 /**
@@ -27,7 +27,7 @@ function computeSalesSummary(sales) {
 }
 
 // ============================================================
-// Рендеринг
+// Хелперы
 // ============================================================
 
 /**
@@ -46,6 +46,24 @@ function normalizeItems(items) {
     }
     return [];
 }
+
+/**
+ * Возвращает человекочитаемое имя продавца.
+ * Приоритет: seller_name → fallback по user_id → '—'.
+ *
+ * @param {Object} sale
+ * @returns {string}
+ */
+function resolveSellerName(sale) {
+    const name = sale?.seller_name?.trim();
+    if (name) return name;
+    if (sale?.user_id) return `Пользователь ${String(sale.user_id).slice(0, 8)}`;
+    return '—';
+}
+
+// ============================================================
+// Рендеринг
+// ============================================================
 
 function renderSalesTable(sales) {
     if (sales.length === 0) {
@@ -69,12 +87,11 @@ function renderSalesTable(sales) {
                     ${sales.map(sale => {
                         const items = normalizeItems(sale.items);
                         const itemCount = items.length;
-                        const seller = sale.seller_name?.trim() || '—';
 
                         return `
                             <tr>
                                 <td>${formatDateTime(sale.created_at)}</td>
-                                <td class="seller-cell">${escapeHtml(seller)}</td>
+                                <td class="seller-cell">${escapeHtml(resolveSellerName(sale))}</td>
                                 <td>${itemCount} поз.</td>
                                 <td class="money">${formatMoney(sale.total)}</td>
                                 <td class="money">${formatMoney(sale.profit)}</td>

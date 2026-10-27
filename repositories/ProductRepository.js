@@ -1,6 +1,6 @@
 // ============================================================
 // repositories/ProductRepository.js
-// v1.1.0 — 2026-09-18: добавлены uploadPhoto / deletePhoto
+// v1.2.0 — 2026-10-27: чтение quantity_limit
 // ============================================================
 
 /**
@@ -78,14 +78,6 @@ function invalidateCache() {
 // Работа с фото товара
 // ============================================================
 
-/**
- * Загружает фото товара в Storage.
- * Валидирует MIME-тип и размер.
- *
- * @param {File} file
- * @returns {Promise<string>} publicUrl загруженного файла
- * @throws {Error} при невалидном файле или ошибке загрузки
- */
 async function uploadPhoto(file) {
     if (!file) {
         throw new Error('Файл не передан');
@@ -114,18 +106,10 @@ async function uploadPhoto(file) {
     return data.publicUrl;
 }
 
-/**
- * Удаляет фото товара из Storage по его publicUrl.
- * Молча игнорирует ошибки — удаление не критично.
- *
- * @param {string} photoUrl
- * @returns {Promise<void>}
- */
 async function deletePhoto(photoUrl) {
     if (!photoUrl) return;
 
     try {
-        // URL вида: https://xxx.supabase.co/storage/v1/object/public/product-photos/product-123-abc.jpg
         const fileName = photoUrl.split('/').pop();
         if (!fileName) return;
 
@@ -140,13 +124,6 @@ async function deletePhoto(photoUrl) {
 // ============================================================
 
 export const ProductRepository = {
-    /**
-     * Загружает все товары.
-     *
-     * @param {Object} [options]
-     * @param {boolean} [options.force=false]
-     * @returns {Promise<Object[]>}
-     */
     async loadAll({ force = false } = {}) {
         if (!force) {
             const cached = loadCache();
@@ -164,24 +141,11 @@ export const ProductRepository = {
         return data || [];
     },
 
-    /**
-     * Загружает товары в наличии.
-     *
-     * @param {Object} [options]
-     * @param {boolean} [options.force=false]
-     * @returns {Promise<Object[]>}
-     */
     async loadInStock({ force = false } = {}) {
         const all = await this.loadAll({ force });
         return all.filter(p => p.status === 'in_stock');
     },
 
-    /**
-     * Получает товар по ID.
-     *
-     * @param {string} id
-     * @returns {Promise<Object|null>}
-     */
     async getById(id) {
         const { data, error } = await supabase
             .from('products')
@@ -193,12 +157,6 @@ export const ProductRepository = {
         return data || null;
     },
 
-    /**
-     * Создаёт товар.
-     *
-     * @param {Object} productData
-     * @returns {Promise<Object>} созданный товар
-     */
     async create(productData) {
         const { data, error } = await supabase
             .from('products')
@@ -210,7 +168,8 @@ export const ProductRepository = {
                 attributes: productData.attributes || {},
                 photo_url: productData.photo_url || null,
                 created_by: productData.created_by,
-                status: 'in_stock'
+                status: 'in_stock',
+                quantity_limit: Number(productData.quantity_limit) || 1
             })
             .select()
             .single();
@@ -221,13 +180,6 @@ export const ProductRepository = {
         return data;
     },
 
-    /**
-     * Обновляет товар.
-     *
-     * @param {string} id
-     * @param {Object} updates
-     * @returns {Promise<Object>}
-     */
     async update(id, updates) {
         const { data, error } = await supabase
             .from('products')
@@ -242,12 +194,6 @@ export const ProductRepository = {
         return data;
     },
 
-    /**
-     * Удаляет товар.
-     *
-     * @param {string} id
-     * @returns {Promise<void>}
-     */
     async remove(id) {
         const { error } = await supabase
             .from('products')
@@ -259,20 +205,7 @@ export const ProductRepository = {
         invalidateCache();
     },
 
-    /**
-     * Загружает фото товара в Storage.
-     *
-     * @param {File} file
-     * @returns {Promise<string>} publicUrl
-     */
     uploadPhoto,
-
-    /**
-     * Удаляет фото товара из Storage.
-     *
-     * @param {string} photoUrl
-     * @returns {Promise<void>}
-     */
     deletePhoto
 };
 

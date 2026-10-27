@@ -1,8 +1,7 @@
 /**
  * Reports Layout - Business Professional
  *
- * v5.1.0 — 2026-10-27: плоские KPI-карточки, убраны цветные полосы,
- *                      uppercase, monospace у сумм, «таблетки» статусов.
+ * v5.2.0 — 2026-10-27: отступ под табами, увеличенный gap у row-actions
  *
  * @stylesheet reports
  */
@@ -68,6 +67,7 @@
     border: 1px solid #e0dbd3;
     width: fit-content;
     flex-shrink: 0;
+    margin-bottom: var(--spacing-4);
 }
 
 .reports-tabs .tab-btn {
@@ -644,7 +644,7 @@
 /* ========== ROW ACTIONS ========== */
 .row-actions {
     display: flex;
-    gap: var(--spacing-1);
+    gap: var(--spacing-2);
     justify-content: center;
 }
 

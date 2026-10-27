@@ -264,18 +264,68 @@ export function onAuthChange(callback) {
         if (index !== -1) authChangeCallbacks.splice(index, 1);
     };
 }
+// Добавить в конец core/auth.js, перед export default
 
+/**
+ * Проверяет, что email/пароль принадлежат администратору.
+ * НЕ меняет текущую сессию — использует отдельный Supabase-клиент.
+ *
+ * @param {string} email
+ * @param {string} password
+ * @returns {Promise<{ok: boolean, error?: string, user?: Object}>}
+ */
+export async function verifyAdminCredentials(email, password) {
+    try {
+        const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+        const { SUPABASE_URL } = await import('./supabase-client.js');
+        // Тот же anon key что в основном клиенте
+        const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJoZHduaWl5cnJ1amVvdWJydmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2MzM2MTYsImV4cCI6MjA5MjIwOTYxNn0.-EilGBYgNNRraTjEqilYuvk-Pfy_Mf5TNEtS1NrU2WM';
+
+        const temp = createClient(SUPABASE_URL, ANON_KEY, {
+            auth: { persistSession: false, autoRefreshToken: false, storageKey: 'temp-admin-check' }
+        });
+
+        const { data, error } = await temp.auth.signInWithPassword({
+            email: email.trim().toLowerCase(),
+            password
+        });
+
+        if (error || !data?.user) {
+            return { ok: false, error: 'Неверный email или пароль' };
+        }
+
+        // Проверяем роль
+        const { data: profile, error: pErr } = await temp
+            .from('profiles')
+            .select('role:roles(name)')
+            .eq('id', data.user.id)
+            .single();
+
+        // Всегда разлогиниваем временный клиент
+        await temp.auth.signOut();
+
+        if (pErr) {
+            return { ok: false, error: 'Не удалось проверить роль' };
+        }
+
+        const roleName = profile?.role?.name;
+        if (roleName !== 'admin') {
+            return { ok: false, error: 'Этот пользователь не администратор' };
+        }
+
+        return { ok: true, user: { id: data.user.id, email: data.user.email } };
+
+    } catch (err) {
+        console.error('[auth] verifyAdminCredentials error:', err);
+        return { ok: false, error: 'Ошибка проверки: ' + (err.message || '') };
+    }
+}
 // ============================================================
 // Экспорт по умолчанию
 // ============================================================
 
 export default {
-    initAuth,
-    signIn,
-    logout,
-    getCurrentUser,
-    hasPermission,
-    getPermissions,
-    requireAuth,
-    onAuthChange
+    initAuth, signIn, logout, getCurrentUser, hasPermission,
+    getPermissions, requireAuth, onAuthChange,
+    verifyAdminCredentials
 };
