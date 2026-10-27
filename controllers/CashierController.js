@@ -1,7 +1,6 @@
 // ============================================================
 // controllers/CashierController.js
-// v2.5.0 — 2026-10-27: повторная печать чека, офлайн-индикатор,
-//                      защита от дублей, проверка корзины при закрытии
+// v2.6.0 — 2026-10-27: тост лимита, кнопка повтора печати в тосте
 // ============================================================
 //
 // НАЗНАЧЕНИЕ
@@ -21,6 +20,8 @@
 //   usbPrinter           — работа с ESC/POS-принтером (WebUSB)
 //
 // ИЗМЕНЕНИЯ
+//   v2.6.0 — кнопка «Повторить печать» прямо в тосте ошибки печати,
+//            подписка на 'limit-reached' из CartStore
 //   v2.5.0 — повторная печать последнего чека, офлайн-индикатор,
 //            запрет дублей штучного товара, проверка корзины
 //            при закрытии смены, F9 не работает в офлайне
@@ -164,25 +165,23 @@ function initUsbScanner() {
 }
 
 /**
- * Добавляет товар в корзину с защитой от дублей штучного товара.
- * Штучным считаем товар, у которого нет поля quantity_limit
- * или оно === 1. Для комиссионки это дефолт.
+ * Добавляет товар в корзину.
+ *
+ * Защита от дублей штучного товара теперь живёт в CartStore
+ * (лимит quantity_limit, по умолчанию 1). Здесь только уведомление
+ * о результате, чтобы не дублировать логику в двух местах.
  *
  * @param {Object} product
  */
 function addProductToCart(product) {
     if (!product) return;
 
-    const alreadyInCart = cartStore.getItems().some(i => i.id === product.id);
-    const isSinglePiece = !product.quantity_limit || Number(product.quantity_limit) === 1;
-
-    if (alreadyInCart && isSinglePiece) {
-        showNotification(`«${product.name}» уже в корзине`, 'warning');
-        return;
+    const ok = cartStore.addItem(product);
+    if (ok) {
+        showNotification(`«${product.name}» добавлен в корзину`, 'success');
     }
-
-    cartStore.addItem(product);
-    showNotification(`«${product.name}» добавлен в корзину`, 'success');
+    // При достижении лимита CartStore эмитит 'limit-reached' —
+    // обработка в bindGlobalEvents()
 }
 
 // ============================================================
@@ -585,11 +584,26 @@ async function checkout() {
         if (printResult.success) {
             showNotification('Чек напечатан', 'success', { duration: 2000 });
         } else {
-            showNotification(
-                `Чек не напечатан: ${printResult.error}. Нажмите «Печать чека» в шапке смены.`,
+            // Тост без автоскрытия + кнопка «Повторить печать»
+            const n = showNotification(
+                `Чек не напечатан: ${printResult.error}`,
                 'warning',
-                { duration: 6000 }
+                { duration: 0, title: 'Печать не удалась' }
             );
+            const retry = document.createElement('button');
+            retry.textContent = 'Повторить печать';
+            retry.className = 'btn-secondary btn-sm';
+            retry.style.cssText = 'margin-top:8px;padding:4px 12px;font-size:12px;';
+            retry.onclick = async () => {
+                const r = await printReceiptAfterSale(state.lastReceipt);
+                if (r.success) {
+                    n?.remove();
+                    showNotification('Чек напечатан', 'success');
+                } else {
+                    showNotification(`Всё ещё не удалось: ${r.error}`, 'error');
+                }
+            };
+            n?.querySelector('div')?.appendChild(retry);
         }
 
         // Перерисовываем, чтобы появилась кнопка «Печать чека»
@@ -611,8 +625,8 @@ async function quickAdd() {
     });
 
     if (result) {
-        cartStore.addItem(result);
-        showNotification(`"${result.name}" добавлен в корзину`, 'success');
+        // addItem сам заблокирует, если товар уже в корзине (лимит)
+        addProductToCart(result);
     }
 }
 
@@ -762,6 +776,21 @@ function onStoreChange() {
     updateMobileCartTrigger();
 }
 
+/**
+ * Обработчик события 'limit-reached' из CartStore.
+ * Показывает продавцу, что штучный товар уже в корзине.
+ *
+ * @param {{id: string, name: string, limit: number}} payload
+ */
+function onLimitReached(payload) {
+    if (!payload) return;
+    showNotification(
+        `«${payload.name}» уже в корзине — штучный товар`,
+        'warning',
+        { duration: 3000 }
+    );
+}
+
 // ============================================================
 // Загрузка данных с таймаутом
 // ============================================================
@@ -876,6 +905,9 @@ function bindGlobalEvents() {
     cartStore.on('change', onStoreChange);
     shiftStore.on('change', onStoreChange);
 
+    // Единая точка уведомления о достижении лимита штучного товара
+    cartStore.on('limit-reached', onLimitReached);
+
     window.addEventListener('resize', () => {
         updateFabVisibility();
         renderMobileCartTrigger();
@@ -900,7 +932,7 @@ function bindGlobalEvents() {
 }
 
 async function init() {
-    console.log('[Cashier] v2.5.0 — reprint + offline banner + duplicate guard');
+    console.log('[Cashier] v2.6.0 — limit toasts + retry-print button');
 
     const headerHtml = renderAppHeader({
         currentPage: 'cashier',

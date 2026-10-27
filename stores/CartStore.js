@@ -1,6 +1,6 @@
 // ============================================================
 // stores/CartStore.js
-// v1.2.0 — 2026-04-30: валидация товаров при загрузке из кэша
+// v1.3.0 — 2026-10-27: блокировка количества для штучных товаров
 // ============================================================
 //
 // НАЗНАЧЕНИЕ
@@ -25,8 +25,8 @@
 //   5. Оставшиеся товары остаются в корзине и отображаются пользователю
 //
 //   При добавлении/удалении товаров:
-//   - addItem() добавляет или увеличивает количество
-//   - updateQuantity() изменяет количество ±1
+//   - addItem() добавляет или увеличивает количество (в пределах лимита)
+//   - updateQuantity() изменяет количество ±1 (в пределах лимита)
 //   - removeItem() удаляет товар
 //   - reset() очищает корзину после успешной продажи
 //
@@ -42,6 +42,10 @@
 //   При загрузке товары с истёкшим TTL игнорируются
 //
 // ИЗМЕНЕНИЯ
+//   v1.3.0 — блокировка количества для штучных товаров:
+//            - quantity_limit у товара (по умолчанию 1)
+//            - addItem()/updateQuantity() не дают превысить лимит
+//            - событие 'limit-reached' для UI-уведомления
 //   v1.2.0 — улучшена валидация при загрузке из кэша:
 //            - loadFromCache() всегда проверяет статус товаров
 //            - удалённые/проданные товары удаляются из восстановленной корзины
@@ -74,12 +78,15 @@ const CART_KEY = 'cart_cache';
 /** Время жизни кэша в миллисекундах (60 минут) */
 const CART_TTL_MS = 60 * 60 * 1000;
 
+/** Лимит по умолчанию для товара без явного quantity_limit (комиссионка) */
+const DEFAULT_QUANTITY_LIMIT = 1;
+
 // ============================================================
 // Состояние
 // ============================================================
 
 const state = {
-    /** @type {Array<{id: string, name: string, price: number, cost_price: number, quantity: number, discount: number}>} */
+    /** @type {Array<{id: string, name: string, price: number, cost_price: number, quantity: number, discount: number, quantity_limit: number}>} */
     items: [],
 
     /** @type {number} общая скидка на корзину в процентах (0–100) */
@@ -150,6 +157,25 @@ function clearCache() {
 
 class CartStore extends EventEmitter {
     /**
+     * Резолвит лимит количества для товара.
+     * Приоритет: quantity_limit из product → fallback → DEFAULT.
+     *
+     * @private
+     * @param {Object|null} product
+     * @param {number} [fallbackLimit]
+     * @returns {number}
+     */
+    _resolveLimit(product, fallbackLimit) {
+        const fromProduct = Number(product?.quantity_limit);
+        if (Number.isFinite(fromProduct) && fromProduct > 0) return fromProduct;
+
+        const fromFallback = Number(fallbackLimit);
+        if (Number.isFinite(fromFallback) && fromFallback > 0) return fromFallback;
+
+        return DEFAULT_QUANTITY_LIMIT;
+    }
+
+    /**
      * Загружает корзину из кэша и проверяет товары на актуальность.
      *
      * Алгоритм:
@@ -197,9 +223,17 @@ class CartStore extends EventEmitter {
                     return false;
                 }
 
-                // Обновляем цену и себестоимость из актуальных данных
+                // Обновляем цену, себестоимость и лимит из актуальных данных
                 item.price = product.price || item.price;
                 item.cost_price = product.cost_price || item.cost_price;
+                item.quantity_limit = this._resolveLimit(product, item.quantity_limit);
+
+                // Не даём quantity превысить лимит после восстановления
+                if (item.quantity > item.quantity_limit) {
+                    console.warn('[CartStore] Quantity exceeds limit, clamping:', item.name,
+                        item.quantity, '->', item.quantity_limit);
+                    item.quantity = item.quantity_limit;
+                }
 
                 return true;
             });
@@ -208,10 +242,10 @@ class CartStore extends EventEmitter {
             if (removedItems.length > 0) {
                 console.warn('[CartStore] Removed', removedItems.length, 'unavailable items from cache:',
                     removedItems.map(i => `${i.name} (reason: ${i.reason})`));
-                
+
                 // Сохраняем очищенную корзину в кэш
                 saveCache();
-                
+
                 // Уведомляем подписчиков об изменении
                 this.emit('change');
             }
@@ -226,20 +260,22 @@ class CartStore extends EventEmitter {
 
         // 6. Уведомляем подписчиков
         this.emit('change');
-        
+
         return state.items.length > 0;
     }
 
     /**
      * Добавляет товар в корзину.
-     * Если товар уже есть — увеличивает количество на 1.
+     * Если товар уже есть — увеличивает количество на 1 (в пределах лимита).
+     * Для штучного товара (лимит 1) повторное добавление блокируется.
      *
      * @param {Object} product — объект товара из productStore
      * @param {string} product.id — уникальный идентификатор
      * @param {string} product.name — название товара
      * @param {number} product.price — цена продажи
      * @param {number} [product.cost_price=0] — себестоимость
-     * @returns {boolean} true если товар добавлен успешно
+     * @param {number} [product.quantity_limit] — лимит количества (по умолчанию 1)
+     * @returns {boolean} true если товар добавлен/количество увеличено
      */
     addItem(product) {
         if (!product?.id) {
@@ -248,10 +284,17 @@ class CartStore extends EventEmitter {
         }
 
         const existing = state.items.find(i => i.id === product.id);
+        const limit = this._resolveLimit(product, existing?.quantity_limit);
 
         if (existing) {
-            // Товар уже в корзине — увеличиваем количество
+            // Товар уже в корзине — увеличиваем количество, если не превышен лимит
+            if (existing.quantity >= limit) {
+                console.log('[CartStore] Limit reached for:', product.name, 'limit:', limit);
+                this.emit('limit-reached', { id: product.id, name: product.name, limit });
+                return false;
+            }
             existing.quantity += 1;
+            existing.quantity_limit = limit;
             console.log('[CartStore] Increased quantity for:', product.name, 'to:', existing.quantity);
         } else {
             // Новый товар — добавляем
@@ -261,7 +304,8 @@ class CartStore extends EventEmitter {
                 price: product.price || 0,
                 cost_price: product.cost_price || 0,
                 quantity: 1,
-                discount: 0
+                discount: 0,
+                quantity_limit: limit
             });
             console.log('[CartStore] Added new item:', product.name);
         }
@@ -274,6 +318,7 @@ class CartStore extends EventEmitter {
     /**
      * Изменяет количество товара на указанную величину.
      * Если итоговое количество <= 0 — удаляет товар из корзины.
+     * Если превышает quantity_limit — блокирует изменение.
      *
      * @param {string} productId — ID товара
      * @param {number} delta — изменение количества (+1 или -1)
@@ -286,6 +331,7 @@ class CartStore extends EventEmitter {
             return false;
         }
 
+        const limit = this._resolveLimit(null, item.quantity_limit);
         const newQty = item.quantity + delta;
 
         if (newQty <= 0) {
@@ -293,9 +339,15 @@ class CartStore extends EventEmitter {
             return this.removeItem(productId);
         }
 
+        if (newQty > limit) {
+            console.log('[CartStore] Limit reached for:', item.name, 'limit:', limit);
+            this.emit('limit-reached', { id: item.id, name: item.name, limit });
+            return false;
+        }
+
         item.quantity = newQty;
         console.log('[CartStore] Updated quantity for:', item.name, 'to:', newQty);
-        
+
         saveCache();
         this.emit('change');
         return true;
@@ -309,7 +361,7 @@ class CartStore extends EventEmitter {
      */
     removeItem(productId) {
         const initialLength = state.items.length;
-        
+
         state.items = state.items.filter(i => i.id !== productId);
 
         if (state.items.length !== initialLength) {
@@ -339,7 +391,7 @@ class CartStore extends EventEmitter {
 
         item.discount = Math.min(100, Math.max(0, percent || 0));
         console.log('[CartStore] Set discount for:', item.name, 'to:', item.discount + '%');
-        
+
         saveCache();
         this.emit('change');
         return true;
@@ -353,7 +405,7 @@ class CartStore extends EventEmitter {
     setTotalDiscount(percent) {
         state.totalDiscount = Math.min(100, Math.max(0, percent || 0));
         console.log('[CartStore] Set total discount to:', state.totalDiscount + '%');
-        
+
         saveCache();
         this.emit('change');
     }
@@ -365,10 +417,10 @@ class CartStore extends EventEmitter {
      */
     reset() {
         console.log('[CartStore] Resetting cart');
-        
+
         state.items = [];
         state.totalDiscount = 0;
-        
+
         clearCache();
         this.emit('change');
     }
@@ -381,7 +433,7 @@ class CartStore extends EventEmitter {
      * Возвращает копию массива товаров в корзине.
      * Не возвращает оригинальный массив для защиты от случайных изменений.
      *
-     * @returns {Array<{id: string, name: string, price: number, cost_price: number, quantity: number, discount: number}>}
+     * @returns {Array<{id: string, name: string, price: number, cost_price: number, quantity: number, discount: number, quantity_limit: number}>}
      */
     getItems() {
         return [...state.items];

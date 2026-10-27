@@ -1,5 +1,6 @@
 // ============================================================
 // components/CashierCart.js
+// v1.2.0 — 2026-10-27: disabled + для штучных товаров, лимит в счётчике
 // ============================================================
 
 /**
@@ -49,6 +50,10 @@ function isMobile() {
 /**
  * Рендерит HTML-строку содержимого панели корзины.
  *
+ * Для товара с quantity_limit = 1 кнопка «+» disabled —
+ * продавец физически не может добавить штучный товар дважды.
+ * Для товаров с лимитом > 1 показывается «N / limit».
+ *
  * @returns {string} HTML
  */
 export function renderCartPanelContent() {
@@ -58,7 +63,14 @@ export function renderCartPanelContent() {
 
     const itemsHtml = items.length === 0
         ? '<div class="cart-empty">Корзина пуста</div>'
-        : items.map(item => `
+        : items.map(item => {
+            const limit = Number(item.quantity_limit) || 1;
+            const atLimit = item.quantity >= limit;
+            const qtyLabel = limit > 1
+                ? `${item.quantity} / ${limit}`
+                : `${item.quantity}`;
+
+            return `
             <div class="cart-item">
                 <div class="cart-item-main">
                     <div class="cart-item-info">
@@ -67,15 +79,16 @@ export function renderCartPanelContent() {
                     <div class="cart-item-actions">
                         <div class="quantity-control">
                             <button class="btn-qty" data-action="decrease" data-id="${item.id}">-</button>
-                            <span class="qty-input">${item.quantity}</span>
-                            <button class="btn-qty" data-action="increase" data-id="${item.id}">+</button>
+                            <span class="qty-input">${qtyLabel}</span>
+                            <button class="btn-qty" data-action="increase" data-id="${item.id}"
+                                ${atLimit ? 'disabled title="Штучный товар — больше нельзя"' : ''}>+</button>
                         </div>
                         <span class="item-total">${formatMoney(cartStoreRef.getItemTotal(item.id))}</span>
                         <button class="btn-remove" data-action="remove" data-id="${item.id}">x</button>
                     </div>
                 </div>
-            </div>
-        `).join('');
+            </div>`;
+        }).join('');
 
     return `
         <div class="cart-header">

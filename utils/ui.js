@@ -89,8 +89,12 @@ function trimOldNotifications(container) {
 // ========== ПУБЛИЧНЫЕ ФУНКЦИИ ==========
 
 /**
- * Показывает уведомление в правом верхнем углу
- * 
+ * Показывает уведомление в правом верхнем углу.
+ *
+ * v1.3.0 — 2026-10-27: убрана цветная плашка слева (ИИ-маркер),
+ *                      заменена на нейтральную рамку + цветную точку.
+ *                      Текст, заголовок, кнопка закрытия — без изменений.
+ *
  * @param {string} message - Текст уведомления
  * @param {string} [type='info'] - Тип: 'success', 'error', 'warning', 'info'
  * @param {Object} [options] - Дополнительные опции
@@ -100,44 +104,34 @@ function trimOldNotifications(container) {
  */
 export function showNotification(message, type = 'info', options = {}) {
     const { duration = NOTIFICATION_AUTO_HIDE_MS, title = '' } = options;
-    
+
     const container = getNotificationContainer();
     trimOldNotifications(container);
-    
-    // Символы по типу
-    const icons = {
-        success: 'OK',
-        error: '!',
-        warning: '!!',
-        info: 'i'
-    };
-    
-    const icon = icons[type] || icons.info;
-    
-    const notification = document.createElement('div');
-    notification.className = `sh-notification sh-notification-${type}`;
-    notification.style.cssText = `
-        display: flex;
-        align-items: flex-start;
-        gap: 12px;
-        padding: 12px 16px;
-        background: white;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        border-left: 4px solid;
-        pointer-events: auto;
-        animation: sh-slide-in 0.2s ease-out;
-    `;
-    
-    // Цвета границы по типу
-    const borderColors = {
+
+    // Цвет точки по типу (только для индикатора, не для фона/рамки)
+    const dotColors = {
         success: '#16a34a',
         error: '#dc2626',
         warning: '#ea580c',
         info: '#0284c7'
     };
-    notification.style.borderLeftColor = borderColors[type] || borderColors.info;
-    
+    const dotColor = dotColors[type] || dotColors.info;
+
+    const notification = document.createElement('div');
+    notification.className = `sh-notification sh-notification-${type}`;
+    notification.style.cssText = `
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 12px 16px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+        border: 1px solid #e2e8f0;
+        pointer-events: auto;
+        animation: sh-slide-in 0.2s ease-out;
+    `;
+
     // Добавляем стили анимации если их ещё нет
     if (!document.getElementById('sh-notification-styles')) {
         const style = document.createElement('style');
@@ -154,24 +148,20 @@ export function showNotification(message, type = 'info', options = {}) {
         `;
         document.head.appendChild(style);
     }
-    
+
     notification.innerHTML = `
-        <div style="
-            width: 24px;
-            height: 24px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        <span style="
+            display: inline-block;
+            width: 8px;
+            height: 8px;
             border-radius: 50%;
-            font-weight: bold;
-            font-size: 12px;
+            background: ${dotColor};
             flex-shrink: 0;
-            background: ${borderColors[type]}15;
-            color: ${borderColors[type]};
-        ">${icon}</div>
+            margin-top: 7px;
+        "></span>
         <div style="flex: 1; min-width: 0;">
             ${title ? `<div style="font-weight: 600; margin-bottom: 2px; color: #0f172a;">${escapeHtml(title)}</div>` : ''}
-            <div style="font-size: 14px; color: #475569; word-break: break-word;">${escapeHtml(message)}</div>
+            <div style="font-size: 14px; color: #475569; line-height: 1.4; word-break: break-word;">${escapeHtml(message)}</div>
         </div>
         <button style="
             width: 24px;
@@ -187,11 +177,11 @@ export function showNotification(message, type = 'info', options = {}) {
             border-radius: 4px;
             flex-shrink: 0;
             padding: 0;
-        " onclick="this.closest('.sh-notification').remove()">x</button>
+        " aria-label="Закрыть" onclick="this.closest('.sh-notification').remove()">×</button>
     `;
-    
+
     container.appendChild(notification);
-    
+
     // Автоматическое скрытие
     if (duration > 0) {
         setTimeout(() => {
@@ -201,7 +191,7 @@ export function showNotification(message, type = 'info', options = {}) {
             }
         }, duration);
     }
-    
+
     return notification;
 }
 

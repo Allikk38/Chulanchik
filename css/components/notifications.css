@@ -5,10 +5,11 @@
  * Без анимаций, без прогресс-баров.
  * 
  * @stylesheet notifications
- * @version 6.0.0
+ * @version 5.0.0
  * @changes
- * - v6.0.0: убраны эмодзи-иконки (✓ ✕ ⚠ ℹ), цветная полоса заменена
- *           на нейтральную рамку + цветную точку-индикатор.
+ * - Объединены дублирующиеся стили.
+ * - Добавлен pointer-events для контейнера.
+ * - Упрощены селекторы.
  */
 
 /* ========== NOTIFICATION CONTAINER ========== */
@@ -42,6 +43,7 @@
     box-shadow: var(--shadow-md);
     
     border: var(--border-width) solid var(--color-border);
+    border-left-width: 3px;
 }
 
 .notification-content {
@@ -86,36 +88,89 @@
 }
 
 /* ========== NOTIFICATION TYPES ========== */
+.notification-success {
+    border-left-color: var(--color-success);
+}
+
 .notification-success .notification-title {
     color: var(--color-success-dark);
+}
+
+.notification-error {
+    border-left-color: var(--color-danger);
 }
 
 .notification-error .notification-title {
     color: var(--color-danger-dark);
 }
 
+.notification-warning {
+    border-left-color: var(--color-warning);
+}
+
 .notification-warning .notification-title {
     color: var(--color-warning-dark);
+}
+
+.notification-info {
+    border-left-color: var(--color-info);
 }
 
 .notification-info .notification-title {
     color: var(--color-info-dark);
 }
 
-/* ========== NOTIFICATION ICONS (точка-индикатор) ========== */
+/* ========== NOTIFICATION ICONS ========== */
 .notification-icon {
     flex-shrink: 0;
-    width: 8px;
-    height: 8px;
-    margin-top: 6px;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     border-radius: var(--radius-full);
-    background: var(--color-gray-400);
+    font-size: 14px;
 }
 
-.notification-success .notification-icon { background: var(--color-success); }
-.notification-error   .notification-icon { background: var(--color-danger); }
-.notification-warning .notification-icon { background: var(--color-warning); }
-.notification-info    .notification-icon { background: var(--color-info); }
+.notification-success .notification-icon {
+    background: var(--color-success-bg);
+    color: var(--color-success-dark);
+}
+
+.notification-success .notification-icon::before {
+    content: '✓';
+    font-weight: var(--font-weight-bold);
+}
+
+.notification-error .notification-icon {
+    background: var(--color-danger-bg);
+    color: var(--color-danger-dark);
+}
+
+.notification-error .notification-icon::before {
+    content: '✕';
+    font-weight: var(--font-weight-bold);
+}
+
+.notification-warning .notification-icon {
+    background: var(--color-warning-bg);
+    color: var(--color-warning-dark);
+}
+
+.notification-warning .notification-icon::before {
+    content: '⚠';
+    font-weight: var(--font-weight-bold);
+}
+
+.notification-info .notification-icon {
+    background: var(--color-info-bg);
+    color: var(--color-info-dark);
+}
+
+.notification-info .notification-icon::before {
+    content: 'ℹ';
+    font-weight: var(--font-weight-bold);
+}
 
 /* ========== INLINE NOTIFICATION ========== */
 .notification-inline {
@@ -128,30 +183,31 @@
     border-radius: var(--radius-md);
     font-size: var(--font-size-sm);
     border: var(--border-width) solid var(--color-border);
+    border-left-width: 3px;
 }
 
 .notification-inline.success {
     background: var(--color-success-bg);
+    border-left-color: var(--color-success);
     color: var(--color-success-dark);
-    border-color: var(--color-success-light);
 }
 
 .notification-inline.error {
     background: var(--color-danger-bg);
+    border-left-color: var(--color-danger);
     color: var(--color-danger-dark);
-    border-color: var(--color-danger-light);
 }
 
 .notification-inline.warning {
     background: var(--color-warning-bg);
+    border-left-color: var(--color-warning);
     color: var(--color-warning-dark);
-    border-color: var(--color-warning-light);
 }
 
 .notification-inline.info {
     background: var(--color-info-bg);
+    border-left-color: var(--color-info);
     color: var(--color-info-dark);
-    border-color: var(--color-info-light);
 }
 
 .notification-inline .close-inline {
@@ -189,6 +245,7 @@
     font-size: var(--font-size-sm);
     color: var(--color-info-dark);
     border: var(--border-width) solid var(--color-info-light);
+    border-left: 3px solid var(--color-info);
 }
 
 .draft-notice button {
@@ -219,11 +276,13 @@
 
 .alert-icon {
     flex-shrink: 0;
-    width: 8px;
-    height: 8px;
-    margin-top: 8px;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     border-radius: var(--radius-full);
-    background: var(--color-gray-400);
+    font-size: 16px;
 }
 
 .alert-content {
@@ -268,25 +327,41 @@
     border-color: var(--color-success-light);
     background: var(--color-success-bg);
 }
-.alert-success .alert-icon { background: var(--color-success); }
+
+.alert-success .alert-icon {
+    background: var(--color-success);
+    color: var(--color-white);
+}
 
 .alert-error {
     border-color: var(--color-danger-light);
     background: var(--color-danger-bg);
 }
-.alert-error .alert-icon { background: var(--color-danger); }
+
+.alert-error .alert-icon {
+    background: var(--color-danger);
+    color: var(--color-white);
+}
 
 .alert-warning {
     border-color: var(--color-warning-light);
     background: var(--color-warning-bg);
 }
-.alert-warning .alert-icon { background: var(--color-warning); }
+
+.alert-warning .alert-icon {
+    background: var(--color-warning);
+    color: var(--color-white);
+}
 
 .alert-info {
     border-color: var(--color-info-light);
     background: var(--color-info-bg);
 }
-.alert-info .alert-icon { background: var(--color-info); }
+
+.alert-info .alert-icon {
+    background: var(--color-info);
+    color: var(--color-white);
+}
 
 /* ========== АДАПТИВНОСТЬ ========== */
 @media (max-width: 768px) {
@@ -339,9 +414,9 @@
     }
     
     .notification-icon {
-        width: 6px;
-        height: 6px;
-        margin-top: 6px;
+        width: 20px;
+        height: 20px;
+        font-size: 12px;
     }
     
     .alert {
