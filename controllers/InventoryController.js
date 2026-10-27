@@ -1,5 +1,6 @@
 // ============================================================
 // controllers/InventoryController.js
+// v6.1.0 — 2026-09-18: печать ценников
 // ============================================================
 
 /**
@@ -7,14 +8,15 @@
  *
  * НАЗНАЧЕНИЕ
  *   Управляет фильтрами, рендерингом таблицы/карточек товаров
- *   и действиями с товарами (создание, редактирование, удаление).
+ *   и действиями с товарами (создание, редактирование, удаление,
+ *   печать ценников).
  *
  * ЗАВИСИМОСТИ
  *   productStore              — стор товаров (ProductStore)
  *   ProductService            — бизнес-логика товаров
- *   productStore              — стор товаров (синглтон)
  *   AppHeader                 — рендеринг навигации
  *   ProductForm               — модальная форма товара
+ *   PriceTagForm              — модалка печати ценников
  *   showNotification          — уведомления
  *   showConfirmDialog         — диалог подтверждения
  *   formatters                — форматирование (formatMoney, getCategoryName, getStatusText, escapeHtml)
@@ -26,10 +28,11 @@
  *   4. Подписка на productStore.on('change')
  *   5. Загрузка товаров через productStore.loadProducts()
  *   6. renderAll() отрисовывает статистику, таблицу, карточки
- *   7. Действия пользователя → addProduct(), editProduct(), deleteProduct()
+ *   7. Действия пользователя → addProduct(), editProduct(), deleteProduct(), printTags()
  *   8. Фильтры обновляют renderTable() и renderMobileCards()
  *
  * ИЗМЕНЕНИЯ
+ *   v6.1.0 — добавлена печать ценников (кнопка «Ценники»)
  *   v6.0.1 — рефакторинг: escapeHtml импортируется из utils/formatters.js
  *   v6.0.0 — добавлен просмотр карточек на мобильных
  *
@@ -42,6 +45,7 @@ import ProductService from '../services/ProductService.js';
 import { formatMoney, getCategoryName, getStatusText, escapeHtml } from '../utils/formatters.js';
 import { showNotification, showConfirmDialog } from '../utils/ui.js';
 import { openProductFormModal } from '../components/ProductForm.js';
+import { openPriceTagModal } from '../components/PriceTagForm.js';
 import { renderAppHeader, bindAppHeaderEvents, updateUserName } from '../components/AppHeader.js';
 
 // ============================================================
@@ -79,6 +83,7 @@ const DOM = {
     sortSelect: null,
     addBtn: null,
     refreshBtn: null,
+    printTagsBtn: null,
     selectAllCb: null,
     mobileCardsContainer: null,
     viewToggleBtn: null
@@ -506,6 +511,16 @@ async function deleteProduct(id) {
     renderMobileCards();
 }
 
+/**
+ * Открывает модалку печати ценников.
+ * Передаёт выбранные ID (если пользователь отметил чекбоксами) —
+ * модалка сама решит, использовать их или печатать всё.
+ */
+function printTags() {
+    const selectedIds = Array.from(state.selectedIds);
+    openPriceTagModal({ selectedIds });
+}
+
 // ============================================================
 // Инициализация
 // ============================================================
@@ -519,6 +534,7 @@ function cacheDom() {
     DOM.sortSelect = document.getElementById('sortSelect');
     DOM.addBtn = document.getElementById('addProductBtn');
     DOM.refreshBtn = document.getElementById('refreshBtn');
+    DOM.printTagsBtn = document.getElementById('printTagsBtn');
     DOM.selectAllCb = document.getElementById('selectAllCheckbox');
     DOM.mobileCardsContainer = document.getElementById('mobileCardsContainer');
     DOM.viewToggleBtn = document.getElementById('viewToggleBtn');
@@ -554,6 +570,8 @@ function bindEvents() {
     DOM.refreshBtn?.addEventListener('click', async () => {
         await productStore.loadProducts({ force: true });
     });
+
+    DOM.printTagsBtn?.addEventListener('click', printTags);
 
     DOM.selectAllCb?.addEventListener('change', e => {
         const checked = e.target.checked;
