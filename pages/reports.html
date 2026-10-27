@@ -21,6 +21,12 @@
     <!-- Единый файл стилей -->
     <link rel="stylesheet" href="css/styles.css">
 
+    <!-- Временный переключатель второго дизайна. Удалить вместе с css/design-v2.css -->
+    <script type="module">
+        import { initDesign } from 'utils/design-toggle.js';
+        initDesign();
+    </script>
+
     <style>
         /* ============================================================
            Уникальные стили страницы отчётов

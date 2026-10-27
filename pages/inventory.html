@@ -18,10 +18,13 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
 
-    <!-- Единый файл стилей -->
     <link rel="stylesheet" href="css/styles.css">
 
-    <style>
+    <!-- Временный переключатель второго дизайна. Удалить вместе с css/design-v2.css -->
+    <script type="module">
+        import { initDesign } from 'utils/design-toggle.js';
+        initDesign();
+    </script>
         /* ============================================================
            Уникальные стили страницы склада
            Только то, что отсутствует в общих компонентах и макетах.

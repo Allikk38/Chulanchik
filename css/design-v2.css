@@ -1,0 +1,61 @@
+/* ============================================================
+   design-v2.css — ВТОРОЙ ВАРИАНТ ДИЗАЙНА (вкладка «Отчёты»)
+   ------------------------------------------------------------
+   Это слой переопределений. Ничего не ломает.
+   Чтобы откатиться: удалить этот файл и строку подключения
+   в HTML (см. utils/design-toggle.js).
+   ============================================================ */
+
+/* --- 1. Убрать цветные полосы у KPI-карточек --- */
+.kpi-card {
+    border-left: 1px solid #e0dbd3 !important;
+}
+
+.net-profit-card {
+    border-left: 1px solid #e0dbd3 !important;
+}
+
+/* --- 2. Уменьшить скругления карточек --- */
+.kpi-card,
+.chart-card,
+.card,
+.summary-card,
+.expenses-summary-card {
+    border-radius: 6px !important;
+}
+
+/* --- 3. Убрать «карточку в карточке» у графиков --- */
+.chart-container {
+    border: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+}
+
+/* --- 3b. Убрать фон и рамку у summary-bar расходов --- */
+.expense-summary-bar {
+    background: transparent !important;
+    border: none !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+}
+
+/* --- 5. Иерархия: заголовки карточек — обычный регистр --- */
+.card h4 {
+    text-transform: none !important;
+    letter-spacing: 0 !important;
+    font-size: 13px !important;
+}
+
+.kpi-title {
+    text-transform: none !important;
+    letter-spacing: 0 !important;
+    font-size: 13px !important;
+    color: #6b5e53 !important;
+    font-weight: 400 !important;
+}
+
+/* --- 5b. Убрать моноширинный шрифт у крупных сумм --- */
+.kpi-value,
+.summary-card .value {
+    font-family: inherit !important;
+}

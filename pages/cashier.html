@@ -10,7 +10,10 @@
     <title>Касса | Чуланчик</title>
 
     <base href="/Chulanchik/">
-
+    <script type="module">
+        import { initDesign } from 'utils/design-toggle.js';
+        initDesign();
+    </script>
     <!-- PWA -->
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#1a3c2a">
@@ -20,6 +23,12 @@
 
     <!-- Единый файл стилей -->
     <link rel="stylesheet" href="css/styles.css">
+
+    <!-- Временный переключатель второго дизайна. Удалить вместе с css/design-v2.css -->
+    <script type="module">
+        import { initDesign } from 'utils/design-toggle.js';
+        initDesign();
+    </script>
 
     <style>
         /* ============================================================
